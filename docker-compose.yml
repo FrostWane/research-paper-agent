@@ -54,6 +54,7 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-paper-pdfs}
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-to-at-least-32-characters}
       AI_PROVIDER: ${AI_PROVIDER:-fallback}
+      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-local}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-disabled}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com}
       OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}

@@ -36,10 +36,11 @@ GET  /api/files/papers/{fileId}/preview
 
 ```http
 POST /api/agent/chat
+GET  /api/agent/chats
 GET  /api/papers/{paperId}/chats
 ```
 
-`POST /api/agent/chat` 请求：
+单篇问答请求：
 
 ```json
 {
@@ -49,4 +50,14 @@ GET  /api/papers/{paperId}/chats
 }
 ```
 
-响应中的 `sources` 会返回命中的来源页码和片段。
+全库问答请求：
+
+```json
+{
+  "paperId": null,
+  "question": "请比较这些论文的主要方法路线",
+  "useRag": true
+}
+```
+
+响应中的 `sources` 会返回命中的论文 ID、标题、来源页码和片段。`GET /api/agent/chats` 返回全库问答历史，`GET /api/papers/{paperId}/chats` 返回单篇问答历史。

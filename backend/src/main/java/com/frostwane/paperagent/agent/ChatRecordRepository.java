@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface ChatRecordRepository extends JpaRepository<ChatRecord, Long> {
     List<ChatRecord> findByOwnerIdAndPaperIdOrderByCreatedAtAsc(Long ownerId, Long paperId);
+    List<ChatRecord> findByOwnerIdAndPaperIsNullOrderByCreatedAtAsc(Long ownerId);
 }

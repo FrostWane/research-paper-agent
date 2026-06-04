@@ -57,3 +57,4 @@ paper-agent:
     bucket: ${MINIO_BUCKET:paper-pdfs}
   ai:
     provider: ${AI_PROVIDER:fallback}
+    embedding-provider: ${AI_EMBEDDING_PROVIDER:local}

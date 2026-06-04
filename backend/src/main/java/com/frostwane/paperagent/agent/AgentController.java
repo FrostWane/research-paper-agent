@@ -35,4 +35,9 @@ public class AgentController {
     public ApiResponse<List<ChatRecordResponse>> chats(@PathVariable Long paperId) {
         return ApiResponse.ok(orchestratorService.listChats(paperId, currentUserService.getRequiredUser()));
     }
+
+    @GetMapping("/api/agent/chats")
+    public ApiResponse<List<ChatRecordResponse>> libraryChats() {
+        return ApiResponse.ok(orchestratorService.listLibraryChats(currentUserService.getRequiredUser()));
+    }
 }

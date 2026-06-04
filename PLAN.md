@@ -40,7 +40,7 @@
 - 数据能力：
   - PostgreSQL 启用 pgvector。
   - PDFBox 提取 PDF 文本，按页码和块索引写入 `paper_chunks`。
-  - embedding 存入 pgvector，支持按当前文献检索相关片段。
+  - embedding 存入 pgvector，支持按当前文献或当前用户全库检索相关片段。
 - Agent 设计：
   - 使用 Spring AI + `AgentOrchestratorService`。
   - `RetrieverAgent`：检索论文相关片段。
@@ -50,6 +50,7 @@
 - 新增 API：
   - `POST /api/papers/{id}/parse`
   - `GET /api/papers/{id}/parse-status`
+  - `GET /api/agent/chats`
 - 模型接入：
   - 默认支持无 API Key 的兜底 Agent。
   - 配置 OpenAI-compatible API 后启用 Spring AI `ChatClient`、Embedding 和 RAG 检索。
@@ -85,7 +86,7 @@
 - `papers`：用户归属、标题、作者、年份、关键词、摘要、备注、阅读状态、处理状态、文件引用。
 - `paper_files`：用户归属、原始文件名、MinIO object key、MIME、大小、SHA-256、页数。
 - `paper_chunks`：文献 ID、页码、块序号、文本内容、embedding vector。
-- `chat_records`：用户归属、文献 ID、问题、回答、来源 JSON、模型名、耗时。
+- `chat_records`：用户归属、可为空的文献 ID、问题、回答、来源 JSON、模型名、耗时。
 
 ## Test Plan
 

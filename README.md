@@ -58,12 +58,23 @@ docker run --rm -v ${PWD}/backend:/workspace -w /workspace maven:3.9.9-eclipse-t
 
 ## Agent 与 RAG
 
-第一版默认提供可运行的兜底 Agent。配置 OpenAI-compatible 参数后，后端会通过 Spring AI `ChatClient` 调用真实模型：
+默认提供可运行的兜底 Agent。配置 OpenAI-compatible 参数后，后端会通过 Spring AI `ChatClient` 调用真实模型：
 
 ```env
+AI_PROVIDER=openai
 OPENAI_API_KEY=your-key
 OPENAI_BASE_URL=https://api.openai.com
 OPENAI_CHAT_MODEL=gpt-4o-mini
 ```
 
-向量数据库采用 PostgreSQL + pgvector。PDF 解析后会写入 `paper_chunks`，并为后续 embedding 检索和来源页码追踪预留字段。
+向量数据库采用 PostgreSQL + pgvector。PDF 解析后会写入 `paper_chunks.embedding`，并建立 HNSW 余弦索引。默认使用本地 1536 维 hashing embedding，避免依赖额外云服务；如果要切换到 Spring AI 远程 embedding，可设置：
+
+```env
+AI_EMBEDDING_PROVIDER=openai
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+Agent 支持两种问答范围：
+
+- 单篇论文问答：请求携带 `paperId`。
+- 全库问答：`paperId` 传 `null`，在当前用户所有已解析文献中检索来源片段。

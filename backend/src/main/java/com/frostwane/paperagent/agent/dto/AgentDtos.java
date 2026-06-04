@@ -1,7 +1,6 @@
 package com.frostwane.paperagent.agent.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
@@ -12,7 +11,7 @@ public final class AgentDtos {
     }
 
     public record ChatRequest(
-        @NotNull Long paperId,
+        Long paperId,
         @NotBlank @Size(max = 4000) String question,
         boolean useRag
     ) {

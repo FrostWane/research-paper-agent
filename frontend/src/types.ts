@@ -89,7 +89,7 @@ export interface ChatResponse {
 
 export interface ChatRecord {
   id: number;
-  paperId: number;
+  paperId?: number;
   question: string;
   answer: string;
   sources: SourceResponse[];

@@ -1,6 +1,7 @@
 package com.frostwane.paperagent.parse;
 
 import com.frostwane.paperagent.common.BusinessException;
+import com.frostwane.paperagent.embedding.PaperEmbeddingIndexer;
 import com.frostwane.paperagent.file.FileService;
 import com.frostwane.paperagent.file.PaperFile;
 import com.frostwane.paperagent.paper.Paper;
@@ -30,17 +31,20 @@ public class PaperParseService {
     private final PaperRepository paperRepository;
     private final PaperChunkRepository chunkRepository;
     private final FileService fileService;
+    private final PaperEmbeddingIndexer embeddingIndexer;
 
     public PaperParseService(
         PaperService paperService,
         PaperRepository paperRepository,
         PaperChunkRepository chunkRepository,
-        FileService fileService
+        FileService fileService,
+        PaperEmbeddingIndexer embeddingIndexer
     ) {
         this.paperService = paperService;
         this.paperRepository = paperRepository;
         this.chunkRepository = chunkRepository;
         this.fileService = fileService;
+        this.embeddingIndexer = embeddingIndexer;
     }
 
     @Transactional
@@ -60,10 +64,11 @@ public class PaperParseService {
             List<PaperChunk> chunks = extractChunks(paper, pdfBytes);
             paper.setProcessStatus(ProcessStatus.INDEXING);
             paperRepository.saveAndFlush(paper);
-            chunkRepository.saveAll(chunks);
+            List<PaperChunk> savedChunks = chunkRepository.saveAllAndFlush(chunks);
+            embeddingIndexer.index(savedChunks);
             paper.setProcessStatus(ProcessStatus.INDEXED);
             paperRepository.save(paper);
-            return new ParseStatusResponse(paper.getId(), ProcessStatus.INDEXED.name(), "PDF 已解析，可用于来源片段检索", 100, chunks.size());
+            return new ParseStatusResponse(paper.getId(), ProcessStatus.INDEXED.name(), "PDF 已解析并写入向量索引，可用于来源片段检索", 100, chunks.size());
         } catch (Exception ex) {
             paper.setProcessStatus(ProcessStatus.FAILED);
             paperRepository.save(paper);

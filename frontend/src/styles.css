@@ -689,6 +689,54 @@ select,
   text-align: center;
 }
 
+.library-scope-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.library-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.library-source-list {
+  display: grid;
+  gap: 10px;
+}
+
+.library-source-list button {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 12px;
+  color: var(--ink);
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.library-source-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-source-list em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
 .pdf-rendering {
   position: sticky;
   top: 12px;
@@ -970,6 +1018,7 @@ select,
   }
 
   .metrics,
+  .library-scope-grid,
   .paper-list,
   .form-grid,
   .filters {

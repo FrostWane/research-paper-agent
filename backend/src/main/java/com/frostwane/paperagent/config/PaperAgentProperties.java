@@ -118,6 +118,7 @@ public class PaperAgentProperties {
 
     public static class Ai {
         private String provider = "fallback";
+        private String embeddingProvider = "local";
 
         public String getProvider() {
             return provider;
@@ -125,6 +126,14 @@ public class PaperAgentProperties {
 
         public void setProvider(String provider) {
             this.provider = provider;
+        }
+
+        public String getEmbeddingProvider() {
+            return embeddingProvider;
+        }
+
+        public void setEmbeddingProvider(String embeddingProvider) {
+            this.embeddingProvider = embeddingProvider;
         }
     }
 }

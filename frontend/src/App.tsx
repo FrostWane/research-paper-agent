@@ -31,7 +31,7 @@ import {
   ZoomOut
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { askAgent, listChats } from './api/agent';
+import { askAgent, listChats, listLibraryChats } from './api/agent';
 import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
@@ -82,8 +82,16 @@ const quickPrompts = [
   '请指出这篇论文可能的局限性和后续研究方向。'
 ];
 
+const libraryQuickPrompts = [
+  '请比较这些论文的核心方法差异。',
+  '请梳理当前文献库围绕的主要研究问题。',
+  '请总结这些论文中常见的数据集、指标和实验结论。',
+  '请给出一份适合写综述的结构化大纲。'
+];
+
 type ViewKey = 'library' | 'upload' | 'reader' | 'history';
 type AuthMode = 'login' | 'register';
+type ReaderScope = 'paper' | 'library';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -92,6 +100,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<ViewKey>('library');
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaperId, setSelectedPaperId] = useState<number | null>(null);
+  const [readerScope, setReaderScope] = useState<ReaderScope>('paper');
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [form, setForm] = useState<PaperForm>(emptyForm);
@@ -126,12 +135,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (selectedPaper?.id) {
+    if (readerScope === 'library') {
+      void loadLibraryChatList();
+    } else if (selectedPaper?.id) {
       void loadChatList(selectedPaper.id);
     } else {
       setChats([]);
     }
-  }, [selectedPaper?.id]);
+  }, [readerScope, selectedPaper?.id]);
 
   async function bootstrap() {
     try {
@@ -166,6 +177,15 @@ export default function App() {
     }
   }
 
+  async function loadLibraryChatList() {
+    try {
+      const result = await listLibraryChats();
+      setChats(result);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
+  }
+
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -192,6 +212,7 @@ export default function App() {
     setUser(null);
     setPapers([]);
     setSelectedPaperId(null);
+    setReaderScope('paper');
     setChats([]);
     setActiveView('library');
     showNotice('已退出登录。');
@@ -260,6 +281,7 @@ export default function App() {
       setMetadataStatus('');
       await loadPaperList();
       setSelectedPaperId(paper.id);
+      setReaderScope('paper');
       setActiveView('reader');
       showNotice('文献已加入工作台。');
     } catch (err) {
@@ -270,15 +292,20 @@ export default function App() {
   }
 
   async function handleAsk(prompt = question) {
-    if (!selectedPaper || !prompt.trim()) {
+    if ((readerScope === 'paper' && !selectedPaper) || !prompt.trim()) {
       return;
     }
     try {
       setError('');
       setQuestion('');
       setBusyText('多 Agent 正在检索、生成并校验引用...');
-      await askAgent(selectedPaper.id, prompt.trim(), true);
-      await loadChatList(selectedPaper.id);
+      const paperId = readerScope === 'library' ? null : selectedPaper!.id;
+      await askAgent(paperId, prompt.trim(), true);
+      if (readerScope === 'library') {
+        await loadLibraryChatList();
+      } else {
+        await loadChatList(selectedPaper!.id);
+      }
       showNotice('回答已保存到问答历史。');
     } catch (err) {
       setError(extractErrorMessage(err));
@@ -434,6 +461,7 @@ export default function App() {
             onSearch={handleSearch}
             onSelect={(paper) => {
               setSelectedPaperId(paper.id);
+              setReaderScope('paper');
               setActiveView('reader');
             }}
             onUpload={() => setActiveView('upload')}
@@ -456,11 +484,17 @@ export default function App() {
         {activeView === 'reader' && (
           <ReaderView
             papers={papers}
+            scope={readerScope}
             selectedPaper={selectedPaper}
             chats={chats}
             question={question}
             onQuestionChange={setQuestion}
-            onSelectPaper={(id) => setSelectedPaperId(id)}
+            onSelectScope={(scope, id) => {
+              setReaderScope(scope);
+              if (id) {
+                setSelectedPaperId(id);
+              }
+            }}
             onAsk={(prompt) => void handleAsk(prompt)}
             onToggleRead={(paper) => void handleToggleRead(paper)}
             onParse={(paper) => void handleParse(paper)}
@@ -470,9 +504,15 @@ export default function App() {
         {activeView === 'history' && (
           <HistoryView
             papers={papers}
+            scope={readerScope}
             selectedPaper={selectedPaper}
             chats={chats}
-            onSelectPaper={(id) => setSelectedPaperId(id)}
+            onSelectScope={(scope, id) => {
+              setReaderScope(scope);
+              if (id) {
+                setSelectedPaperId(id);
+              }
+            }}
           />
         )}
       </main>
@@ -668,66 +708,115 @@ function UploadView({
 
 function ReaderView({
   papers,
+  scope,
   selectedPaper,
   chats,
   question,
   onQuestionChange,
-  onSelectPaper,
+  onSelectScope,
   onAsk,
   onToggleRead,
   onParse
 }: {
   papers: Paper[];
+  scope: ReaderScope;
   selectedPaper: Paper | null;
   chats: ChatRecord[];
   question: string;
   onQuestionChange: (value: string) => void;
-  onSelectPaper: (id: number) => void;
+  onSelectScope: (scope: ReaderScope, id?: number) => void;
   onAsk: (prompt?: string) => void;
   onToggleRead: (paper: Paper) => void;
   onParse: (paper: Paper) => void;
 }) {
-  if (!selectedPaper) {
+  const indexedCount = papers.filter((paper) => paper.processStatus === 'INDEXED').length;
+  const prompts = scope === 'library' ? libraryQuickPrompts : quickPrompts;
+
+  if (scope === 'paper' && !selectedPaper) {
     return <EmptyState title="还没有可阅读的文献" detail="先上传一篇 PDF，再进入 Agent 阅读视图。" />;
   }
 
   return (
     <section className="reader-layout">
       <div className="reader-toolbar">
-        <select value={selectedPaper.id} onChange={(event) => onSelectPaper(Number(event.target.value))}>
+        <select
+          value={scope === 'library' ? 'library' : String(selectedPaper?.id ?? '')}
+          onChange={(event) => {
+            if (event.target.value === 'library') {
+              onSelectScope('library');
+              return;
+            }
+            onSelectScope('paper', Number(event.target.value));
+          }}
+        >
+          <option value="library">全库问答</option>
           {papers.map((paper) => (
             <option key={paper.id} value={paper.id}>{paper.title}</option>
           ))}
         </select>
-        <button className={`secondary-button read-action ${selectedPaper.status === 'INTENSIVE_READ' ? 'is-read' : ''}`} type="button" onClick={() => onToggleRead(selectedPaper)}>
-          <CheckCircle2 size={17} />
-          {selectedPaper.status === 'INTENSIVE_READ' ? '已精读' : '标记精读'}
-        </button>
-        <button className="secondary-button" type="button" onClick={() => onParse(selectedPaper)}>
-          <Layers size={17} />
-          解析 PDF
-        </button>
+        {scope === 'paper' && selectedPaper && (
+          <>
+            <button className={`secondary-button read-action ${selectedPaper.status === 'INTENSIVE_READ' ? 'is-read' : ''}`} type="button" onClick={() => onToggleRead(selectedPaper)}>
+              <CheckCircle2 size={17} />
+              {selectedPaper.status === 'INTENSIVE_READ' ? '已精读' : '标记精读'}
+            </button>
+            <button className="secondary-button" type="button" onClick={() => onParse(selectedPaper)}>
+              <Layers size={17} />
+              解析 PDF
+            </button>
+          </>
+        )}
       </div>
       <div className="pdf-panel">
-        <div className="paper-meta">
-          <div>
-            <h2>{selectedPaper.title}</h2>
-            <p>{[selectedPaper.authors, selectedPaper.venue, selectedPaper.year].filter(Boolean).join(' · ') || '未填写题录信息'}</p>
-          </div>
-          <span className={`status-pill ${selectedPaper.processStatus === 'INDEXED' ? 'is-indexed' : ''}`}>{processLabel(selectedPaper.processStatus)}</span>
-        </div>
-        <PdfPreview paper={selectedPaper} />
+        {scope === 'library' ? (
+          <>
+            <div className="paper-meta">
+              <div>
+                <h2>全库问答</h2>
+                <p>{papers.length} 篇文献 · {indexedCount} 篇已解析</p>
+              </div>
+              <span className={`status-pill ${indexedCount > 0 ? 'is-indexed' : ''}`}>Library RAG</span>
+            </div>
+            <div className="library-scope-panel">
+              <div className="library-scope-grid">
+                <Metric icon={BookOpen} label="文献总数" value={papers.length} />
+                <Metric icon={Database} label="向量索引" value={indexedCount} />
+                <Metric icon={History} label="全库问答" value={chats.length} />
+              </div>
+              <div className="library-source-list">
+                {papers.slice(0, 8).map((paper) => (
+                  <button key={paper.id} type="button" onClick={() => onSelectScope('paper', paper.id)}>
+                    <FileText size={17} />
+                    <span>{paper.title}</span>
+                    <em>{processLabel(paper.processStatus)}</em>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : selectedPaper && (
+          <>
+            <div className="paper-meta">
+              <div>
+                <h2>{selectedPaper.title}</h2>
+                <p>{[selectedPaper.authors, selectedPaper.venue, selectedPaper.year].filter(Boolean).join(' · ') || '未填写题录信息'}</p>
+              </div>
+              <span className={`status-pill ${selectedPaper.processStatus === 'INDEXED' ? 'is-indexed' : ''}`}>{processLabel(selectedPaper.processStatus)}</span>
+            </div>
+            <PdfPreview paper={selectedPaper} />
+          </>
+        )}
       </div>
       <aside className="agent-panel">
         <div className="agent-title">
           <Brain size={22} />
           <div>
-            <h2>多 Agent Lite</h2>
-            <p>检索、回答、引用校验和格式化。</p>
+            <h2>{scope === 'library' ? '全库 Agent' : '多 Agent Lite'}</h2>
+            <p>{scope === 'library' ? '跨论文检索、综合回答和引用校验。' : '检索、回答、引用校验和格式化。'}</p>
           </div>
         </div>
         <div className="quick-prompts">
-          {quickPrompts.map((prompt) => (
+          {prompts.map((prompt) => (
             <button key={prompt} type="button" onClick={() => onAsk(prompt)}>{prompt}</button>
           ))}
         </div>
@@ -745,7 +834,7 @@ function ReaderView({
             onAsk();
           }}
         >
-          <input value={question} placeholder="围绕当前论文提问..." onChange={(event) => onQuestionChange(event.target.value)} />
+          <input value={question} placeholder={scope === 'library' ? '围绕全部文献提问...' : '围绕当前论文提问...'} onChange={(event) => onQuestionChange(event.target.value)} />
           <button className="send icon-button" type="submit" title="发送">
             <Send size={18} />
           </button>
@@ -757,14 +846,16 @@ function ReaderView({
 
 function HistoryView({
   papers,
+  scope,
   selectedPaper,
   chats,
-  onSelectPaper
+  onSelectScope
 }: {
   papers: Paper[];
+  scope: ReaderScope;
   selectedPaper: Paper | null;
   chats: ChatRecord[];
-  onSelectPaper: (id: number) => void;
+  onSelectScope: (scope: ReaderScope, id?: number) => void;
 }) {
   return (
     <section className="panel history-layout">
@@ -773,7 +864,17 @@ function HistoryView({
           <h2>问答历史</h2>
           <p>按文献查看已保存的 Agent 问答记录。</p>
         </div>
-        <select value={selectedPaper?.id ?? ''} onChange={(event) => onSelectPaper(Number(event.target.value))}>
+        <select
+          value={scope === 'library' ? 'library' : String(selectedPaper?.id ?? '')}
+          onChange={(event) => {
+            if (event.target.value === 'library') {
+              onSelectScope('library');
+              return;
+            }
+            onSelectScope('paper', Number(event.target.value));
+          }}
+        >
+          <option value="library">全库问答</option>
           {papers.map((paper) => (
             <option key={paper.id} value={paper.id}>{paper.title}</option>
           ))}
@@ -788,7 +889,7 @@ function HistoryView({
               <time><Clock3 size={14} /> {formatTime(chat.createdAt)} · {chat.modelName || 'agent'}</time>
               <h3>{chat.question}</h3>
               <MarkdownContent content={chat.answer} />
-              {chat.sources.length > 0 && <span>来源页码：{chat.sources.map((source) => source.page).join(', ')}</span>}
+              {chat.sources.length > 0 && <span>来源：{formatSources(chat.sources)}</span>}
             </article>
           ))
         )}
@@ -1244,6 +1345,13 @@ function formatBytes(bytes = 0) {
 function formatTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN');
+}
+
+function formatSources(sources: Array<{ title: string; page: number }>) {
+  return sources
+    .slice(0, 5)
+    .map((source) => `《${source.title}》P${source.page}`)
+    .join(' · ');
 }
 
 function extractErrorMessage(err: unknown) {

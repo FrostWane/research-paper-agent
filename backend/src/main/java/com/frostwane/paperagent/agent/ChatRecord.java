@@ -29,8 +29,8 @@ public class ChatRecord {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "paper_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "paper_id")
     private Paper paper;
 
     @Column(nullable = false, columnDefinition = "TEXT")

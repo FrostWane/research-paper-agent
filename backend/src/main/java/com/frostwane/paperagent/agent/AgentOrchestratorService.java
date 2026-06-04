@@ -50,8 +50,10 @@ public class AgentOrchestratorService {
     @Transactional
     public ChatResponse chat(ChatRequest request, User owner) {
         Instant started = Instant.now();
-        Paper paper = paperService.requireOwnedPaper(request.paperId(), owner.getId());
-        List<SourceResponse> sources = retrieverAgent.retrieve(paper, request.question(), request.useRag());
+        Paper paper = request.paperId() == null ? null : paperService.requireOwnedPaper(request.paperId(), owner.getId());
+        List<SourceResponse> sources = paper == null
+            ? retrieverAgent.retrieveLibrary(owner, request.question(), request.useRag())
+            : retrieverAgent.retrieve(paper, request.question(), request.useRag());
         GeneratedAnswer generated = answerAgent.answer(paper, request.question(), sources);
         String verified = citationVerifierAgent.verify(generated.content(), sources);
         String formatted = formatterAgent.format(verified);
@@ -79,10 +81,18 @@ public class AgentOrchestratorService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<ChatRecordResponse> listLibraryChats(User owner) {
+        return chatRecordRepository.findByOwnerIdAndPaperIsNullOrderByCreatedAtAsc(owner.getId())
+            .stream()
+            .map(this::toResponse)
+            .toList();
+    }
+
     private ChatRecordResponse toResponse(ChatRecord record) {
         return new ChatRecordResponse(
             record.getId(),
-            record.getPaper().getId(),
+            record.getPaper() == null ? null : record.getPaper().getId(),
             record.getQuestion(),
             record.getAnswer(),
             fromJson(record.getSourcesJson()),
