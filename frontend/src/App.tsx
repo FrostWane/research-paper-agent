@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
+import { getDocument, PDFWorker } from 'pdfjs-dist';
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -38,12 +38,32 @@ import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, updatePaperStatus } from './api/papers';
 import type { ChatRecord, Paper, PaperForm, User } from './types';
 
-GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
-
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
 const PDF_CACHE_STORE = 'pdf-previews';
 const PDF_CACHE_VERSION = 1;
+const PDF_WORKER_CACHE_VERSION = '2026-06-04-2';
+
+function createPdfLoadingTask(data: ArrayBuffer | ArrayBufferView) {
+  const worker = createPdfWorker();
+  const task = getDocument({
+    data: new Uint8Array(cloneArrayBuffer(data)),
+    disableAutoFetch: true,
+    disableStream: true,
+    worker
+  });
+  return { task, worker };
+}
+
+function createPdfWorker() {
+  const workerUrl = new URL(pdfWorkerSrc, window.location.href);
+  workerUrl.searchParams.set('v', PDF_WORKER_CACHE_VERSION);
+  const port = new Worker(workerUrl, {
+    type: 'module',
+    name: 'paper-agent-pdf-worker'
+  });
+  return PDFWorker.create({ port });
+}
 
 const emptyForm: PaperForm = {
   title: '',
@@ -791,6 +811,7 @@ function PdfPreview({ paper }: { paper: Paper }) {
   useEffect(() => {
     let cancelled = false;
     let loadedPdf: any;
+    let pdfWorker: PDFWorker | undefined;
     async function loadPdf() {
       setError('');
       setPdfDoc(null);
@@ -806,15 +827,19 @@ function PdfPreview({ paper }: { paper: Paper }) {
         if (!cached) {
           void writeCachedPdf(cacheKey, data);
         }
-        const task = getDocument({ data: new Uint8Array(cloneArrayBuffer(data)), disableAutoFetch: true, disableStream: true });
+        const { task, worker } = createPdfLoadingTask(data);
+        pdfWorker = worker;
         loadedPdf = await task.promise;
         if (cancelled) {
           loadedPdf.destroy?.();
+          pdfWorker?.destroy();
           return;
         }
         setPdfDoc(loadedPdf);
         setPageCount(loadedPdf.numPages);
       } catch (err) {
+        pdfWorker?.destroy();
+        pdfWorker = undefined;
         if (!cancelled) {
           setError(extractErrorMessage(err));
         }
@@ -828,6 +853,7 @@ function PdfPreview({ paper }: { paper: Paper }) {
     return () => {
       cancelled = true;
       loadedPdf?.destroy?.();
+      pdfWorker?.destroy();
     };
   }, [paper.fileId, paper.fileSize]);
 
@@ -1046,7 +1072,7 @@ function EmptyState({
 
 async function extractPdfMetadata(file: File) {
   const arrayBuffer = await file.arrayBuffer();
-  const task = getDocument({ data: new Uint8Array(cloneArrayBuffer(arrayBuffer)), disableAutoFetch: true, disableStream: true });
+  const { task, worker } = createPdfLoadingTask(arrayBuffer);
   const pdf = await task.promise;
   try {
     const metadata = await pdf.getMetadata().catch(() => ({}));
@@ -1066,6 +1092,7 @@ async function extractPdfMetadata(file: File) {
     };
   } finally {
     (pdf as any).destroy?.();
+    worker.destroy();
   }
 }
 
