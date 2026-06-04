@@ -1,6 +1,6 @@
 FROM node:22-alpine AS build
 WORKDIR /workspace
-ARG VITE_API_BASE_URL=http://localhost:8080
+ARG VITE_API_BASE_URL=http://localhost:18080
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 COPY package*.json ./
 RUN npm install

@@ -4,7 +4,7 @@ import type { ApiResponse } from '../types';
 const TOKEN_KEY = 'research-paper-agent-token';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:18080',
   timeout: 30000
 });
 
