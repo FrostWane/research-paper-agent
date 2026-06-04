@@ -1,6 +1,9 @@
 # dependencies
 node_modules/
 
+# local environment
+.env
+
 # frontend
 frontend/dist/
 frontend/.vite/

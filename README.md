@@ -28,7 +28,7 @@ docker compose up --build
 
 访问：
 
-- Web: http://localhost:5173
+- Web: http://localhost:15173
 - Backend: http://localhost:18080
 - Swagger: http://localhost:18080/swagger-ui/index.html
 - MinIO Console: http://localhost:9001

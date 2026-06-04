@@ -45,7 +45,7 @@ public class PaperAgentProperties {
     }
 
     public static class Cors {
-        private List<String> allowedOrigins = List.of("http://localhost:5173");
+        private List<String> allowedOrigins = List.of("http://localhost:15173");
 
         public List<String> getAllowedOrigins() {
             return allowedOrigins;
