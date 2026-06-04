@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# frontend
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.local
+
+# backend
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/.env
+
+# local data
+.data/
+postgres-data/
+minio-data/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
