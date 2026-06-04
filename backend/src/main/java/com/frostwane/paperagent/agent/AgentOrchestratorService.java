@@ -70,6 +70,7 @@ public class AgentOrchestratorService {
         return new ChatResponse(formatted, sources, saved.getId(), generated.modelName(), latencyMs);
     }
 
+    @Transactional(readOnly = true)
     public List<ChatRecordResponse> listChats(Long paperId, User owner) {
         paperService.requireOwnedPaper(paperId, owner.getId());
         return chatRecordRepository.findByOwnerIdAndPaperIdOrderByCreatedAtAsc(owner.getId(), paperId)

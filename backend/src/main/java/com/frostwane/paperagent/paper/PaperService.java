@@ -34,6 +34,7 @@ public class PaperService {
         this.chunkRepository = chunkRepository;
     }
 
+    @Transactional(readOnly = true)
     public PageResponse<PaperResponse> list(User owner, String keyword, String status, int page, int pageSize) {
         int safePage = Math.max(page, 1) - 1;
         int safePageSize = Math.min(Math.max(pageSize, 1), 100);
@@ -48,6 +49,7 @@ public class PaperService {
         );
     }
 
+    @Transactional(readOnly = true)
     public PaperResponse get(Long id, User owner) {
         return toResponse(requireOwnedPaper(id, owner.getId()));
     }
@@ -80,6 +82,7 @@ public class PaperService {
         paperRepository.delete(paper);
     }
 
+    @Transactional(readOnly = true)
     public ParseStatusResponse parseStatus(Long id, User owner) {
         Paper paper = requireOwnedPaper(id, owner.getId());
         long chunks = chunkRepository.countByPaperId(paper.getId());
