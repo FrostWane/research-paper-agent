@@ -89,7 +89,7 @@ const libraryQuickPrompts = [
   '请给出一份适合写综述的结构化大纲。'
 ];
 
-type ViewKey = 'library' | 'upload' | 'reader' | 'history';
+type ViewKey = 'library' | 'upload' | 'reader' | 'libraryChat' | 'history';
 type AuthMode = 'login' | 'register';
 type ReaderScope = 'paper' | 'library';
 
@@ -135,14 +135,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (readerScope === 'library') {
+    if (activeView === 'libraryChat' || readerScope === 'library') {
       void loadLibraryChatList();
     } else if (selectedPaper?.id) {
       void loadChatList(selectedPaper.id);
     } else {
       setChats([]);
     }
-  }, [readerScope, selectedPaper?.id]);
+  }, [activeView, readerScope, selectedPaper?.id]);
 
   async function bootstrap() {
     try {
@@ -292,16 +292,17 @@ export default function App() {
   }
 
   async function handleAsk(prompt = question) {
-    if ((readerScope === 'paper' && !selectedPaper) || !prompt.trim()) {
+    const isLibraryQuestion = activeView === 'libraryChat' || readerScope === 'library';
+    if ((!isLibraryQuestion && !selectedPaper) || !prompt.trim()) {
       return;
     }
     try {
       setError('');
       setQuestion('');
       setBusyText('多 Agent 正在检索、生成并校验引用...');
-      const paperId = readerScope === 'library' ? null : selectedPaper!.id;
+      const paperId = isLibraryQuestion ? null : selectedPaper!.id;
       await askAgent(paperId, prompt.trim(), true);
-      if (readerScope === 'library') {
+      if (isLibraryQuestion) {
         await loadLibraryChatList();
       } else {
         await loadChatList(selectedPaper!.id);
@@ -399,7 +400,24 @@ export default function App() {
         <nav className="nav-list" aria-label="主导航">
           <NavButton icon={BookOpen} label="文献库" active={activeView === 'library'} onClick={() => setActiveView('library')} />
           <NavButton icon={UploadCloud} label="上传文献" active={activeView === 'upload'} onClick={() => setActiveView('upload')} />
-          <NavButton icon={MessageSquareText} label="Agent 阅读" active={activeView === 'reader'} onClick={() => setActiveView('reader')} />
+          <NavButton
+            icon={MessageSquareText}
+            label="Agent 阅读"
+            active={activeView === 'reader'}
+            onClick={() => {
+              setReaderScope('paper');
+              setActiveView('reader');
+            }}
+          />
+          <NavButton
+            icon={Brain}
+            label="全库问答"
+            active={activeView === 'libraryChat'}
+            onClick={() => {
+              setReaderScope('library');
+              setActiveView('libraryChat');
+            }}
+          />
           <NavButton icon={History} label="问答历史" active={activeView === 'history'} onClick={() => setActiveView('history')} />
         </nav>
 
@@ -484,7 +502,7 @@ export default function App() {
         {activeView === 'reader' && (
           <ReaderView
             papers={papers}
-            scope={readerScope}
+            scope="paper"
             selectedPaper={selectedPaper}
             chats={chats}
             question={question}
@@ -498,6 +516,22 @@ export default function App() {
             onAsk={(prompt) => void handleAsk(prompt)}
             onToggleRead={(paper) => void handleToggleRead(paper)}
             onParse={(paper) => void handleParse(paper)}
+          />
+        )}
+
+        {activeView === 'libraryChat' && (
+          <LibraryChatView
+            papers={papers}
+            chats={chats}
+            question={question}
+            onQuestionChange={setQuestion}
+            onAsk={(prompt) => void handleAsk(prompt)}
+            onSelectPaper={(paper) => {
+              setSelectedPaperId(paper.id);
+              setReaderScope('paper');
+              setActiveView('reader');
+            }}
+            onUpload={() => setActiveView('upload')}
           />
         )}
 
@@ -740,16 +774,11 @@ function ReaderView({
     <section className="reader-layout">
       <div className="reader-toolbar">
         <select
-          value={scope === 'library' ? 'library' : String(selectedPaper?.id ?? '')}
+          value={String(selectedPaper?.id ?? '')}
           onChange={(event) => {
-            if (event.target.value === 'library') {
-              onSelectScope('library');
-              return;
-            }
             onSelectScope('paper', Number(event.target.value));
           }}
         >
-          <option value="library">全库问答</option>
           {papers.map((paper) => (
             <option key={paper.id} value={paper.id}>{paper.title}</option>
           ))}
@@ -835,6 +864,99 @@ function ReaderView({
           }}
         >
           <input value={question} placeholder={scope === 'library' ? '围绕全部文献提问...' : '围绕当前论文提问...'} onChange={(event) => onQuestionChange(event.target.value)} />
+          <button className="send icon-button" type="submit" title="发送">
+            <Send size={18} />
+          </button>
+        </form>
+      </aside>
+    </section>
+  );
+}
+
+function LibraryChatView({
+  papers,
+  chats,
+  question,
+  onQuestionChange,
+  onAsk,
+  onSelectPaper,
+  onUpload
+}: {
+  papers: Paper[];
+  chats: ChatRecord[];
+  question: string;
+  onQuestionChange: (value: string) => void;
+  onAsk: (prompt?: string) => void;
+  onSelectPaper: (paper: Paper) => void;
+  onUpload: () => void;
+}) {
+  const indexedPapers = papers.filter((paper) => paper.processStatus === 'INDEXED');
+  const intensivePapers = papers.filter((paper) => paper.status === 'INTENSIVE_READ');
+
+  return (
+    <section className="library-chat-layout">
+      <div className="library-chat-overview">
+        <div className="section-head">
+          <div>
+            <h2>全库问答</h2>
+            <p>跨论文检索来源片段，适合做综述、横向比较和研究路线梳理。</p>
+          </div>
+          <span className={`status-pill ${indexedPapers.length > 0 ? 'is-indexed' : ''}`}>Library RAG</span>
+        </div>
+
+        <div className="library-scope-grid">
+          <Metric icon={BookOpen} label="文献总数" value={papers.length} />
+          <Metric icon={Database} label="向量索引" value={indexedPapers.length} />
+          <Metric icon={CheckCircle2} label="已精读" value={intensivePapers.length} />
+        </div>
+
+        <div className="library-chat-prompts">
+          {libraryQuickPrompts.map((prompt) => (
+            <button key={prompt} type="button" onClick={() => onAsk(prompt)}>
+              <Brain size={16} />
+              <span>{prompt}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="library-source-list">
+          {papers.length === 0 ? (
+            <EmptyState compact title="还没有文献" detail="上传 PDF 后即可进行全库问答。" actionLabel="上传文献" onAction={onUpload} />
+          ) : (
+            papers.map((paper) => (
+              <button key={paper.id} type="button" onClick={() => onSelectPaper(paper)}>
+                <FileText size={17} />
+                <span>{paper.title}</span>
+                <em>{processLabel(paper.processStatus)}</em>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      <aside className="agent-panel library-chat-agent">
+        <div className="agent-title">
+          <Brain size={22} />
+          <div>
+            <h2>全库 Agent</h2>
+            <p>面向所有已解析文献检索、回答和引用校验。</p>
+          </div>
+        </div>
+        <div className="chat-list">
+          {chats.length === 0 ? (
+            <EmptyState compact title="暂无全库问答" detail="提出一个跨论文问题，Agent 会保存回答和来源片段。" />
+          ) : (
+            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} />)
+          )}
+        </div>
+        <form
+          className="ask-box"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onAsk();
+          }}
+        >
+          <input value={question} placeholder="围绕全部文献提问..." onChange={(event) => onQuestionChange(event.target.value)} />
           <button className="send icon-button" type="submit" title="发送">
             <Send size={18} />
           </button>
