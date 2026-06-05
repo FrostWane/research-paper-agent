@@ -49,6 +49,7 @@
   - `FormatterAgent`：统一输出格式。
 - 新增 API：
   - `POST /api/papers/{id}/parse`
+  - `DELETE /api/papers/{id}/parse`
   - `GET /api/papers/{id}/parse-status`
   - `GET /api/agent/chats`
 - 模型接入：

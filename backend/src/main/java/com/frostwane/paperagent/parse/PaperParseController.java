@@ -3,6 +3,7 @@ package com.frostwane.paperagent.parse;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
 import com.frostwane.paperagent.paper.dto.PaperDtos.ParseStatusResponse;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,5 +24,10 @@ public class PaperParseController {
     @PostMapping("/{id}/parse")
     public ApiResponse<ParseStatusResponse> parse(@PathVariable Long id) {
         return ApiResponse.ok(parseService.parse(id, currentUserService.getRequiredUser()));
+    }
+
+    @DeleteMapping("/{id}/parse")
+    public ApiResponse<ParseStatusResponse> unparse(@PathVariable Long id) {
+        return ApiResponse.ok(parseService.unparse(id, currentUserService.getRequiredUser()));
     }
 }

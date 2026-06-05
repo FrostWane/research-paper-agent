@@ -309,6 +309,12 @@ button {
   border-color: #a9dbd2;
 }
 
+.danger-action {
+  color: var(--red);
+  border-color: #f4b8c2;
+  background: #fff5f6;
+}
+
 .notice {
   display: flex;
   align-items: center;
@@ -875,6 +881,55 @@ select,
 .chat.assistant .chat-body {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
+}
+
+.source-cards {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.source-card {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  color: var(--ink);
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+}
+
+.source-card:hover {
+  border-color: #7aa2f7;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.1);
+}
+
+.source-card span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #24446c;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.source-card strong {
+  color: var(--blue-dark);
+  font-size: 13px;
+}
+
+.source-card p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .plain-text {

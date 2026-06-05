@@ -35,8 +35,8 @@ import { askAgent, listChats, listLibraryChats } from './api/agent';
 import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
-import { createPaper, deletePaper, listPapers, parsePaper, updatePaperStatus } from './api/papers';
-import type { ChatRecord, Paper, PaperForm, User } from './types';
+import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
+import type { ChatRecord, Paper, PaperForm, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -92,6 +92,7 @@ const libraryQuickPrompts = [
 type ViewKey = 'library' | 'upload' | 'reader' | 'libraryChat' | 'history';
 type AuthMode = 'login' | 'register';
 type ReaderScope = 'paper' | 'library';
+type PdfJump = { paperId: number; page: number; signal: number };
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -108,6 +109,7 @@ export default function App() {
   const [metadataStatus, setMetadataStatus] = useState('');
   const [chats, setChats] = useState<ChatRecord[]>([]);
   const [question, setQuestion] = useState('');
+  const [pdfJump, setPdfJump] = useState<PdfJump | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyText, setBusyText] = useState('');
   const [error, setError] = useState('');
@@ -349,6 +351,33 @@ export default function App() {
     }
   }
 
+  async function handleUnparse(paper: Paper) {
+    const confirmed = window.confirm('取消解析会从知识库移除这篇论文的文本片段和向量索引，但不会删除 PDF 文件。确定继续吗？');
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setBusyText('正在从知识库移除解析结果...');
+      await unparsePaper(paper.id);
+      await loadPaperList();
+      showNotice('已取消解析，并从知识库移除该论文片段。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  function handleSourceJump(source: SourceResponse) {
+    if (!source.paperId) {
+      return;
+    }
+    setSelectedPaperId(source.paperId);
+    setReaderScope('paper');
+    setActiveView('reader');
+    setPdfJump({ paperId: source.paperId, page: Math.max(1, source.page || 1), signal: Date.now() });
+  }
+
   function showNotice(message: string) {
     setNotice(message);
     if (noticeTimerRef.current) {
@@ -480,6 +509,7 @@ export default function App() {
             onSelect={(paper) => {
               setSelectedPaperId(paper.id);
               setReaderScope('paper');
+              setPdfJump(null);
               setActiveView('reader');
             }}
             onUpload={() => setActiveView('upload')}
@@ -511,11 +541,15 @@ export default function App() {
               setReaderScope(scope);
               if (id) {
                 setSelectedPaperId(id);
+                setPdfJump(null);
               }
             }}
             onAsk={(prompt) => void handleAsk(prompt)}
             onToggleRead={(paper) => void handleToggleRead(paper)}
             onParse={(paper) => void handleParse(paper)}
+            onUnparse={(paper) => void handleUnparse(paper)}
+            onSourceClick={handleSourceJump}
+            pdfJump={pdfJump}
           />
         )}
 
@@ -529,9 +563,11 @@ export default function App() {
             onSelectPaper={(paper) => {
               setSelectedPaperId(paper.id);
               setReaderScope('paper');
+              setPdfJump(null);
               setActiveView('reader');
             }}
             onUpload={() => setActiveView('upload')}
+            onSourceClick={handleSourceJump}
           />
         )}
 
@@ -545,8 +581,10 @@ export default function App() {
               setReaderScope(scope);
               if (id) {
                 setSelectedPaperId(id);
+                setPdfJump(null);
               }
             }}
+            onSourceClick={handleSourceJump}
           />
         )}
       </main>
@@ -750,7 +788,10 @@ function ReaderView({
   onSelectScope,
   onAsk,
   onToggleRead,
-  onParse
+  onParse,
+  onUnparse,
+  onSourceClick,
+  pdfJump
 }: {
   papers: Paper[];
   scope: ReaderScope;
@@ -762,6 +803,9 @@ function ReaderView({
   onAsk: (prompt?: string) => void;
   onToggleRead: (paper: Paper) => void;
   onParse: (paper: Paper) => void;
+  onUnparse: (paper: Paper) => void;
+  onSourceClick: (source: SourceResponse) => void;
+  pdfJump: PdfJump | null;
 }) {
   const indexedCount = papers.filter((paper) => paper.processStatus === 'INDEXED').length;
   const prompts = scope === 'library' ? libraryQuickPrompts : quickPrompts;
@@ -789,10 +833,17 @@ function ReaderView({
               <CheckCircle2 size={17} />
               {selectedPaper.status === 'INTENSIVE_READ' ? '已精读' : '标记精读'}
             </button>
-            <button className="secondary-button" type="button" onClick={() => onParse(selectedPaper)}>
-              <Layers size={17} />
-              解析 PDF
-            </button>
+            {selectedPaper.processStatus === 'INDEXED' ? (
+              <button className="secondary-button danger-action" type="button" onClick={() => onUnparse(selectedPaper)}>
+                <Trash2 size={17} />
+                取消解析
+              </button>
+            ) : (
+              <button className="secondary-button" type="button" onClick={() => onParse(selectedPaper)}>
+                <Layers size={17} />
+                解析 PDF
+              </button>
+            )}
           </>
         )}
       </div>
@@ -832,7 +883,11 @@ function ReaderView({
               </div>
               <span className={`status-pill ${selectedPaper.processStatus === 'INDEXED' ? 'is-indexed' : ''}`}>{processLabel(selectedPaper.processStatus)}</span>
             </div>
-            <PdfPreview paper={selectedPaper} />
+            <PdfPreview
+              paper={selectedPaper}
+              targetPage={pdfJump?.paperId === selectedPaper.id ? pdfJump.page : undefined}
+              jumpSignal={pdfJump?.paperId === selectedPaper.id ? pdfJump.signal : undefined}
+            />
           </>
         )}
       </div>
@@ -853,7 +908,7 @@ function ReaderView({
           {chats.length === 0 ? (
             <EmptyState compact title="暂无问答" detail="提出一个问题，Agent 会保存回答和来源片段。" />
           ) : (
-            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} />)
+            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} onSourceClick={onSourceClick} />)
           )}
         </div>
         <form
@@ -880,7 +935,8 @@ function LibraryChatView({
   onQuestionChange,
   onAsk,
   onSelectPaper,
-  onUpload
+  onUpload,
+  onSourceClick
 }: {
   papers: Paper[];
   chats: ChatRecord[];
@@ -889,6 +945,7 @@ function LibraryChatView({
   onAsk: (prompt?: string) => void;
   onSelectPaper: (paper: Paper) => void;
   onUpload: () => void;
+  onSourceClick: (source: SourceResponse) => void;
 }) {
   const indexedPapers = papers.filter((paper) => paper.processStatus === 'INDEXED');
   const intensivePapers = papers.filter((paper) => paper.status === 'INTENSIVE_READ');
@@ -946,7 +1003,7 @@ function LibraryChatView({
           {chats.length === 0 ? (
             <EmptyState compact title="暂无全库问答" detail="提出一个跨论文问题，Agent 会保存回答和来源片段。" />
           ) : (
-            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} />)
+            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} onSourceClick={onSourceClick} />)
           )}
         </div>
         <form
@@ -971,13 +1028,15 @@ function HistoryView({
   scope,
   selectedPaper,
   chats,
-  onSelectScope
+  onSelectScope,
+  onSourceClick
 }: {
   papers: Paper[];
   scope: ReaderScope;
   selectedPaper: Paper | null;
   chats: ChatRecord[];
   onSelectScope: (scope: ReaderScope, id?: number) => void;
+  onSourceClick: (source: SourceResponse) => void;
 }) {
   return (
     <section className="panel history-layout">
@@ -1011,6 +1070,7 @@ function HistoryView({
               <time><Clock3 size={14} /> {formatTime(chat.createdAt)} · {chat.modelName || 'agent'}</time>
               <h3>{chat.question}</h3>
               <MarkdownContent content={chat.answer} />
+              <SourceCards sources={chat.sources} onSourceClick={onSourceClick} />
               {chat.sources.length > 0 && <span>来源：{formatSources(chat.sources)}</span>}
             </article>
           ))
@@ -1020,7 +1080,7 @@ function HistoryView({
   );
 }
 
-function PdfPreview({ paper }: { paper: Paper }) {
+function PdfPreview({ paper, targetPage, jumpSignal }: { paper: Paper; targetPage?: number; jumpSignal?: number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
@@ -1088,6 +1148,10 @@ function PdfPreview({ paper }: { paper: Paper }) {
     let renderTask: any;
     async function renderPage() {
       try {
+        if (pageCount && pageNumber > pageCount) {
+          setPageNumber(pageCount);
+          return;
+        }
         setRendering(true);
         const page = await pdfDoc.getPage(pageNumber);
         if (cancelled) {
@@ -1130,7 +1194,14 @@ function PdfPreview({ paper }: { paper: Paper }) {
       cancelled = true;
       renderTask?.cancel?.();
     };
-  }, [pdfDoc, pageNumber, zoom]);
+  }, [pdfDoc, pageNumber, pageCount, zoom]);
+
+  useEffect(() => {
+    if (!targetPage || targetPage < 1) {
+      return;
+    }
+    setPageNumber(pageCount ? Math.min(targetPage, pageCount) : targetPage);
+  }, [targetPage, jumpSignal, pageCount]);
 
   if (!paper.fileId) {
     return <div className="pdf-placeholder">该文献未关联 PDF 文件。</div>;
@@ -1202,7 +1273,7 @@ function PaperCard({
   );
 }
 
-function ChatBubble({ chat }: { chat: ChatRecord }) {
+function ChatBubble({ chat, onSourceClick }: { chat: ChatRecord; onSourceClick?: (source: SourceResponse) => void }) {
   return (
     <>
       <div className="chat user">
@@ -1212,8 +1283,37 @@ function ChatBubble({ chat }: { chat: ChatRecord }) {
       <div className="chat assistant">
         <span>Agent · {chat.modelName || 'fallback'}</span>
         <MarkdownContent content={chat.answer} />
+        <SourceCards sources={chat.sources} onSourceClick={onSourceClick} />
       </div>
     </>
+  );
+}
+
+function SourceCards({ sources, onSourceClick }: { sources: SourceResponse[]; onSourceClick?: (source: SourceResponse) => void }) {
+  if (!sources.length) {
+    return null;
+  }
+  return (
+    <div className="source-cards">
+      {sources.map((source, index) => {
+        const page = Math.max(1, source.page || 1);
+        return (
+          <button
+            className="source-card"
+            key={`${source.paperId}-${page}-${index}`}
+            type="button"
+            onClick={() => onSourceClick?.({ ...source, page })}
+          >
+            <span>
+              <FileText size={14} />
+              《{source.title}》
+            </span>
+            <strong>第 {page} 页</strong>
+            <p>{source.content}</p>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

@@ -20,6 +20,7 @@ PUT    /api/papers/{id}
 DELETE /api/papers/{id}
 PATCH  /api/papers/{id}/status
 POST   /api/papers/{id}/parse
+DELETE /api/papers/{id}/parse
 GET    /api/papers/{id}/parse-status
 ```
 

@@ -76,6 +76,15 @@ public class PaperParseService {
         }
     }
 
+    @Transactional
+    public ParseStatusResponse unparse(Long paperId, User owner) {
+        Paper paper = paperService.requireOwnedPaper(paperId, owner.getId());
+        chunkRepository.deleteByPaperId(paper.getId());
+        paper.setProcessStatus(ProcessStatus.PENDING);
+        paperRepository.save(paper);
+        return new ParseStatusResponse(paper.getId(), ProcessStatus.PENDING.name(), "已从知识库移除解析结果，PDF 文件仍保留", 0, 0);
+    }
+
     private List<PaperChunk> extractChunks(Paper paper, byte[] pdfBytes) throws Exception {
         List<PaperChunk> chunks = new ArrayList<>();
         try (PDDocument document = Loader.loadPDF(pdfBytes)) {

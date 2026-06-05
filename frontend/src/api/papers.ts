@@ -32,6 +32,10 @@ export function parsePaper(id: number) {
   return unwrap<ParseStatus>(api.post(`/api/papers/${id}/parse`));
 }
 
+export function unparsePaper(id: number) {
+  return unwrap<ParseStatus>(api.delete(`/api/papers/${id}/parse`));
+}
+
 export function getParseStatus(id: number) {
   return unwrap<ParseStatus>(api.get(`/api/papers/${id}/parse-status`));
 }
