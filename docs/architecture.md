@@ -36,7 +36,7 @@ AgentOrchestratorService
      -> AnswerFormattingNode
 ```
 
-`AgentOrchestratorService` 负责事务边界、聊天历史和 RAG Trace 收尾；具体业务步骤由 `AgentNode` 实现。`AgentPipeline` 自动记录节点耗时，当前映射到 `rag_traces` 的检索、生成、校验和格式化耗时字段。后续可以继续插入问题改写、意图分类、重排、跨论文综合、答案评审等节点。
+`AgentOrchestratorService` 负责事务边界、聊天历史和 RAG Trace 收尾；具体业务步骤由 `AgentNode` 实现。`AgentPipeline` 自动记录节点 span，并写入 `rag_traces.node_spans_json`，同时保留检索、生成、校验和格式化的聚合耗时字段。后续可以继续插入问题改写、意图分类、重排、跨论文综合、答案评审等节点。
 
 默认走兜底回答，保证无模型 API Key 时系统仍然可用。配置 OpenAI-compatible API 后，`AnswerGenerationNode` 会调用 `AnswerAgent`，再通过 Spring AI `ChatClient` 生成回答。
 

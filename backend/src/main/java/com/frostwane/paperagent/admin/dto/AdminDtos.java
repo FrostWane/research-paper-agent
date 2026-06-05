@@ -69,6 +69,7 @@ public final class AdminDtos {
         String question,
         String status,
         String modelName,
+        String pipelineName,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -76,7 +77,18 @@ public final class AdminDtos {
         int formattingMs,
         int totalMs,
         String errorMessage,
+        List<RagTraceNodeSpanResponse> nodeSpans,
         OffsetDateTime createdAt
+    ) {
+    }
+
+    public record RagTraceNodeSpanResponse(
+        String type,
+        String name,
+        int order,
+        String status,
+        int durationMs,
+        String errorMessage
     ) {
     }
 

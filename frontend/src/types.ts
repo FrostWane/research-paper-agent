@@ -126,6 +126,7 @@ export interface AdminTrace {
   question: string;
   status: 'SUCCESS' | 'FAILED' | string;
   modelName?: string;
+  pipelineName?: string;
   sourceCount: number;
   retrievalMs: number;
   generationMs: number;
@@ -133,7 +134,17 @@ export interface AdminTrace {
   formattingMs: number;
   totalMs: number;
   errorMessage?: string;
+  nodeSpans: AdminTraceNodeSpan[];
   createdAt: string;
+}
+
+export interface AdminTraceNodeSpan {
+  type: string;
+  name: string;
+  order: number;
+  status: 'SUCCESS' | 'FAILED' | string;
+  durationMs: number;
+  errorMessage?: string;
 }
 
 export interface AdminParseJob {

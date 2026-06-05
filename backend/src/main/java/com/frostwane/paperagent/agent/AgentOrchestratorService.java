@@ -68,6 +68,8 @@ public class AgentOrchestratorService {
                 context.scope(),
                 context.question(),
                 context.modelName(),
+                agentPipeline.name(),
+                toJson(context.nodeSpans()),
                 context.sourceCount(),
                 context.timingMs(AgentNodeType.RETRIEVAL),
                 context.timingMs(AgentNodeType.GENERATION),
@@ -118,9 +120,9 @@ public class AgentOrchestratorService {
         );
     }
 
-    private String toJson(List<SourceResponse> sources) {
+    private String toJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(sources);
+            return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException ex) {
             return "[]";
         }
@@ -152,6 +154,8 @@ public class AgentOrchestratorService {
                 context.scope(),
                 context.question(),
                 context.modelName(),
+                agentPipeline.name(),
+                toJson(context.nodeSpans()),
                 context.sourceCount(),
                 context.timingMs(AgentNodeType.RETRIEVAL),
                 context.timingMs(AgentNodeType.GENERATION),

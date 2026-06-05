@@ -12,6 +12,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 
@@ -46,6 +48,13 @@ public class RagTrace {
 
     @Column(name = "model_name", length = 120)
     private String modelName;
+
+    @Column(name = "pipeline_name", nullable = false, length = 120)
+    private String pipelineName = "agent-pipeline-v1";
+
+    @Column(name = "node_spans_json", nullable = false, columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String nodeSpansJson = "[]";
 
     @Column(name = "source_count", nullable = false)
     private Integer sourceCount = 0;
@@ -134,6 +143,22 @@ public class RagTrace {
 
     public void setModelName(String modelName) {
         this.modelName = modelName;
+    }
+
+    public String getPipelineName() {
+        return pipelineName;
+    }
+
+    public void setPipelineName(String pipelineName) {
+        this.pipelineName = pipelineName;
+    }
+
+    public String getNodeSpansJson() {
+        return nodeSpansJson;
+    }
+
+    public void setNodeSpansJson(String nodeSpansJson) {
+        this.nodeSpansJson = nodeSpansJson;
     }
 
     public Integer getSourceCount() {

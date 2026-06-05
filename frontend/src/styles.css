@@ -1456,6 +1456,48 @@ select,
   color: var(--red);
 }
 
+.admin-node-spans {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-node-span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 88px;
+  min-height: 22px;
+  padding: 0 7px;
+  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-node-span.is-failed {
+  color: var(--red);
+  background: #fff1f3;
+  border-color: #ffd5dd;
+}
+
+.admin-node-span i,
+.admin-node-span b {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.admin-node-span b {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .admin-user-table {
   min-width: 760px;
 }

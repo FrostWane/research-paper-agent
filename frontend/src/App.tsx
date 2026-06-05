@@ -1279,7 +1279,7 @@ function AdminView({
         <div className="admin-panel-head">
           <div>
             <h3>RAG Trace</h3>
-            <p>最近问答的检索、生成和总耗时。{overview?.failedTraces ? `失败 ${overview.failedTraces} 次。` : ''}</p>
+            <p>最近问答的节点链路、检索、生成和总耗时。{overview?.failedTraces ? `失败 ${overview.failedTraces} 次。` : ''}</p>
           </div>
           <Layers size={18} />
         </div>
@@ -1305,8 +1305,22 @@ function AdminView({
                   <span className="admin-trace-question">
                     <strong>{trace.question}</strong>
                     <small>
-                      {trace.username} · {scopeLabel(trace.scope)} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
+                      {trace.username} · {scopeLabel(trace.scope)} · {trace.pipelineName || 'agent-pipeline'} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
                     </small>
+                    {(trace.nodeSpans ?? []).length > 0 && (
+                      <div className="admin-node-spans">
+                        {trace.nodeSpans.map((span) => (
+                          <span
+                            className={`admin-node-span ${span.status === 'FAILED' ? 'is-failed' : ''}`}
+                            key={`${trace.id}-${span.order}-${span.name}`}
+                            title={span.errorMessage || span.name}
+                          >
+                            <i>{nodeSpanLabel(span.name)}</i>
+                            <b>{formatLatency(span.durationMs)}</b>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {trace.status === 'FAILED' && trace.errorMessage && <small className="admin-trace-error">{trace.errorMessage}</small>}
                   </span>
                   <em>{trace.modelName || 'fallback'}</em>
@@ -1898,6 +1912,17 @@ function parseJobStatusLabel(status: string) {
     FAILED: '失败'
   };
   return labels[status] || status;
+}
+
+function nodeSpanLabel(name: string) {
+  const labels: Record<string, string> = {
+    'scope-resolution': '范围',
+    retrieval: '检索',
+    'answer-generation': '生成',
+    'citation-verification': '校验',
+    'answer-formatting': '格式'
+  };
+  return labels[name] || name;
 }
 
 function scopeLabel(scope: string) {

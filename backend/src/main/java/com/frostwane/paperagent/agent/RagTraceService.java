@@ -26,6 +26,8 @@ public class RagTraceService {
         String scope,
         String question,
         String modelName,
+        String pipelineName,
+        String nodeSpansJson,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -41,6 +43,8 @@ public class RagTraceService {
             question,
             "SUCCESS",
             modelName,
+            pipelineName,
+            nodeSpansJson,
             sourceCount,
             retrievalMs,
             generationMs,
@@ -58,6 +62,8 @@ public class RagTraceService {
         String scope,
         String question,
         String modelName,
+        String pipelineName,
+        String nodeSpansJson,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -74,6 +80,8 @@ public class RagTraceService {
             question,
             "FAILED",
             modelName,
+            pipelineName,
+            nodeSpansJson,
             sourceCount,
             retrievalMs,
             generationMs,
@@ -92,6 +100,8 @@ public class RagTraceService {
         String question,
         String status,
         String modelName,
+        String pipelineName,
+        String nodeSpansJson,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -108,6 +118,8 @@ public class RagTraceService {
         trace.setQuestion(question);
         trace.setStatus(status);
         trace.setModelName(modelName);
+        trace.setPipelineName(defaultText(pipelineName, "agent-pipeline-v1"));
+        trace.setNodeSpansJson(defaultText(nodeSpansJson, "[]"));
         trace.setSourceCount(sourceCount);
         trace.setRetrievalMs(retrievalMs);
         trace.setGenerationMs(generationMs);
@@ -116,6 +128,10 @@ public class RagTraceService {
         trace.setTotalMs(totalMs);
         trace.setErrorMessage(errorMessage);
         return trace;
+    }
+
+    private String defaultText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private String sanitizeError(String value) {

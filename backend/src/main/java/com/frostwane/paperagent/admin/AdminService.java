@@ -1,9 +1,12 @@
 package com.frostwane.paperagent.admin;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceNodeSpanResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RecentPaperResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
@@ -29,10 +32,12 @@ public class AdminService {
 
     private final JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
-    public AdminService(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
+    public AdminService(JdbcTemplate jdbcTemplate, UserRepository userRepository, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -175,6 +180,7 @@ public class AdminService {
               t.question,
               t.status,
               coalesce(t.model_name, 'fallback') as model_name,
+              t.pipeline_name,
               t.source_count,
               t.retrieval_ms,
               t.generation_ms,
@@ -182,6 +188,7 @@ public class AdminService {
               t.formatting_ms,
               t.total_ms,
               t.error_message,
+              t.node_spans_json::text as node_spans_json,
               t.created_at
             from rag_traces t
             join users u on u.id = t.owner_id
@@ -197,6 +204,7 @@ public class AdminService {
             rs.getString("question"),
             rs.getString("status"),
             rs.getString("model_name"),
+            rs.getString("pipeline_name"),
             rs.getInt("source_count"),
             rs.getInt("retrieval_ms"),
             rs.getInt("generation_ms"),
@@ -204,6 +212,7 @@ public class AdminService {
             rs.getInt("formatting_ms"),
             rs.getInt("total_ms"),
             rs.getString("error_message"),
+            nodeSpans(rs.getString("node_spans_json")),
             offsetDateTime(rs, "created_at")
         ));
     }
@@ -269,5 +278,14 @@ public class AdminService {
     private Long nullableLong(ResultSet rs, String column) throws SQLException {
         long value = rs.getLong(column);
         return rs.wasNull() ? null : value;
+    }
+
+    private List<RagTraceNodeSpanResponse> nodeSpans(String json) {
+        try {
+            return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
+            });
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 }

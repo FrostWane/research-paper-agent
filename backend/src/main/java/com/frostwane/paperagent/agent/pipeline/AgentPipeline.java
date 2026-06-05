@@ -10,6 +10,8 @@ import java.util.List;
 @Component
 public class AgentPipeline {
 
+    public static final String NAME = "agent-pipeline-v1";
+
     private final List<AgentNode> nodes;
 
     public AgentPipeline(List<AgentNode> nodes) {
@@ -21,12 +23,29 @@ public class AgentPipeline {
     public void execute(AgentPipelineContext context) {
         for (AgentNode node : nodes) {
             Instant started = Instant.now();
+            RuntimeException failure = null;
             try {
                 node.execute(context);
+            } catch (RuntimeException ex) {
+                failure = ex;
+                throw ex;
             } finally {
-                context.recordTiming(node.type(), elapsedMs(started));
+                int latencyMs = elapsedMs(started);
+                context.recordTiming(node.type(), latencyMs);
+                context.recordNodeSpan(
+                    node.type(),
+                    node.name(),
+                    node.order(),
+                    failure == null ? "SUCCESS" : "FAILED",
+                    latencyMs,
+                    failure == null ? null : failure.getClass().getSimpleName() + ": " + failure.getMessage()
+                );
             }
         }
+    }
+
+    public String name() {
+        return NAME;
     }
 
     private int elapsedMs(Instant started) {

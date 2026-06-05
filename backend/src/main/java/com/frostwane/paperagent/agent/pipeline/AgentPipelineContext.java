@@ -6,6 +6,7 @@ import com.frostwane.paperagent.paper.Paper;
 import com.frostwane.paperagent.user.User;
 
 import java.util.EnumMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,6 +17,7 @@ public class AgentPipelineContext {
     private final String question;
     private final String scope;
     private final Map<AgentNodeType, Integer> timings = new EnumMap<>(AgentNodeType.class);
+    private final List<NodeSpan> nodeSpans = new ArrayList<>();
 
     private Paper paper;
     private List<SourceResponse> sources = List.of();
@@ -113,5 +115,38 @@ public class AgentPipelineContext {
 
     public int timingMs(AgentNodeType type) {
         return timings.getOrDefault(type, 0);
+    }
+
+    public void recordNodeSpan(AgentNodeType type, String name, int order, String status, int durationMs, String errorMessage) {
+        nodeSpans.add(new NodeSpan(
+            type.name(),
+            name,
+            order,
+            status,
+            Math.max(0, durationMs),
+            sanitizeError(errorMessage)
+        ));
+    }
+
+    public List<NodeSpan> nodeSpans() {
+        return List.copyOf(nodeSpans);
+    }
+
+    private String sanitizeError(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String sanitized = value.replaceAll("sk-[A-Za-z0-9_-]+", "sk-***");
+        return sanitized.length() > 600 ? sanitized.substring(0, 600) : sanitized;
+    }
+
+    public record NodeSpan(
+        String type,
+        String name,
+        int order,
+        String status,
+        int durationMs,
+        String errorMessage
+    ) {
     }
 }
