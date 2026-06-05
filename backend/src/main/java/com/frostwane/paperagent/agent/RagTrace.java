@@ -56,6 +56,15 @@ public class RagTrace {
     @JdbcTypeCode(SqlTypes.JSON)
     private String nodeSpansJson = "[]";
 
+    @Column(name = "query_intent", nullable = false, length = 64)
+    private String queryIntent = "GENERAL_QA";
+
+    @Column(name = "search_query", columnDefinition = "TEXT")
+    private String searchQuery;
+
+    @Column(name = "comparison_requested", nullable = false)
+    private Boolean comparisonRequested = false;
+
     @Column(name = "source_count", nullable = false)
     private Integer sourceCount = 0;
 
@@ -159,6 +168,30 @@ public class RagTrace {
 
     public void setNodeSpansJson(String nodeSpansJson) {
         this.nodeSpansJson = nodeSpansJson;
+    }
+
+    public String getQueryIntent() {
+        return queryIntent;
+    }
+
+    public void setQueryIntent(String queryIntent) {
+        this.queryIntent = queryIntent;
+    }
+
+    public String getSearchQuery() {
+        return searchQuery;
+    }
+
+    public void setSearchQuery(String searchQuery) {
+        this.searchQuery = searchQuery;
+    }
+
+    public Boolean getComparisonRequested() {
+        return comparisonRequested;
+    }
+
+    public void setComparisonRequested(Boolean comparisonRequested) {
+        this.comparisonRequested = comparisonRequested;
     }
 
     public Integer getSourceCount() {

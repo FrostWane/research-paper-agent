@@ -1456,6 +1456,10 @@ select,
   color: var(--red);
 }
 
+.admin-trace-question .admin-trace-search-query {
+  color: #475569;
+}
+
 .admin-node-spans {
   display: flex;
   gap: 5px;

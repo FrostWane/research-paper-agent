@@ -127,6 +127,9 @@ export interface AdminTrace {
   status: 'SUCCESS' | 'FAILED' | string;
   modelName?: string;
   pipelineName?: string;
+  queryIntent?: string;
+  searchQuery?: string;
+  comparisonRequested: boolean;
   sourceCount: number;
   retrievalMs: number;
   generationMs: number;

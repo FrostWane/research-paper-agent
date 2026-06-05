@@ -79,7 +79,7 @@ Agent 支持两种问答范围：
 - 单篇论文问答：请求携带 `paperId`。
 - 全库问答：`paperId` 传 `null`，在当前用户所有已解析文献中检索来源片段。
 
-Agent 编排参考 ragent 的节点化思路，后端使用轻量 `AgentPipeline` 串联 `ScopeResolutionNode -> RetrievalNode -> AnswerGenerationNode -> CitationVerificationNode -> AnswerFormattingNode`。当前不引入 AOP Trace 和异步流式上下文，先保留简单、可扩展、易调试的 Spring Bean 节点结构。
+Agent 编排参考 ragent 的节点化思路，后端使用轻量 `AgentPipeline` 串联 `ScopeResolutionNode -> QueryPlanningNode -> RetrievalNode -> AnswerGenerationNode -> CitationVerificationNode -> AnswerFormattingNode`。当前不引入 AOP Trace 和异步流式上下文，先保留简单、可扩展、易调试的 Spring Bean 节点结构。`QueryPlanningNode` 会识别问题意图，生成检索式，并标记是否需要跨文献比较。
 
 回答下方会展示来源卡片，点击来源可回到对应论文并跳转 PDF 页码。已解析论文也可以取消解析，从知识库移除文本片段和向量索引，同时保留 PDF 文件与文献记录。
 

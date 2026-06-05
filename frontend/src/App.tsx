@@ -1305,8 +1305,11 @@ function AdminView({
                   <span className="admin-trace-question">
                     <strong>{trace.question}</strong>
                     <small>
-                      {trace.username} · {scopeLabel(trace.scope)} · {trace.pipelineName || 'agent-pipeline'} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
+                      {trace.username} · {scopeLabel(trace.scope)} · {intentLabel(trace.queryIntent)}{trace.comparisonRequested ? ' · 比较' : ''} · {trace.pipelineName || 'agent-pipeline'} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
                     </small>
+                    {trace.searchQuery && trace.searchQuery.trim() !== trace.question.trim() && (
+                      <small className="admin-trace-search-query">检索式：{trace.searchQuery}</small>
+                    )}
                     {(trace.nodeSpans ?? []).length > 0 && (
                       <div className="admin-node-spans">
                         {trace.nodeSpans.map((span) => (
@@ -1917,12 +1920,26 @@ function parseJobStatusLabel(status: string) {
 function nodeSpanLabel(name: string) {
   const labels: Record<string, string> = {
     'scope-resolution': '范围',
+    'query-planning': '规划',
     retrieval: '检索',
     'answer-generation': '生成',
     'citation-verification': '校验',
     'answer-formatting': '格式'
   };
   return labels[name] || name;
+}
+
+function intentLabel(intent = 'GENERAL_QA') {
+  const labels: Record<string, string> = {
+    GENERAL_QA: '问答',
+    SUMMARY: '总结',
+    CONTRIBUTION: '贡献',
+    EXPERIMENT: '实验',
+    LIMITATION: '局限',
+    COMPARISON: '比较',
+    REVIEW_SYNTHESIS: '综述'
+  };
+  return labels[intent] || intent;
 }
 
 function scopeLabel(scope: string) {

@@ -21,6 +21,9 @@ public class AgentPipelineContext {
 
     private Paper paper;
     private List<SourceResponse> sources = List.of();
+    private String queryIntent = "GENERAL_QA";
+    private String searchQuery;
+    private boolean comparisonRequested;
     private String generatedAnswer;
     private String verifiedAnswer;
     private String formattedAnswer;
@@ -30,6 +33,7 @@ public class AgentPipelineContext {
         this.request = request;
         this.owner = owner;
         this.question = request.question().trim();
+        this.searchQuery = this.question;
         this.scope = request.paperId() == null ? "LIBRARY" : "PAPER";
     }
 
@@ -75,6 +79,30 @@ public class AgentPipelineContext {
 
     public int sourceCount() {
         return sources.size();
+    }
+
+    public String queryIntent() {
+        return queryIntent;
+    }
+
+    public void queryIntent(String queryIntent) {
+        this.queryIntent = queryIntent == null || queryIntent.isBlank() ? "GENERAL_QA" : queryIntent;
+    }
+
+    public String searchQuery() {
+        return searchQuery;
+    }
+
+    public void searchQuery(String searchQuery) {
+        this.searchQuery = searchQuery == null || searchQuery.isBlank() ? question : searchQuery.trim();
+    }
+
+    public boolean comparisonRequested() {
+        return comparisonRequested;
+    }
+
+    public void comparisonRequested(boolean comparisonRequested) {
+        this.comparisonRequested = comparisonRequested;
     }
 
     public String generatedAnswer() {

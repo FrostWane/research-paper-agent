@@ -73,7 +73,7 @@ GET   /api/admin/users
 PATCH /api/admin/users/{id}/status
 ```
 
-`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合和最近 RAG Trace。解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`，用于观察 PDF 入库质量；Trace 字段包含 `scope`、`status`、`pipelineName`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的节点链路、检索和生成耗时。
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合和最近 RAG Trace。解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`，用于观察 PDF 入库质量；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`comparisonRequested`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、节点链路、检索和生成耗时。
 
 用户状态更新请求：
 

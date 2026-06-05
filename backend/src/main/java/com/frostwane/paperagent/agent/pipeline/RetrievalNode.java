@@ -30,7 +30,7 @@ public class RetrievalNode implements AgentNode {
     @Override
     public void execute(AgentPipelineContext context) {
         context.sources(context.libraryScope()
-            ? retrieverAgent.retrieveLibrary(context.owner(), context.question(), context.useRag())
-            : retrieverAgent.retrieve(context.paper(), context.question(), context.useRag()));
+            ? retrieverAgent.retrieveLibrary(context.owner(), context.searchQuery(), context.useRag())
+            : retrieverAgent.retrieve(context.paper(), context.searchQuery(), context.useRag()));
     }
 }

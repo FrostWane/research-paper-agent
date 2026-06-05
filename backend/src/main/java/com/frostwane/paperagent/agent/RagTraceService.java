@@ -28,6 +28,9 @@ public class RagTraceService {
         String modelName,
         String pipelineName,
         String nodeSpansJson,
+        String queryIntent,
+        String searchQuery,
+        boolean comparisonRequested,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -45,6 +48,9 @@ public class RagTraceService {
             modelName,
             pipelineName,
             nodeSpansJson,
+            queryIntent,
+            searchQuery,
+            comparisonRequested,
             sourceCount,
             retrievalMs,
             generationMs,
@@ -64,6 +70,9 @@ public class RagTraceService {
         String modelName,
         String pipelineName,
         String nodeSpansJson,
+        String queryIntent,
+        String searchQuery,
+        boolean comparisonRequested,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -82,6 +91,9 @@ public class RagTraceService {
             modelName,
             pipelineName,
             nodeSpansJson,
+            queryIntent,
+            searchQuery,
+            comparisonRequested,
             sourceCount,
             retrievalMs,
             generationMs,
@@ -102,6 +114,9 @@ public class RagTraceService {
         String modelName,
         String pipelineName,
         String nodeSpansJson,
+        String queryIntent,
+        String searchQuery,
+        boolean comparisonRequested,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -120,6 +135,9 @@ public class RagTraceService {
         trace.setModelName(modelName);
         trace.setPipelineName(defaultText(pipelineName, "agent-pipeline-v1"));
         trace.setNodeSpansJson(defaultText(nodeSpansJson, "[]"));
+        trace.setQueryIntent(defaultText(queryIntent, "GENERAL_QA"));
+        trace.setSearchQuery(searchQuery);
+        trace.setComparisonRequested(comparisonRequested);
         trace.setSourceCount(sourceCount);
         trace.setRetrievalMs(retrievalMs);
         trace.setGenerationMs(generationMs);
