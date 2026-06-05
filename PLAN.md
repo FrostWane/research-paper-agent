@@ -42,11 +42,13 @@
   - PDFBox 提取 PDF 文本，按页码和块索引写入 `paper_chunks`。
   - embedding 存入 pgvector，支持按当前文献或当前用户全库检索相关片段。
 - Agent 设计：
-  - 使用 Spring AI + `AgentOrchestratorService`。
-  - `RetrieverAgent`：检索论文相关片段。
-  - `AnswerAgent`：基于片段生成结构化 Markdown 回答。
-  - `CitationVerifierAgent`：检查回答是否引用来源页码，材料不足时明确说明。
-  - `FormatterAgent`：统一输出格式。
+  - 使用 Spring AI + `AgentPipeline` + `AgentOrchestratorService`。
+  - 参考 ragent 的节点化框架，先采用轻量 Spring Bean Pipeline，而不是直接引入 AOP Trace 和异步流式上下文。
+  - `ScopeResolutionNode`：解析单篇 / 全库问答范围。
+  - `RetrievalNode`：检索论文相关片段。
+  - `AnswerGenerationNode`：基于片段生成结构化 Markdown 回答。
+  - `CitationVerificationNode`：检查回答是否引用来源页码，材料不足时明确说明。
+  - `AnswerFormattingNode`：统一输出格式。
 - 新增 API：
   - `POST /api/papers/{id}/parse`
   - `DELETE /api/papers/{id}/parse`

@@ -3,12 +3,13 @@ package com.frostwane.paperagent.agent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.frostwane.paperagent.agent.AnswerAgent.GeneratedAnswer;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRecordResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
-import com.frostwane.paperagent.paper.Paper;
+import com.frostwane.paperagent.agent.pipeline.AgentNodeType;
+import com.frostwane.paperagent.agent.pipeline.AgentPipeline;
+import com.frostwane.paperagent.agent.pipeline.AgentPipelineContext;
 import com.frostwane.paperagent.paper.PaperService;
 import com.frostwane.paperagent.user.User;
 import org.springframework.stereotype.Service;
@@ -21,30 +22,21 @@ import java.util.List;
 @Service
 public class AgentOrchestratorService {
 
+    private final AgentPipeline agentPipeline;
     private final PaperService paperService;
-    private final RetrieverAgent retrieverAgent;
-    private final AnswerAgent answerAgent;
-    private final CitationVerifierAgent citationVerifierAgent;
-    private final FormatterAgent formatterAgent;
     private final ChatRecordRepository chatRecordRepository;
     private final RagTraceService ragTraceService;
     private final ObjectMapper objectMapper;
 
     public AgentOrchestratorService(
+        AgentPipeline agentPipeline,
         PaperService paperService,
-        RetrieverAgent retrieverAgent,
-        AnswerAgent answerAgent,
-        CitationVerifierAgent citationVerifierAgent,
-        FormatterAgent formatterAgent,
         ChatRecordRepository chatRecordRepository,
         RagTraceService ragTraceService,
         ObjectMapper objectMapper
     ) {
+        this.agentPipeline = agentPipeline;
         this.paperService = paperService;
-        this.retrieverAgent = retrieverAgent;
-        this.answerAgent = answerAgent;
-        this.citationVerifierAgent = citationVerifierAgent;
-        this.formatterAgent = formatterAgent;
         this.chatRecordRepository = chatRecordRepository;
         this.ragTraceService = ragTraceService;
         this.objectMapper = objectMapper;
@@ -53,77 +45,42 @@ public class AgentOrchestratorService {
     @Transactional
     public ChatResponse chat(ChatRequest request, User owner) {
         Instant started = Instant.now();
-        String question = request.question().trim();
-        String scope = request.paperId() == null ? "LIBRARY" : "PAPER";
-        Paper paper = null;
-        List<SourceResponse> sources = List.of();
-        String modelName = null;
-        int retrievalMs = 0;
-        int generationMs = 0;
-        int verificationMs = 0;
-        int formattingMs = 0;
+        AgentPipelineContext context = new AgentPipelineContext(request, owner);
 
         try {
-            paper = request.paperId() == null ? null : paperService.requireOwnedPaper(request.paperId(), owner.getId());
-
-            Instant segmentStarted = Instant.now();
-            sources = paper == null
-                ? retrieverAgent.retrieveLibrary(owner, question, request.useRag())
-                : retrieverAgent.retrieve(paper, question, request.useRag());
-            retrievalMs = elapsedMs(segmentStarted);
-
-            segmentStarted = Instant.now();
-            GeneratedAnswer generated = answerAgent.answer(paper, question, sources);
-            generationMs = elapsedMs(segmentStarted);
-            modelName = generated.modelName();
-
-            segmentStarted = Instant.now();
-            String verified = citationVerifierAgent.verify(generated.content(), sources);
-            verificationMs = elapsedMs(segmentStarted);
-
-            segmentStarted = Instant.now();
-            String formatted = formatterAgent.format(verified);
-            formattingMs = elapsedMs(segmentStarted);
+            agentPipeline.execute(context);
             int latencyMs = elapsedMs(started);
 
             ChatRecord record = new ChatRecord();
             record.setOwner(owner);
-            record.setPaper(paper);
-            record.setQuestion(question);
-            record.setAnswer(formatted);
-            record.setSourcesJson(toJson(sources));
-            record.setModelName(modelName);
+            record.setPaper(context.paper());
+            record.setQuestion(context.question());
+            record.setAnswer(context.formattedAnswer());
+            record.setSourcesJson(toJson(context.sources()));
+            record.setModelName(context.modelName());
             record.setLatencyMs(latencyMs);
             ChatRecord saved = chatRecordRepository.save(record);
 
             ragTraceService.recordSuccess(
                 owner,
-                paper,
+                context.paper(),
                 saved,
-                scope,
-                question,
-                modelName,
-                sources.size(),
-                retrievalMs,
-                generationMs,
-                verificationMs,
-                formattingMs,
+                context.scope(),
+                context.question(),
+                context.modelName(),
+                context.sourceCount(),
+                context.timingMs(AgentNodeType.RETRIEVAL),
+                context.timingMs(AgentNodeType.GENERATION),
+                context.timingMs(AgentNodeType.VERIFICATION),
+                context.timingMs(AgentNodeType.FORMATTING),
                 latencyMs
             );
 
-            return new ChatResponse(formatted, sources, saved.getId(), modelName, latencyMs);
+            return new ChatResponse(context.formattedAnswer(), context.sources(), saved.getId(), context.modelName(), latencyMs);
         } catch (RuntimeException ex) {
             recordFailureTrace(
                 owner,
-                paper,
-                scope,
-                question,
-                modelName,
-                sources.size(),
-                retrievalMs,
-                generationMs,
-                verificationMs,
-                formattingMs,
+                context,
                 elapsedMs(started),
                 ex
             );
@@ -184,30 +141,22 @@ public class AgentOrchestratorService {
 
     private void recordFailureTrace(
         User owner,
-        Paper paper,
-        String scope,
-        String question,
-        String modelName,
-        int sourceCount,
-        int retrievalMs,
-        int generationMs,
-        int verificationMs,
-        int formattingMs,
+        AgentPipelineContext context,
         int totalMs,
         RuntimeException exception
     ) {
         try {
             ragTraceService.recordFailure(
                 owner,
-                paper,
-                scope,
-                question,
-                modelName,
-                sourceCount,
-                retrievalMs,
-                generationMs,
-                verificationMs,
-                formattingMs,
+                context.paper(),
+                context.scope(),
+                context.question(),
+                context.modelName(),
+                context.sourceCount(),
+                context.timingMs(AgentNodeType.RETRIEVAL),
+                context.timingMs(AgentNodeType.GENERATION),
+                context.timingMs(AgentNodeType.VERIFICATION),
+                context.timingMs(AgentNodeType.FORMATTING),
                 totalMs,
                 exception.getClass().getSimpleName() + ": " + exception.getMessage()
             );
