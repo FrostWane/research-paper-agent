@@ -1161,6 +1161,7 @@ select,
 .admin-model-list,
 .admin-recent-list,
 .admin-user-table,
+.admin-job-list,
 .admin-trace-list {
   display: grid;
   gap: 8px;
@@ -1252,6 +1253,109 @@ select,
 
 .admin-users-panel {
   overflow-x: auto;
+}
+
+.admin-job-panel {
+  overflow-x: auto;
+}
+
+.admin-job-list {
+  min-width: 840px;
+}
+
+.admin-job-row {
+  display: grid;
+  grid-template-columns: 72px minmax(260px, 1fr) minmax(180px, 0.55fr) 58px 68px 82px;
+  align-items: center;
+  gap: 11px;
+  min-height: 58px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.admin-job-row.head {
+  min-height: 36px;
+  color: var(--muted);
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-job-row.is-failed {
+  border-color: #ffd5dd;
+  background: #fff8fa;
+}
+
+.admin-job-row em,
+.admin-job-row > span:not(.admin-job-title),
+.admin-job-row > strong:last-child {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-job-row > strong:last-child {
+  color: var(--ink);
+  justify-self: end;
+}
+
+.admin-job-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.admin-job-status.is-success {
+  color: #0f766e;
+  background: #e6f6f3;
+}
+
+.admin-job-status.is-running {
+  color: #1d4ed8;
+  background: #eaf1ff;
+}
+
+.admin-job-status.is-failed {
+  color: var(--red);
+  background: #fff1f3;
+}
+
+.admin-job-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-job-title strong,
+.admin-job-title small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-job-title strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.admin-job-title small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-job-title .admin-job-error {
+  color: var(--red);
 }
 
 .admin-trace-panel {

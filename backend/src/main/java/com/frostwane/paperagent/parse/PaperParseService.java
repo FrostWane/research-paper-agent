@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,28 +34,35 @@ public class PaperParseService {
     private final PaperChunkRepository chunkRepository;
     private final FileService fileService;
     private final PaperEmbeddingIndexer embeddingIndexer;
+    private final ParseJobService parseJobService;
 
     public PaperParseService(
         PaperService paperService,
         PaperRepository paperRepository,
         PaperChunkRepository chunkRepository,
         FileService fileService,
-        PaperEmbeddingIndexer embeddingIndexer
+        PaperEmbeddingIndexer embeddingIndexer,
+        ParseJobService parseJobService
     ) {
         this.paperService = paperService;
         this.paperRepository = paperRepository;
         this.chunkRepository = chunkRepository;
         this.fileService = fileService;
         this.embeddingIndexer = embeddingIndexer;
+        this.parseJobService = parseJobService;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public ParseStatusResponse parse(Long paperId, User owner) {
+        Instant started = Instant.now();
         Paper paper = paperService.requireOwnedPaper(paperId, owner.getId());
         PaperFile file = paper.getFile();
         if (file == null) {
             throw new BusinessException("该文献未关联 PDF 文件");
         }
+        ParseJob job = parseJobService.start(owner, paper, file);
+        int pageCount = file.getPageCount() == null ? 0 : file.getPageCount();
+        int chunkCount = 0;
 
         paper.setProcessStatus(ProcessStatus.PARSING);
         paperRepository.saveAndFlush(paper);
@@ -62,17 +71,22 @@ public class PaperParseService {
         try {
             byte[] pdfBytes = readAll(fileService.openPdf(file));
             List<PaperChunk> chunks = extractChunks(paper, pdfBytes);
+            chunkCount = chunks.size();
             paper.setProcessStatus(ProcessStatus.INDEXING);
             paperRepository.saveAndFlush(paper);
             List<PaperChunk> savedChunks = chunkRepository.saveAllAndFlush(chunks);
             embeddingIndexer.index(savedChunks);
             paper.setProcessStatus(ProcessStatus.INDEXED);
             paperRepository.save(paper);
+            parseJobService.succeed(job, pageCount, chunkCount, elapsedMs(started));
             return new ParseStatusResponse(paper.getId(), ProcessStatus.INDEXED.name(), "PDF 已解析并写入向量索引，可用于来源片段检索", 100, chunks.size());
         } catch (Exception ex) {
+            chunkRepository.deleteByPaperId(paper.getId());
             paper.setProcessStatus(ProcessStatus.FAILED);
-            paperRepository.save(paper);
-            throw new BusinessException("PDF 解析失败：" + ex.getMessage());
+            paperRepository.saveAndFlush(paper);
+            String message = "PDF 解析失败：" + ex.getMessage();
+            parseJobService.fail(job, pageCount, chunkCount, elapsedMs(started), message);
+            throw new BusinessException(message);
         }
     }
 
@@ -145,5 +159,9 @@ public class PaperParseService {
             in.transferTo(out);
             return out.toByteArray();
         }
+    }
+
+    private int elapsedMs(Instant started) {
+        return Math.toIntExact(Math.min(Duration.between(started, Instant.now()).toMillis(), Integer.MAX_VALUE));
     }
 }

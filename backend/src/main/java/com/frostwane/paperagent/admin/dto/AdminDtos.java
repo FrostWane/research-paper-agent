@@ -27,9 +27,13 @@ public final class AdminDtos {
         long failedTraces,
         int averageRetrievalMs,
         int averageGenerationMs,
+        long totalParseJobs,
+        long failedParseJobs,
+        int averageParseMs,
         List<StatusCountResponse> processStatuses,
         List<ModelUsageResponse> modelUsage,
         List<RecentPaperResponse> recentPapers,
+        List<ParseJobResponse> recentParseJobs,
         List<RagTraceResponse> recentTraces
     ) {
     }
@@ -73,6 +77,23 @@ public final class AdminDtos {
         int totalMs,
         String errorMessage,
         OffsetDateTime createdAt
+    ) {
+    }
+
+    public record ParseJobResponse(
+        Long id,
+        String username,
+        Long paperId,
+        String paperTitle,
+        String fileName,
+        long fileSize,
+        String status,
+        int pageCount,
+        int chunkCount,
+        int durationMs,
+        String errorMessage,
+        OffsetDateTime startedAt,
+        OffsetDateTime finishedAt
     ) {
     }
 

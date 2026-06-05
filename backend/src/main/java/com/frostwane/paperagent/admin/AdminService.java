@@ -3,6 +3,7 @@ package com.frostwane.paperagent.admin;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RecentPaperResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
@@ -54,9 +55,13 @@ public class AdminService {
             count("select count(*) from rag_traces where status = 'FAILED'"),
             intValue("select coalesce(round(avg(retrieval_ms)), 0) from rag_traces"),
             intValue("select coalesce(round(avg(generation_ms)), 0) from rag_traces"),
+            count("select count(*) from parse_jobs"),
+            count("select count(*) from parse_jobs where status = 'FAILED'"),
+            intValue("select coalesce(round(avg(duration_ms)), 0) from parse_jobs where finished_at is not null"),
             processStatuses(),
             modelUsage(),
             recentPapers(),
+            recentParseJobs(),
             recentTraces()
         );
     }
@@ -200,6 +205,43 @@ public class AdminService {
             rs.getInt("total_ms"),
             rs.getString("error_message"),
             offsetDateTime(rs, "created_at")
+        ));
+    }
+
+    private List<ParseJobResponse> recentParseJobs() {
+        return jdbcTemplate.query("""
+            select
+              j.id,
+              u.username,
+              j.paper_id,
+              j.paper_title,
+              j.file_name,
+              j.file_size,
+              j.status,
+              j.page_count,
+              j.chunk_count,
+              j.duration_ms,
+              j.error_message,
+              j.started_at,
+              j.finished_at
+            from parse_jobs j
+            join users u on u.id = j.owner_id
+            order by j.started_at desc
+            limit 8
+            """, (rs, rowNum) -> new ParseJobResponse(
+            rs.getLong("id"),
+            rs.getString("username"),
+            nullableLong(rs, "paper_id"),
+            rs.getString("paper_title"),
+            rs.getString("file_name"),
+            rs.getLong("file_size"),
+            rs.getString("status"),
+            rs.getInt("page_count"),
+            rs.getInt("chunk_count"),
+            rs.getInt("duration_ms"),
+            rs.getString("error_message"),
+            offsetDateTime(rs, "started_at"),
+            offsetDateTime(rs, "finished_at")
         ));
     }
 

@@ -1166,7 +1166,7 @@ function AdminView({
         <div>
           <span className="admin-eyebrow"><ServerCog size={15} /> Admin Console</span>
           <h2>系统控制台</h2>
-          <p>用户、文献、知识库索引和模型调用状态。</p>
+          <p>用户、文献、解析任务、知识库索引和模型调用状态。</p>
         </div>
         <button className="secondary-button" type="button" onClick={onRefresh} disabled={loading}>
           <RefreshCw className={loading ? 'spin' : ''} size={17} />
@@ -1188,7 +1188,7 @@ function AdminView({
           <div className="admin-panel-head">
             <div>
               <h3>解析状态</h3>
-              <p>文献处理状态分布</p>
+              <p>文献处理状态分布 · 解析任务 {overview?.totalParseJobs ?? 0} 次</p>
             </div>
             <BarChart3 size={18} />
           </div>
@@ -1230,6 +1230,48 @@ function AdminView({
               ))
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="admin-panel admin-job-panel">
+        <div className="admin-panel-head">
+          <div>
+            <h3>解析任务</h3>
+            <p>最近 PDF 入库任务。平均 {formatLatency(overview?.averageParseMs ?? 0)}{overview?.failedParseJobs ? ` · 失败 ${overview.failedParseJobs} 次` : ''}</p>
+          </div>
+          <Loader2 size={18} />
+        </div>
+        <div className="admin-job-list">
+          {(overview?.recentParseJobs ?? []).length === 0 ? (
+            <EmptyState compact title="暂无任务" detail="触发 PDF 解析后会记录入库任务。" />
+          ) : (
+            <>
+              <div className="admin-job-row head">
+                <span>状态</span>
+                <span>文献</span>
+                <span>文件</span>
+                <span>页数</span>
+                <span>片段</span>
+                <span>耗时</span>
+              </div>
+              {overview!.recentParseJobs.map((job) => (
+                <div className={`admin-job-row ${job.status === 'FAILED' ? 'is-failed' : ''}`} key={job.id}>
+                  <strong className={`admin-job-status ${job.status === 'SUCCESS' ? 'is-success' : job.status === 'RUNNING' ? 'is-running' : 'is-failed'}`}>
+                    {parseJobStatusLabel(job.status)}
+                  </strong>
+                  <span className="admin-job-title">
+                    <strong>{job.paperTitle}</strong>
+                    <small>{job.username} · {formatTime(job.startedAt)}</small>
+                    {job.status === 'FAILED' && job.errorMessage && <small className="admin-job-error">{job.errorMessage}</small>}
+                  </span>
+                  <em>{job.fileName} · {formatBytes(job.fileSize)}</em>
+                  <span>{job.pageCount}</span>
+                  <span>{job.chunkCount}</span>
+                  <strong>{job.status === 'RUNNING' ? '进行中' : formatLatency(job.durationMs)}</strong>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -1843,6 +1885,15 @@ function processLabel(status: string) {
 
 function traceStatusLabel(status: string) {
   const labels: Record<string, string> = {
+    SUCCESS: '成功',
+    FAILED: '失败'
+  };
+  return labels[status] || status;
+}
+
+function parseJobStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    RUNNING: '进行中',
     SUCCESS: '成功',
     FAILED: '失败'
   };

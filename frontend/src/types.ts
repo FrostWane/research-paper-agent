@@ -136,6 +136,22 @@ export interface AdminTrace {
   createdAt: string;
 }
 
+export interface AdminParseJob {
+  id: number;
+  username: string;
+  paperId?: number;
+  paperTitle: string;
+  fileName: string;
+  fileSize: number;
+  status: 'RUNNING' | 'SUCCESS' | 'FAILED' | string;
+  pageCount: number;
+  chunkCount: number;
+  durationMs: number;
+  errorMessage?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
 export interface AdminOverview {
   totalUsers: number;
   normalUsers: number;
@@ -153,9 +169,13 @@ export interface AdminOverview {
   failedTraces: number;
   averageRetrievalMs: number;
   averageGenerationMs: number;
+  totalParseJobs: number;
+  failedParseJobs: number;
+  averageParseMs: number;
   processStatuses: AdminStatusCount[];
   modelUsage: AdminModelUsage[];
   recentPapers: AdminRecentPaper[];
+  recentParseJobs: AdminParseJob[];
   recentTraces: AdminTrace[];
 }
 
