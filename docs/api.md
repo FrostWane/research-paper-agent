@@ -62,3 +62,21 @@ GET  /api/papers/{paperId}/chats
 ```
 
 响应中的 `sources` 会返回命中的论文 ID、标题、来源页码和片段。`GET /api/agent/chats` 返回全库问答历史，`GET /api/papers/{paperId}/chats` 返回单篇问答历史。
+
+## Admin
+
+`/api/admin/**` 需要 `ADMIN` 角色。
+
+```http
+GET   /api/admin/overview
+GET   /api/admin/users
+PATCH /api/admin/users/{id}/status
+```
+
+用户状态更新请求：
+
+```json
+{
+  "status": "DISABLED"
+}
+```

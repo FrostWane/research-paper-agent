@@ -5,6 +5,8 @@ import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
+  Activity,
+  BarChart3,
   BookOpen,
   Bot,
   Brain,
@@ -14,6 +16,7 @@ import {
   Clock3,
   Database,
   FileText,
+  HardDrive,
   History,
   Layers,
   Loader2,
@@ -24,19 +27,23 @@ import {
   RefreshCw,
   Search,
   Send,
+  ServerCog,
   ShieldCheck,
   Trash2,
+  UserCog,
+  Users,
   UploadCloud,
   ZoomIn,
   ZoomOut
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { fetchAdminOverview, fetchAdminUsers, updateAdminUserStatus } from './api/admin';
 import { askAgent, listChats, listLibraryChats } from './api/agent';
 import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { ChatRecord, Paper, PaperForm, SourceResponse, User } from './types';
+import type { AdminOverview, AdminUser, ChatRecord, Paper, PaperForm, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -89,7 +96,7 @@ const libraryQuickPrompts = [
   '请给出一份适合写综述的结构化大纲。'
 ];
 
-type ViewKey = 'library' | 'upload' | 'reader' | 'libraryChat' | 'history';
+type ViewKey = 'library' | 'upload' | 'reader' | 'libraryChat' | 'history' | 'admin';
 type AuthMode = 'login' | 'register';
 type ReaderScope = 'paper' | 'library';
 type PdfJump = { paperId: number; page: number; signal: number };
@@ -110,6 +117,9 @@ export default function App() {
   const [chats, setChats] = useState<ChatRecord[]>([]);
   const [question, setQuestion] = useState('');
   const [pdfJump, setPdfJump] = useState<PdfJump | null>(null);
+  const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyText, setBusyText] = useState('');
   const [error, setError] = useState('');
@@ -145,6 +155,12 @@ export default function App() {
       setChats([]);
     }
   }, [activeView, readerScope, selectedPaper?.id]);
+
+  useEffect(() => {
+    if (activeView === 'admin' && user?.role === 'ADMIN') {
+      void loadAdminData();
+    }
+  }, [activeView, user?.role]);
 
   async function bootstrap() {
     try {
@@ -216,6 +232,8 @@ export default function App() {
     setSelectedPaperId(null);
     setReaderScope('paper');
     setChats([]);
+    setAdminOverview(null);
+    setAdminUsers([]);
     setActiveView('library');
     showNotice('已退出登录。');
   }
@@ -368,6 +386,34 @@ export default function App() {
     }
   }
 
+  async function loadAdminData() {
+    try {
+      setAdminLoading(true);
+      setError('');
+      const [overview, users] = await Promise.all([fetchAdminOverview(), fetchAdminUsers()]);
+      setAdminOverview(overview);
+      setAdminUsers(users);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleAdminUserStatus(userItem: AdminUser, status: 'NORMAL' | 'DISABLED') {
+    try {
+      setBusyText(status === 'DISABLED' ? '正在禁用用户...' : '正在恢复用户...');
+      const updated = await updateAdminUserStatus(userItem.id, status);
+      setAdminUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice(status === 'DISABLED' ? '用户已禁用。' : '用户已恢复。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
   function handleSourceJump(source: SourceResponse) {
     if (!source.paperId) {
       return;
@@ -448,6 +494,9 @@ export default function App() {
             }}
           />
           <NavButton icon={History} label="问答历史" active={activeView === 'history'} onClick={() => setActiveView('history')} />
+          {user.role === 'ADMIN' && (
+            <NavButton icon={UserCog} label="管理后台" active={activeView === 'admin'} onClick={() => setActiveView('admin')} />
+          )}
         </nav>
 
         <div className="system-panel">
@@ -490,12 +539,14 @@ export default function App() {
           </div>
         )}
 
-        <section className="metrics">
-          <Metric icon={FileText} label="文献总数" value={stats.total} />
-          <Metric icon={CheckCircle2} label="已精读" value={stats.intensive} />
-          <Metric icon={Layers} label="已解析" value={stats.indexed} />
-          <Metric icon={History} label="当前问答" value={stats.chats} />
-        </section>
+        {activeView !== 'admin' && (
+          <section className="metrics">
+            <Metric icon={FileText} label="文献总数" value={stats.total} />
+            <Metric icon={CheckCircle2} label="已精读" value={stats.intensive} />
+            <Metric icon={Layers} label="已解析" value={stats.indexed} />
+            <Metric icon={History} label="当前问答" value={stats.chats} />
+          </section>
+        )}
 
         {activeView === 'library' && (
           <LibraryView
@@ -585,6 +636,17 @@ export default function App() {
               }
             }}
             onSourceClick={handleSourceJump}
+          />
+        )}
+
+        {activeView === 'admin' && user.role === 'ADMIN' && (
+          <AdminView
+            overview={adminOverview}
+            users={adminUsers}
+            loading={adminLoading}
+            currentUserId={user.id}
+            onRefresh={() => void loadAdminData()}
+            onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
           />
         )}
       </main>
@@ -1080,6 +1142,174 @@ function HistoryView({
   );
 }
 
+function AdminView({
+  overview,
+  users,
+  loading,
+  currentUserId,
+  onRefresh,
+  onUserStatusChange
+}: {
+  overview: AdminOverview | null;
+  users: AdminUser[];
+  loading: boolean;
+  currentUserId: number;
+  onRefresh: () => void;
+  onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
+}) {
+  const embeddedRatio = overview?.totalChunks ? Math.round((overview.embeddedChunks / overview.totalChunks) * 100) : 0;
+  const indexedRatio = overview?.totalPapers ? Math.round((overview.indexedPapers / overview.totalPapers) * 100) : 0;
+
+  return (
+    <section className="admin-console">
+      <div className="admin-hero">
+        <div>
+          <span className="admin-eyebrow"><ServerCog size={15} /> Admin Console</span>
+          <h2>系统控制台</h2>
+          <p>用户、文献、知识库索引和模型调用状态。</p>
+        </div>
+        <button className="secondary-button" type="button" onClick={onRefresh} disabled={loading}>
+          <RefreshCw className={loading ? 'spin' : ''} size={17} />
+          刷新
+        </button>
+      </div>
+
+      <div className="admin-stat-grid">
+        <AdminStat icon={Users} label="用户" value={overview?.totalUsers ?? 0} detail={`${overview?.normalUsers ?? 0} 正常 / ${overview?.disabledUsers ?? 0} 禁用`} />
+        <AdminStat icon={FileText} label="文献" value={overview?.totalPapers ?? 0} detail={`${overview?.indexedPapers ?? 0} 已解析 · ${indexedRatio}%`} />
+        <AdminStat icon={Database} label="知识片段" value={overview?.totalChunks ?? 0} detail={`${overview?.embeddedChunks ?? 0} 已向量化 · ${embeddedRatio}%`} />
+        <AdminStat icon={HardDrive} label="PDF 存储" value={formatBytes(overview?.storageBytes ?? 0)} detail={`${overview?.totalFiles ?? 0} 个文件`} />
+        <AdminStat icon={MessageSquareText} label="问答" value={overview?.totalChats ?? 0} detail={`${overview?.libraryChats ?? 0} 次全库问答`} />
+        <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail="Agent 响应" />
+      </div>
+
+      <div className="admin-grid">
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <div>
+              <h3>解析状态</h3>
+              <p>文献处理状态分布</p>
+            </div>
+            <BarChart3 size={18} />
+          </div>
+          <div className="admin-status-list">
+            {(overview?.processStatuses ?? []).length === 0 ? (
+              <EmptyState compact title="暂无状态" detail="文献入库后会显示解析分布。" />
+            ) : (
+              overview!.processStatuses.map((item) => (
+                <div className="admin-status-row" key={item.status}>
+                  <span>{processLabel(item.status)}</span>
+                  <strong>{item.count}</strong>
+                  <div>
+                    <i style={{ width: `${overview?.totalPapers ? Math.max(6, (item.count / overview.totalPapers) * 100) : 0}%` }} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <div>
+              <h3>模型调用</h3>
+              <p>最近问答记录聚合</p>
+            </div>
+            <Brain size={18} />
+          </div>
+          <div className="admin-model-list">
+            {(overview?.modelUsage ?? []).length === 0 ? (
+              <EmptyState compact title="暂无调用" detail="完成问答后会统计模型使用。" />
+            ) : (
+              overview!.modelUsage.map((model) => (
+                <div className="admin-model-row" key={model.modelName}>
+                  <span>{model.modelName}</span>
+                  <strong>{model.count}</strong>
+                  <em>{formatLatency(model.averageLatencyMs)}</em>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-grid wide">
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <div>
+              <h3>最近文献</h3>
+              <p>按更新时间排序</p>
+            </div>
+            <Clock3 size={18} />
+          </div>
+          <div className="admin-recent-list">
+            {(overview?.recentPapers ?? []).length === 0 ? (
+              <EmptyState compact title="暂无文献" detail="上传 PDF 后会显示最近活动。" />
+            ) : (
+              overview!.recentPapers.map((paper) => (
+                <div className="admin-recent-row" key={paper.id}>
+                  <FileText size={16} />
+                  <span>{paper.title}</span>
+                  <em>{paper.owner}</em>
+                  <strong>{processLabel(paper.processStatus)}</strong>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="admin-panel admin-users-panel">
+          <div className="admin-panel-head">
+            <div>
+              <h3>用户管理</h3>
+              <p>账号状态与资源使用</p>
+            </div>
+            <UserCog size={18} />
+          </div>
+          <div className="admin-user-table">
+            <div className="admin-user-row head">
+              <span>用户</span>
+              <span>角色</span>
+              <span>文献</span>
+              <span>问答</span>
+              <span>存储</span>
+              <span>状态</span>
+              <span>操作</span>
+            </div>
+            {users.length === 0 ? (
+              <EmptyState compact title="暂无用户" detail="注册用户后会显示账号列表。" />
+            ) : (
+              users.map((userItem) => (
+                <div className="admin-user-row" key={userItem.id}>
+                  <span>
+                    <strong>{userItem.username}</strong>
+                    <small>{userItem.email}</small>
+                  </span>
+                  <em>{userItem.role}</em>
+                  <span>{userItem.indexedPaperCount} / {userItem.paperCount}</span>
+                  <span>{userItem.chatCount}</span>
+                  <span>{formatBytes(userItem.storageBytes)}</span>
+                  <strong className={`admin-user-status ${userItem.status === 'NORMAL' ? 'is-normal' : 'is-disabled'}`}>
+                    {userItem.status === 'NORMAL' ? '正常' : '禁用'}
+                  </strong>
+                  <button
+                    className={`secondary-button compact-action ${userItem.status === 'NORMAL' ? 'danger-action' : ''}`}
+                    type="button"
+                    disabled={userItem.id === currentUserId}
+                    onClick={() => onUserStatusChange(userItem, userItem.status === 'NORMAL' ? 'DISABLED' : 'NORMAL')}
+                  >
+                    {userItem.status === 'NORMAL' ? '禁用' : '恢复'}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PdfPreview({ paper, targetPage, jumpSignal }: { paper: Paper; targetPage?: number; jumpSignal?: number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -1344,6 +1574,17 @@ function Metric({ icon: Icon, label, value }: { icon: LucideIcon; label: string;
   );
 }
 
+function AdminStat({ icon: Icon, label, value, detail }: { icon: LucideIcon; label: string; value: number | string; detail: string }) {
+  return (
+    <div className="admin-stat">
+      <Icon size={20} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <em>{detail}</em>
+    </div>
+  );
+}
+
 function Field({
   label,
   value,
@@ -1562,6 +1803,13 @@ function formatBytes(bytes = 0) {
     return `${(bytes / 1024).toFixed(1)} KB`;
   }
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatLatency(value = 0) {
+  if (!value) {
+    return '-';
+  }
+  return value < 1000 ? `${value} ms` : `${(value / 1000).toFixed(1)} s`;
 }
 
 function formatTime(value: string) {

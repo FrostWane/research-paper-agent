@@ -97,3 +97,56 @@ export interface ChatRecord {
   latencyMs?: number;
   createdAt: string;
 }
+
+export interface AdminStatusCount {
+  status: string;
+  count: number;
+}
+
+export interface AdminModelUsage {
+  modelName: string;
+  count: number;
+  averageLatencyMs: number;
+}
+
+export interface AdminRecentPaper {
+  id: number;
+  title: string;
+  owner: string;
+  processStatus: string;
+  updatedAt: string;
+}
+
+export interface AdminOverview {
+  totalUsers: number;
+  normalUsers: number;
+  disabledUsers: number;
+  totalPapers: number;
+  indexedPapers: number;
+  failedPapers: number;
+  totalFiles: number;
+  storageBytes: number;
+  totalChunks: number;
+  embeddedChunks: number;
+  totalChats: number;
+  libraryChats: number;
+  averageLatencyMs: number;
+  processStatuses: AdminStatusCount[];
+  modelUsage: AdminModelUsage[];
+  recentPapers: AdminRecentPaper[];
+}
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  status: 'NORMAL' | 'DISABLED' | string;
+  paperCount: number;
+  indexedPaperCount: number;
+  chatCount: number;
+  fileCount: number;
+  storageBytes: number;
+  averageLatencyMs: number;
+  createdAt: string;
+}

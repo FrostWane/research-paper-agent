@@ -56,6 +56,10 @@
   - 默认支持无 API Key 的兜底 Agent。
   - 配置 OpenAI-compatible API 后启用 Spring AI `ChatClient`、Embedding 和 RAG 检索。
   - 可接 OpenAI、DeepSeek、通义兼容接口或本地兼容网关。
+- 工程化增强：
+  - 参考 Ragent 的控制台信息架构，新增轻量管理员后台。
+  - 管理员可查看用户、文献、存储、索引、问答和模型调用聚合。
+  - 管理员可启用 / 禁用普通用户，后续继续扩展 RAG Trace 与解析任务日志。
 
 ## Phase 3: Android 简化端
 
