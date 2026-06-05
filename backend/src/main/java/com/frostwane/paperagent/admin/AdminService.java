@@ -3,6 +3,7 @@ package com.frostwane.paperagent.admin;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RecentPaperResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
 import com.frostwane.paperagent.common.BusinessException;
@@ -50,9 +51,13 @@ public class AdminService {
             count("select count(*) from chat_records"),
             count("select count(*) from chat_records where paper_id is null"),
             intValue("select coalesce(round(avg(latency_ms)), 0) from chat_records where latency_ms is not null"),
+            count("select count(*) from rag_traces where status = 'FAILED'"),
+            intValue("select coalesce(round(avg(retrieval_ms)), 0) from rag_traces"),
+            intValue("select coalesce(round(avg(generation_ms)), 0) from rag_traces"),
             processStatuses(),
             modelUsage(),
-            recentPapers()
+            recentPapers(),
+            recentTraces()
         );
     }
 
@@ -154,6 +159,50 @@ public class AdminService {
         ));
     }
 
+    private List<RagTraceResponse> recentTraces() {
+        return jdbcTemplate.query("""
+            select
+              t.id,
+              u.username,
+              p.id as paper_id,
+              p.title as paper_title,
+              t.scope,
+              t.question,
+              t.status,
+              coalesce(t.model_name, 'fallback') as model_name,
+              t.source_count,
+              t.retrieval_ms,
+              t.generation_ms,
+              t.verification_ms,
+              t.formatting_ms,
+              t.total_ms,
+              t.error_message,
+              t.created_at
+            from rag_traces t
+            join users u on u.id = t.owner_id
+            left join papers p on p.id = t.paper_id
+            order by t.created_at desc
+            limit 8
+            """, (rs, rowNum) -> new RagTraceResponse(
+            rs.getLong("id"),
+            rs.getString("username"),
+            nullableLong(rs, "paper_id"),
+            rs.getString("paper_title"),
+            rs.getString("scope"),
+            rs.getString("question"),
+            rs.getString("status"),
+            rs.getString("model_name"),
+            rs.getInt("source_count"),
+            rs.getInt("retrieval_ms"),
+            rs.getInt("generation_ms"),
+            rs.getInt("verification_ms"),
+            rs.getInt("formatting_ms"),
+            rs.getInt("total_ms"),
+            rs.getString("error_message"),
+            offsetDateTime(rs, "created_at")
+        ));
+    }
+
     private long count(String sql) {
         Number value = jdbcTemplate.queryForObject(sql, Number.class);
         return value == null ? 0L : value.longValue();
@@ -173,5 +222,10 @@ public class AdminService {
             return OffsetDateTime.ofInstant(timestamp.toInstant(), ZoneOffset.UTC);
         }
         return null;
+    }
+
+    private Long nullableLong(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
     }
 }

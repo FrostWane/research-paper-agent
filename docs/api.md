@@ -73,6 +73,8 @@ GET   /api/admin/users
 PATCH /api/admin/users/{id}/status
 ```
 
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、模型调用聚合和最近 RAG Trace。Trace 字段包含 `scope`、`status`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的检索和生成耗时。
+
 用户状态更新请求：
 
 ```json

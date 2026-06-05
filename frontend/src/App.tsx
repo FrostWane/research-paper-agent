@@ -1180,7 +1180,7 @@ function AdminView({
         <AdminStat icon={Database} label="知识片段" value={overview?.totalChunks ?? 0} detail={`${overview?.embeddedChunks ?? 0} 已向量化 · ${embeddedRatio}%`} />
         <AdminStat icon={HardDrive} label="PDF 存储" value={formatBytes(overview?.storageBytes ?? 0)} detail={`${overview?.totalFiles ?? 0} 个文件`} />
         <AdminStat icon={MessageSquareText} label="问答" value={overview?.totalChats ?? 0} detail={`${overview?.libraryChats ?? 0} 次全库问答`} />
-        <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail="Agent 响应" />
+        <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
       </div>
 
       <div className="admin-grid">
@@ -1230,6 +1230,52 @@ function AdminView({
               ))
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="admin-panel admin-trace-panel">
+        <div className="admin-panel-head">
+          <div>
+            <h3>RAG Trace</h3>
+            <p>最近问答的检索、生成和总耗时。{overview?.failedTraces ? `失败 ${overview.failedTraces} 次。` : ''}</p>
+          </div>
+          <Layers size={18} />
+        </div>
+        <div className="admin-trace-list">
+          {(overview?.recentTraces ?? []).length === 0 ? (
+            <EmptyState compact title="暂无 Trace" detail="完成一次问答后会记录 RAG 调用链路。" />
+          ) : (
+            <>
+              <div className="admin-trace-row head">
+                <span>状态</span>
+                <span>问题</span>
+                <span>模型</span>
+                <span>来源</span>
+                <span>检索</span>
+                <span>生成</span>
+                <span>总耗时</span>
+              </div>
+              {overview!.recentTraces.map((trace) => (
+                <div className={`admin-trace-row ${trace.status === 'FAILED' ? 'is-failed' : ''}`} key={trace.id}>
+                  <strong className={`admin-trace-status ${trace.status === 'SUCCESS' ? 'is-success' : 'is-failed'}`}>
+                    {traceStatusLabel(trace.status)}
+                  </strong>
+                  <span className="admin-trace-question">
+                    <strong>{trace.question}</strong>
+                    <small>
+                      {trace.username} · {scopeLabel(trace.scope)} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
+                    </small>
+                    {trace.status === 'FAILED' && trace.errorMessage && <small className="admin-trace-error">{trace.errorMessage}</small>}
+                  </span>
+                  <em>{trace.modelName || 'fallback'}</em>
+                  <span>{trace.sourceCount}</span>
+                  <span>{formatLatency(trace.retrievalMs)}</span>
+                  <span>{formatLatency(trace.generationMs)}</span>
+                  <strong>{formatLatency(trace.totalMs)}</strong>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -1793,6 +1839,18 @@ function processLabel(status: string) {
     FAILED: '解析失败'
   };
   return labels[status] || status;
+}
+
+function traceStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    SUCCESS: '成功',
+    FAILED: '失败'
+  };
+  return labels[status] || status;
+}
+
+function scopeLabel(scope: string) {
+  return scope === 'LIBRARY' ? '全库' : '单篇';
 }
 
 function formatBytes(bytes = 0) {

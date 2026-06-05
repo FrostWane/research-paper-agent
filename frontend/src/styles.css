@@ -1160,7 +1160,8 @@ select,
 .admin-status-list,
 .admin-model-list,
 .admin-recent-list,
-.admin-user-table {
+.admin-user-table,
+.admin-trace-list {
   display: grid;
   gap: 8px;
   padding: 14px;
@@ -1251,6 +1252,104 @@ select,
 
 .admin-users-panel {
   overflow-x: auto;
+}
+
+.admin-trace-panel {
+  overflow-x: auto;
+}
+
+.admin-trace-list {
+  min-width: 900px;
+}
+
+.admin-trace-row {
+  display: grid;
+  grid-template-columns: 68px minmax(260px, 1fr) minmax(110px, 0.36fr) 58px 78px 78px 82px;
+  align-items: center;
+  gap: 11px;
+  min-height: 58px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.admin-trace-row.head {
+  min-height: 36px;
+  color: var(--muted);
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-trace-row.is-failed {
+  border-color: #ffd5dd;
+  background: #fff8fa;
+}
+
+.admin-trace-row em,
+.admin-trace-row > span:not(.admin-trace-question),
+.admin-trace-row > strong:last-child {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-trace-row > strong:last-child {
+  color: var(--ink);
+  justify-self: end;
+}
+
+.admin-trace-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.admin-trace-status.is-success {
+  color: #0f766e;
+  background: #e6f6f3;
+}
+
+.admin-trace-status.is-failed {
+  color: var(--red);
+  background: #fff1f3;
+}
+
+.admin-trace-question {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-trace-question strong,
+.admin-trace-question small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-trace-question strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.admin-trace-question small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-trace-question .admin-trace-error {
+  color: var(--red);
 }
 
 .admin-user-table {

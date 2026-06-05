@@ -117,6 +117,25 @@ export interface AdminRecentPaper {
   updatedAt: string;
 }
 
+export interface AdminTrace {
+  id: number;
+  username: string;
+  paperId?: number;
+  paperTitle?: string;
+  scope: 'PAPER' | 'LIBRARY' | string;
+  question: string;
+  status: 'SUCCESS' | 'FAILED' | string;
+  modelName?: string;
+  sourceCount: number;
+  retrievalMs: number;
+  generationMs: number;
+  verificationMs: number;
+  formattingMs: number;
+  totalMs: number;
+  errorMessage?: string;
+  createdAt: string;
+}
+
 export interface AdminOverview {
   totalUsers: number;
   normalUsers: number;
@@ -131,9 +150,13 @@ export interface AdminOverview {
   totalChats: number;
   libraryChats: number;
   averageLatencyMs: number;
+  failedTraces: number;
+  averageRetrievalMs: number;
+  averageGenerationMs: number;
   processStatuses: AdminStatusCount[];
   modelUsage: AdminModelUsage[];
   recentPapers: AdminRecentPaper[];
+  recentTraces: AdminTrace[];
 }
 
 export interface AdminUser {

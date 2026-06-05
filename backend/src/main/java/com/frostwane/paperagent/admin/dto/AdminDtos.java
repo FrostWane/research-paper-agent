@@ -24,9 +24,13 @@ public final class AdminDtos {
         long totalChats,
         long libraryChats,
         int averageLatencyMs,
+        long failedTraces,
+        int averageRetrievalMs,
+        int averageGenerationMs,
         List<StatusCountResponse> processStatuses,
         List<ModelUsageResponse> modelUsage,
-        List<RecentPaperResponse> recentPapers
+        List<RecentPaperResponse> recentPapers,
+        List<RagTraceResponse> recentTraces
     ) {
     }
 
@@ -49,6 +53,26 @@ public final class AdminDtos {
         String owner,
         String processStatus,
         OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record RagTraceResponse(
+        Long id,
+        String username,
+        Long paperId,
+        String paperTitle,
+        String scope,
+        String question,
+        String status,
+        String modelName,
+        int sourceCount,
+        int retrievalMs,
+        int generationMs,
+        int verificationMs,
+        int formattingMs,
+        int totalMs,
+        String errorMessage,
+        OffsetDateTime createdAt
     ) {
     }
 
