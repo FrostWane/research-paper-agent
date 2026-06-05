@@ -7,6 +7,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceNodeSpanResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceRetrievalChannelResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RecentPaperResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
@@ -193,6 +194,7 @@ public class AdminService {
               t.formatting_ms,
               t.total_ms,
               t.error_message,
+              t.retrieval_channels_json::text as retrieval_channels_json,
               t.node_spans_json::text as node_spans_json,
               t.created_at
             from rag_traces t
@@ -222,6 +224,7 @@ public class AdminService {
             rs.getInt("formatting_ms"),
             rs.getInt("total_ms"),
             rs.getString("error_message"),
+            retrievalChannels(rs.getString("retrieval_channels_json")),
             nodeSpans(rs.getString("node_spans_json")),
             offsetDateTime(rs, "created_at")
         ));
@@ -291,6 +294,15 @@ public class AdminService {
     }
 
     private List<RagTraceNodeSpanResponse> nodeSpans(String json) {
+        try {
+            return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
+            });
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private List<RagTraceRetrievalChannelResponse> retrievalChannels(String json) {
         try {
             return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
             });

@@ -1313,6 +1313,21 @@ function AdminView({
                     {trace.answerContract && (
                       <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 96)}</small>
                     )}
+                    {(trace.retrievalChannels ?? []).length > 0 && (
+                      <div className="admin-retrieval-channels">
+                        {trace.retrievalChannels.map((channel) => (
+                          <span
+                            className={`admin-retrieval-channel ${channel.status === 'FAILED' ? 'is-failed' : ''}`}
+                            key={`${trace.id}-${channel.name}`}
+                            title={channel.errorMessage || channel.label || channel.name}
+                          >
+                            <i>{channel.label || channel.name}</i>
+                            <b>{channel.candidateCount}</b>
+                            <em>{formatLatency(channel.latencyMs)}</em>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {(trace.nodeSpans ?? []).length > 0 && (
                       <div className="admin-node-spans">
                         {trace.nodeSpans.map((span) => (

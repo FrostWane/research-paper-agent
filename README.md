@@ -79,10 +79,10 @@ Agent 支持两种问答范围：
 - 单篇论文问答：请求携带 `paperId`。
 - 全库问答：`paperId` 传 `null`，在当前用户所有已解析文献中检索来源片段。
 
-Agent 编排参考 ragent 的节点化思路，后端使用轻量 `AgentPipeline` 串联 `ScopeResolutionNode -> QueryPlanningNode -> RetrievalNode -> AnswerPlanningNode -> AnswerGenerationNode -> CitationVerificationNode -> AnswerFormattingNode`。当前不引入 AOP Trace 和异步流式上下文，先保留简单、可扩展、易调试的 Spring Bean 节点结构。`QueryPlanningNode` 会识别问题意图，生成检索式，并标记是否需要跨文献比较；`AnswerPlanningNode` 会把意图和证据状态转换成回答策略与输出契约，让比较、综述、实验、局限等问题走不同回答结构。
+Agent 编排参考 ragent 的节点化思路，后端使用轻量 `AgentPipeline` 串联 `ScopeResolutionNode -> QueryPlanningNode -> RetrievalNode -> AnswerPlanningNode -> AnswerGenerationNode -> CitationVerificationNode -> AnswerFormattingNode`。当前不引入 AOP Trace 和异步流式上下文，先保留简单、可扩展、易调试的 Spring Bean 节点结构。`QueryPlanningNode` 会识别问题意图，生成检索式，并标记是否需要跨文献比较；`RetrievalNode` 内部使用多通道检索引擎混合向量检索和关键词检索，并记录每个通道的候选数与耗时；`AnswerPlanningNode` 会把意图和证据状态转换成回答策略与输出契约，让比较、综述、实验、局限等问题走不同回答结构。
 
 回答下方会展示来源卡片，点击来源可回到对应论文并跳转 PDF 页码。已解析论文也可以取消解析，从知识库移除文本片段和向量索引，同时保留 PDF 文件与文献记录。
 
 ## 管理后台
 
-`ADMIN` 用户可以进入管理后台查看系统级指标：用户数、文献数、PDF 存储、知识片段、问答次数、模型调用聚合、解析任务、最近文献、RAG Trace 和用户资源使用情况。解析任务会记录 PDF 入库状态、页数、片段数、耗时和失败信息；RAG Trace 会记录最近问答的范围、问题意图、检索式、回答策略、输出契约、来源数量、Pipeline 节点耗时、检索耗时、生成耗时和总耗时。后台也支持启用 / 禁用普通用户。
+`ADMIN` 用户可以进入管理后台查看系统级指标：用户数、文献数、PDF 存储、知识片段、问答次数、模型调用聚合、解析任务、最近文献、RAG Trace 和用户资源使用情况。解析任务会记录 PDF 入库状态、页数、片段数、耗时和失败信息；RAG Trace 会记录最近问答的范围、问题意图、检索式、回答策略、输出契约、检索通道、来源数量、Pipeline 节点耗时、检索耗时、生成耗时和总耗时。后台也支持启用 / 禁用普通用户。

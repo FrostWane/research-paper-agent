@@ -2,6 +2,7 @@ package com.frostwane.paperagent.agent.pipeline;
 
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
+import com.frostwane.paperagent.agent.retrieval.RetrievalChannelTrace;
 import com.frostwane.paperagent.paper.Paper;
 import com.frostwane.paperagent.user.User;
 
@@ -21,6 +22,7 @@ public class AgentPipelineContext {
 
     private Paper paper;
     private List<SourceResponse> sources = List.of();
+    private List<RetrievalChannelTrace> retrievalChannels = List.of();
     private String queryIntent = "GENERAL_QA";
     private String searchQuery;
     private boolean comparisonRequested;
@@ -81,6 +83,14 @@ public class AgentPipelineContext {
 
     public int sourceCount() {
         return sources.size();
+    }
+
+    public List<RetrievalChannelTrace> retrievalChannels() {
+        return retrievalChannels;
+    }
+
+    public void retrievalChannels(List<RetrievalChannelTrace> retrievalChannels) {
+        this.retrievalChannels = retrievalChannels == null ? List.of() : List.copyOf(retrievalChannels);
     }
 
     public String queryIntent() {

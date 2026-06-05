@@ -7,7 +7,14 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface PaperChunkRepository extends JpaRepository<PaperChunk, Long> {
-    List<PaperChunk> findByPaperIdOrderByPageNumberAscChunkIndexAsc(Long paperId);
+    @Query("""
+        select chunk
+        from PaperChunk chunk
+        join fetch chunk.paper paper
+        where paper.id = :paperId
+        order by chunk.pageNumber asc, chunk.chunkIndex asc
+        """)
+    List<PaperChunk> findByPaperIdOrderByPageNumberAscChunkIndexAsc(@Param("paperId") Long paperId);
 
     @Query("""
         select chunk

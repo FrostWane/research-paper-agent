@@ -139,8 +139,18 @@ export interface AdminTrace {
   formattingMs: number;
   totalMs: number;
   errorMessage?: string;
+  retrievalChannels: AdminRetrievalChannel[];
   nodeSpans: AdminTraceNodeSpan[];
   createdAt: string;
+}
+
+export interface AdminRetrievalChannel {
+  name: string;
+  label: string;
+  status: 'SUCCESS' | 'FAILED' | string;
+  candidateCount: number;
+  latencyMs: number;
+  errorMessage?: string;
 }
 
 export interface AdminTraceNodeSpan {
