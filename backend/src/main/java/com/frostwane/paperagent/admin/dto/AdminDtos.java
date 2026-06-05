@@ -73,6 +73,8 @@ public final class AdminDtos {
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
+        String answerStrategy,
+        String answerContract,
         int sourceCount,
         int retrievalMs,
         int generationMs,

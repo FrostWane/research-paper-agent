@@ -65,6 +65,12 @@ public class RagTrace {
     @Column(name = "comparison_requested", nullable = false)
     private Boolean comparisonRequested = false;
 
+    @Column(name = "answer_strategy", nullable = false, length = 64)
+    private String answerStrategy = "EVIDENCE_GROUNDED_QA";
+
+    @Column(name = "answer_contract", columnDefinition = "TEXT")
+    private String answerContract;
+
     @Column(name = "source_count", nullable = false)
     private Integer sourceCount = 0;
 
@@ -192,6 +198,22 @@ public class RagTrace {
 
     public void setComparisonRequested(Boolean comparisonRequested) {
         this.comparisonRequested = comparisonRequested;
+    }
+
+    public String getAnswerStrategy() {
+        return answerStrategy;
+    }
+
+    public void setAnswerStrategy(String answerStrategy) {
+        this.answerStrategy = answerStrategy;
+    }
+
+    public String getAnswerContract() {
+        return answerContract;
+    }
+
+    public void setAnswerContract(String answerContract) {
+        this.answerContract = answerContract;
     }
 
     public Integer getSourceCount() {

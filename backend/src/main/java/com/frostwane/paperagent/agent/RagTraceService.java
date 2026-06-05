@@ -31,6 +31,8 @@ public class RagTraceService {
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
+        String answerStrategy,
+        String answerContract,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -51,6 +53,8 @@ public class RagTraceService {
             queryIntent,
             searchQuery,
             comparisonRequested,
+            answerStrategy,
+            answerContract,
             sourceCount,
             retrievalMs,
             generationMs,
@@ -73,6 +77,8 @@ public class RagTraceService {
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
+        String answerStrategy,
+        String answerContract,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -94,6 +100,8 @@ public class RagTraceService {
             queryIntent,
             searchQuery,
             comparisonRequested,
+            answerStrategy,
+            answerContract,
             sourceCount,
             retrievalMs,
             generationMs,
@@ -117,6 +125,8 @@ public class RagTraceService {
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
+        String answerStrategy,
+        String answerContract,
         int sourceCount,
         int retrievalMs,
         int generationMs,
@@ -138,6 +148,8 @@ public class RagTraceService {
         trace.setQueryIntent(defaultText(queryIntent, "GENERAL_QA"));
         trace.setSearchQuery(searchQuery);
         trace.setComparisonRequested(comparisonRequested);
+        trace.setAnswerStrategy(defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA"));
+        trace.setAnswerContract(answerContract);
         trace.setSourceCount(sourceCount);
         trace.setRetrievalMs(retrievalMs);
         trace.setGenerationMs(generationMs);

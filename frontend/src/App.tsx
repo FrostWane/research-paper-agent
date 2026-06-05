@@ -1305,10 +1305,13 @@ function AdminView({
                   <span className="admin-trace-question">
                     <strong>{trace.question}</strong>
                     <small>
-                      {trace.username} · {scopeLabel(trace.scope)} · {intentLabel(trace.queryIntent)}{trace.comparisonRequested ? ' · 比较' : ''} · {trace.pipelineName || 'agent-pipeline'} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
+                      {trace.username} · {scopeLabel(trace.scope)} · {intentLabel(trace.queryIntent)} · {strategyLabel(trace.answerStrategy)}{trace.comparisonRequested ? ' · 比较' : ''} · {trace.pipelineName || 'agent-pipeline'} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
                     </small>
                     {trace.searchQuery && trace.searchQuery.trim() !== trace.question.trim() && (
                       <small className="admin-trace-search-query">检索式：{trace.searchQuery}</small>
+                    )}
+                    {trace.answerContract && (
+                      <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 96)}</small>
                     )}
                     {(trace.nodeSpans ?? []).length > 0 && (
                       <div className="admin-node-spans">
@@ -1922,6 +1925,7 @@ function nodeSpanLabel(name: string) {
     'scope-resolution': '范围',
     'query-planning': '规划',
     retrieval: '检索',
+    'answer-planning': '策略',
     'answer-generation': '生成',
     'citation-verification': '校验',
     'answer-formatting': '格式'
@@ -1942,8 +1946,27 @@ function intentLabel(intent = 'GENERAL_QA') {
   return labels[intent] || intent;
 }
 
+function strategyLabel(strategy = 'EVIDENCE_GROUNDED_QA') {
+  const labels: Record<string, string> = {
+    EVIDENCE_GROUNDED_QA: '证据问答',
+    CROSS_PAPER_COMPARISON: '对比矩阵',
+    REVIEW_SYNTHESIS: '综述综合',
+    CONTRIBUTION_ANALYSIS: '贡献分析',
+    EXPERIMENT_READING: '实验解读',
+    LIMITATION_REVIEW: '局限审查',
+    STRUCTURED_SUMMARY: '结构摘要',
+    EVIDENCE_GAP: '证据不足'
+  };
+  return labels[strategy] || strategy;
+}
+
 function scopeLabel(scope: string) {
   return scope === 'LIBRARY' ? '全库' : '单篇';
+}
+
+function compactText(value: string, maxLength = 120) {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
 }
 
 function formatBytes(bytes = 0) {

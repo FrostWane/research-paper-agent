@@ -24,6 +24,8 @@ public class AgentPipelineContext {
     private String queryIntent = "GENERAL_QA";
     private String searchQuery;
     private boolean comparisonRequested;
+    private String answerStrategy = "EVIDENCE_GROUNDED_QA";
+    private String answerContract = "";
     private String generatedAnswer;
     private String verifiedAnswer;
     private String formattedAnswer;
@@ -103,6 +105,22 @@ public class AgentPipelineContext {
 
     public void comparisonRequested(boolean comparisonRequested) {
         this.comparisonRequested = comparisonRequested;
+    }
+
+    public String answerStrategy() {
+        return answerStrategy;
+    }
+
+    public void answerStrategy(String answerStrategy) {
+        this.answerStrategy = answerStrategy == null || answerStrategy.isBlank() ? "EVIDENCE_GROUNDED_QA" : answerStrategy;
+    }
+
+    public String answerContract() {
+        return answerContract;
+    }
+
+    public void answerContract(String answerContract) {
+        this.answerContract = answerContract == null ? "" : answerContract.trim();
     }
 
     public String generatedAnswer() {

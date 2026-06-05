@@ -47,6 +47,7 @@
   - `ScopeResolutionNode`：解析单篇 / 全库问答范围。
   - `QueryPlanningNode`：识别问题意图，生成检索式，标记跨文献比较需求。
   - `RetrievalNode`：检索论文相关片段。
+  - `AnswerPlanningNode`：根据问题意图、问答范围和证据状态选择回答策略，并生成输出契约。
   - `AnswerGenerationNode`：基于片段生成结构化 Markdown 回答。
   - `CitationVerificationNode`：检查回答是否引用来源页码，材料不足时明确说明。
   - `AnswerFormattingNode`：统一输出格式。
@@ -63,7 +64,7 @@
   - 参考 Ragent 的控制台信息架构，新增轻量管理员后台。
   - 管理员可查看用户、文献、存储、索引、问答和模型调用聚合。
   - 管理员可启用 / 禁用普通用户。
-  - 新增简化 RAG Trace，记录问答范围、问题意图、检索式、来源数量、Pipeline 节点 span、检索耗时、生成耗时、校验耗时、格式化耗时、总耗时和失败信息。
+  - 新增简化 RAG Trace，记录问答范围、问题意图、检索式、回答策略、输出契约、来源数量、Pipeline 节点 span、检索耗时、生成耗时、校验耗时、格式化耗时、总耗时和失败信息。
   - 新增解析任务日志，记录 PDF 入库状态、页数、片段数、耗时和失败信息。
 
 ## Phase 3: Android 简化端
@@ -97,7 +98,7 @@
 - `paper_files`：用户归属、原始文件名、MinIO object key、MIME、大小、SHA-256、页数。
 - `paper_chunks`：文献 ID、页码、块序号、文本内容、embedding vector。
 - `chat_records`：用户归属、可为空的文献 ID、问题、回答、来源 JSON、模型名、耗时。
-- `rag_traces`：用户归属、可为空的文献 ID、可为空的聊天记录 ID、问答范围、状态、模型名、Pipeline 名称、问题意图、检索式、节点 span JSON、来源数量、分段耗时、错误信息。
+- `rag_traces`：用户归属、可为空的文献 ID、可为空的聊天记录 ID、问答范围、状态、模型名、Pipeline 名称、问题意图、检索式、回答策略、输出契约、节点 span JSON、来源数量、分段耗时、错误信息。
 - `parse_jobs`：用户归属、可为空的文献/文件 ID、文献标题快照、文件名、状态、页数、片段数、耗时、失败信息。
 
 ## Test Plan

@@ -32,12 +32,13 @@ AgentOrchestratorService
      -> ScopeResolutionNode
      -> QueryPlanningNode
      -> RetrievalNode
+     -> AnswerPlanningNode
      -> AnswerGenerationNode
      -> CitationVerificationNode
      -> AnswerFormattingNode
 ```
 
-`AgentOrchestratorService` 负责事务边界、聊天历史和 RAG Trace 收尾；具体业务步骤由 `AgentNode` 实现。`QueryPlanningNode` 会识别总结、贡献、实验、局限、比较、综述等意图，生成面向召回的 `searchQuery`。`AgentPipeline` 自动记录节点 span，并写入 `rag_traces.node_spans_json`，同时保留检索、生成、校验和格式化的聚合耗时字段。后续可以继续插入 LLM 改写、向量意图树、重排、跨论文综合、答案评审等节点。
+`AgentOrchestratorService` 负责事务边界、聊天历史和 RAG Trace 收尾；具体业务步骤由 `AgentNode` 实现。`QueryPlanningNode` 会识别总结、贡献、实验、局限、比较、综述等意图，生成面向召回的 `searchQuery`。`AnswerPlanningNode` 吸收 ragent Prompt Plan 的思路，把意图、范围和证据状态转换成 `answerStrategy` 与 `answerContract`，让比较、综述、实验和局限类问题进入不同回答结构。`AgentPipeline` 自动记录节点 span，并写入 `rag_traces.node_spans_json`，同时保留检索、生成、校验和格式化的聚合耗时字段。后续可以继续插入 LLM 改写、向量意图树、重排、跨论文综合、答案评审等节点。
 
 默认走兜底回答，保证无模型 API Key 时系统仍然可用。配置 OpenAI-compatible API 后，`AnswerGenerationNode` 会调用 `AnswerAgent`，再通过 Spring AI `ChatClient` 生成回答。
 

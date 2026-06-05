@@ -130,6 +130,8 @@ export interface AdminTrace {
   queryIntent?: string;
   searchQuery?: string;
   comparisonRequested: boolean;
+  answerStrategy?: string;
+  answerContract?: string;
   sourceCount: number;
   retrievalMs: number;
   generationMs: number;

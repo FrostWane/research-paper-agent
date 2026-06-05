@@ -22,16 +22,26 @@ public class AnswerAgent {
     }
 
     public GeneratedAnswer answer(Paper paper, String question, List<SourceResponse> sources) {
+        return answer(paper, question, sources, "EVIDENCE_GROUNDED_QA", "");
+    }
+
+    public GeneratedAnswer answer(
+        Paper paper,
+        String question,
+        List<SourceResponse> sources,
+        String answerStrategy,
+        String answerContract
+    ) {
         if (shouldUseModel()) {
             try {
                 ChatClient.Builder builder = chatClientBuilderProvider.getIfAvailable();
                 if (builder == null) {
-                    return new GeneratedAnswer(fallbackAnswer(paper, question, sources), "fallback-agent");
+                    return new GeneratedAnswer(fallbackAnswer(paper, question, sources, answerStrategy), "fallback-agent");
                 }
                 ChatClient chatClient = builder.build();
                 String content = chatClient.prompt()
                     .system(systemPrompt())
-                    .user(buildUserPrompt(paper, question, sources))
+                    .user(buildUserPrompt(paper, question, sources, answerStrategy, answerContract))
                     .call()
                     .content();
                 if (content != null && !content.isBlank()) {
@@ -41,7 +51,7 @@ public class AnswerAgent {
                 // Keep the reading workflow available when model credentials or provider are not ready.
             }
         }
-        return new GeneratedAnswer(fallbackAnswer(paper, question, sources), "fallback-agent");
+        return new GeneratedAnswer(fallbackAnswer(paper, question, sources, answerStrategy), "fallback-agent");
     }
 
     private boolean shouldUseModel() {
@@ -53,12 +63,20 @@ public class AnswerAgent {
         return """
             你是 Research Paper Agent 的论文精读 Agent。
             必须基于给定范围、文献题录和检索片段回答。
+            必须遵守用户消息中的“回答策略”和“输出契约”。
+            不要在最终答案中复述“回答策略”“输出契约”等内部字段名。
             如果材料不足，明确说明“材料不足”，不要编造实验结果。
             用结构化中文 Markdown 输出，并尽量附上论文标题和来源页码。
             """;
     }
 
-    private String buildUserPrompt(Paper paper, String question, List<SourceResponse> sources) {
+    private String buildUserPrompt(
+        Paper paper,
+        String question,
+        List<SourceResponse> sources,
+        String answerStrategy,
+        String answerContract
+    ) {
         StringJoiner joiner = new StringJoiner("\n");
         if (paper == null) {
             joiner.add("回答范围：当前用户的整个文献库。");
@@ -71,6 +89,10 @@ public class AnswerAgent {
             joiner.add("关键词：" + defaultText(paper.getKeywords(), "未填写"));
             joiner.add("摘要：" + defaultText(paper.getAbstractText(), "未填写"));
         }
+        joiner.add("回答策略：" + defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA"));
+        if (answerContract != null && !answerContract.isBlank()) {
+            joiner.add("输出契约：\n" + answerContract.trim());
+        }
         joiner.add("用户问题：" + question);
         joiner.add("检索片段：");
         if (sources.isEmpty()) {
@@ -81,7 +103,8 @@ public class AnswerAgent {
         return joiner.toString();
     }
 
-    private String fallbackAnswer(Paper paper, String question, List<SourceResponse> sources) {
+    private String fallbackAnswer(Paper paper, String question, List<SourceResponse> sources, String answerStrategy) {
+        String strategy = defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA");
         String lowerQuestion = question.toLowerCase();
         StringBuilder builder = new StringBuilder();
         builder.append("## 回答\n\n");
@@ -91,18 +114,37 @@ public class AnswerAgent {
             builder.append("围绕《").append(paper.getTitle()).append("》，可以先基于当前题录和已解析片段做如下阅读判断：\n\n");
         }
 
-        if (lowerQuestion.contains("创新") || lowerQuestion.contains("贡献") || lowerQuestion.contains("contribution")) {
+        if ("EVIDENCE_GAP".equals(strategy)) {
+            builder.append("1. **材料状态**：当前没有命中的 PDF 正文片段，材料不足，不能给出可靠结论。\n");
+            builder.append("2. **需要补充**：建议先解析 PDF、扩大检索范围，或补充摘要/关键词后再提问。\n");
+            builder.append("3. **可追问方向**：可以改问研究问题、方法结构、实验设置或局限性等更具体的问题。\n");
+        } else if ("CROSS_PAPER_COMPARISON".equals(strategy)) {
+            builder.append("1. **参与比较对象**：优先使用来源片段中出现的论文标题和方法名。\n");
+            builder.append("2. **比较维度**：按研究对象、输入特征、模型结构、实验数据、指标结果和结论边界比较。\n");
+            builder.append("3. **综述判断**：只基于下方来源片段给出跨论文综合，不把局部证据扩大成全库事实。\n");
+        } else if ("REVIEW_SYNTHESIS".equals(strategy)) {
+            builder.append("1. **研究主题**：先归纳来源片段共同覆盖的任务和问题域。\n");
+            builder.append("2. **方法家族**：再梳理不同论文采用的模型、特征或训练流程。\n");
+            builder.append("3. **综述骨架**：最后给出可写入综述的大纲和证据边界。\n");
+        } else if ("CONTRIBUTION_ANALYSIS".equals(strategy)
+            || lowerQuestion.contains("创新") || lowerQuestion.contains("贡献") || lowerQuestion.contains("contribution")) {
             builder.append("1. **研究问题**：结合标题、关键词和摘要，先确认论文试图解决的核心科研问题。\n");
             builder.append("2. **方法贡献**：重点检查方法章节是否提出新结构、新训练策略、新数据处理流程或新的实验设定。\n");
             builder.append("3. **实证价值**：需要结合实验章节判断提升是否来自充分对比、消融和跨数据集验证。\n");
-        } else if (lowerQuestion.contains("实验") || lowerQuestion.contains("数据集") || lowerQuestion.contains("evaluation")) {
+        } else if ("EXPERIMENT_READING".equals(strategy)
+            || lowerQuestion.contains("实验") || lowerQuestion.contains("数据集") || lowerQuestion.contains("evaluation")) {
             builder.append("1. **实验对象**：记录数据集来源、任务设定和样本规模。\n");
             builder.append("2. **对比方法**：检查 baseline 是否覆盖经典方法和最新方法。\n");
             builder.append("3. **评价指标**：关注指标是否贴合研究问题，并核对消融实验是否充分。\n");
-        } else if (lowerQuestion.contains("局限") || lowerQuestion.contains("不足") || lowerQuestion.contains("limitation")) {
+        } else if ("LIMITATION_REVIEW".equals(strategy)
+            || lowerQuestion.contains("局限") || lowerQuestion.contains("不足") || lowerQuestion.contains("limitation")) {
             builder.append("1. **数据局限**：检查样本规模、场景覆盖和数据偏差。\n");
             builder.append("2. **方法局限**：关注模型假设、计算成本、泛化能力和可解释性。\n");
             builder.append("3. **验证局限**：确认是否缺少真实场景、长期稳定性或跨数据集实验。\n");
+        } else if ("STRUCTURED_SUMMARY".equals(strategy)) {
+            builder.append("1. **研究问题**：先用一句话定位论文或文献库片段关注的核心问题。\n");
+            builder.append("2. **核心方法**：提炼方法流程、关键模块和输入输出。\n");
+            builder.append("3. **主要发现**：列出可由来源片段支撑的结论，并标注证据边界。\n");
         } else if (paper == null) {
             builder.append("1. **共同主题**：先查看来源片段覆盖的论文标题，归纳它们围绕的任务、数据和方法家族。\n");
             builder.append("2. **差异维度**：比较模型结构、输入特征、实验数据集、评价指标和结论边界。\n");

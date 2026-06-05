@@ -30,7 +30,13 @@ public class AnswerGenerationNode implements AgentNode {
 
     @Override
     public void execute(AgentPipelineContext context) {
-        GeneratedAnswer generated = answerAgent.answer(context.paper(), context.question(), context.sources());
+        GeneratedAnswer generated = answerAgent.answer(
+            context.paper(),
+            context.question(),
+            context.sources(),
+            context.answerStrategy(),
+            context.answerContract()
+        );
         context.generatedAnswer(generated.content());
         context.modelName(generated.modelName());
     }
