@@ -1,6 +1,7 @@
 package com.frostwane.paperagent.admin;
 
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
@@ -118,6 +119,22 @@ public class AdminController {
     @GetMapping("/ingestion-pipeline/nodes")
     public ApiResponse<List<IngestionPipelineNodeResponse>> ingestionPipelineNodes() {
         return ApiResponse.ok(adminService.ingestionPipelineNodes(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/chunks")
+    public ApiResponse<PageResponse<AdminChunkResponse>> chunks(
+        @RequestParam(required = false) Long paperId,
+        @RequestParam(defaultValue = "") String keyword,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "12") int pageSize
+    ) {
+        return ApiResponse.ok(adminService.chunks(
+            currentUserService.getRequiredUser(),
+            paperId,
+            keyword,
+            page,
+            pageSize
+        ));
     }
 
     @PatchMapping("/users/{id}/status")

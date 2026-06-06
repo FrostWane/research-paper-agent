@@ -192,6 +192,19 @@ export interface AdminIngestionPipelineNode {
   lastSeenAt?: string;
 }
 
+export interface AdminChunk {
+  id: number;
+  username: string;
+  paperId: number;
+  paperTitle: string;
+  pageNumber: number;
+  chunkIndex: number;
+  contentPreview: string;
+  contentLength: number;
+  embedded: boolean;
+  createdAt: string;
+}
+
 export interface AdminChatRateLimit {
   enabled: boolean;
   activeGlobal: number;

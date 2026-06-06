@@ -1331,6 +1331,7 @@ select,
 .agent-pipeline-list,
 .ingestion-pipeline-list,
 .agent-tool-list,
+.admin-chunk-list,
 .admin-recent-list,
 .admin-user-table,
 .admin-job-list,
@@ -1488,7 +1489,8 @@ select,
 
 .admin-agent-pipeline-panel,
 .admin-ingestion-pipeline-panel,
-.admin-agent-tool-panel {
+.admin-agent-tool-panel,
+.admin-chunk-panel {
   overflow-x: auto;
 }
 
@@ -1628,6 +1630,84 @@ select,
 .ingestion-pipeline-row em,
 .ingestion-pipeline-row > strong:last-of-type {
   justify-self: end;
+}
+
+.admin-chunk-list {
+  min-width: 720px;
+}
+
+.admin-chunk-filter {
+  grid-template-columns: minmax(120px, .5fr) minmax(260px, 1.8fr) auto auto;
+  min-width: 720px;
+  padding: 14px 14px 0;
+  margin-bottom: 8px;
+}
+
+.admin-chunk-panel .admin-trace-explorer-meta {
+  min-width: 720px;
+  padding: 0 14px;
+}
+
+.admin-chunk-row {
+  display: grid;
+  gap: 7px;
+  padding: 12px 13px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.admin-chunk-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-chunk-row-head strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-chunk-embed {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-chunk-embed.is-missing {
+  color: #9a3412;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.admin-chunk-row small {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-chunk-row p {
+  display: -webkit-box;
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.58;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
 .agent-tool-list {

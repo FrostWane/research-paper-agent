@@ -53,6 +53,7 @@ import {
   deleteModelTarget,
   deleteSamplePrompt,
   deleteQueryTermMapping,
+  fetchAdminChunks,
   fetchAdminOverview,
   fetchAdminTraces,
   fetchAnswerPromptTemplates,
@@ -88,7 +89,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminIngestionPipelineNode, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -217,6 +218,10 @@ type AdminTraceFilters = {
   sessionId: string;
   keyword: string;
 };
+type AdminChunkFilters = {
+  paperId: string;
+  keyword: string;
+};
 
 const defaultRagSettingsInput: RagSettingsInput = {
   candidateLimit: 10,
@@ -245,6 +250,10 @@ const defaultTraceFilters: AdminTraceFilters = {
   sessionId: '',
   keyword: ''
 };
+const defaultChunkFilters: AdminChunkFilters = {
+  paperId: '',
+  keyword: ''
+};
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -269,6 +278,8 @@ export default function App() {
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminTracePage, setAdminTracePage] = useState<PageResponse<AdminTrace> | null>(null);
   const [adminTraceFilters, setAdminTraceFilters] = useState<AdminTraceFilters>(defaultTraceFilters);
+  const [adminChunkPage, setAdminChunkPage] = useState<PageResponse<AdminChunk> | null>(null);
+  const [adminChunkFilters, setAdminChunkFilters] = useState<AdminChunkFilters>(defaultChunkFilters);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [agentPipelineNodes, setAgentPipelineNodes] = useState<AdminAgentPipelineNode[]>([]);
   const [ingestionPipelineNodes, setIngestionPipelineNodes] = useState<AdminIngestionPipelineNode[]>([]);
@@ -450,6 +461,8 @@ export default function App() {
     setAdminOverview(null);
     setAdminTracePage(null);
     setAdminTraceFilters(defaultTraceFilters);
+    setAdminChunkPage(null);
+    setAdminChunkFilters(defaultChunkFilters);
     setAdminUsers([]);
     setAgentPipelineNodes([]);
     setIngestionPipelineNodes([]);
@@ -753,9 +766,10 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, users, pipelineNodes, ingestionNodes, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, chunks, users, pipelineNodes, ingestionNodes, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
+        fetchAdminChunks({ ...adminChunkFilters, page: adminChunkPage?.page ?? 1, pageSize: adminChunkPage?.pageSize ?? 8 }),
         fetchAdminUsers(),
         fetchAgentPipelineNodes(),
         fetchIngestionPipelineNodes(),
@@ -769,6 +783,7 @@ export default function App() {
       ]);
       setAdminOverview(overview);
       setAdminTracePage(traces);
+      setAdminChunkPage(chunks);
       setAdminUsers(users);
       setAgentPipelineNodes(pipelineNodes);
       setIngestionPipelineNodes(ingestionNodes);
@@ -803,6 +818,25 @@ export default function App() {
     const nextFilters = { ...adminTraceFilters, ...patch };
     setAdminTraceFilters(nextFilters);
     await loadAdminTracePage(nextFilters, 1);
+  }
+
+  async function loadAdminChunkPage(nextFilters = adminChunkFilters, page = adminChunkPage?.page ?? 1) {
+    try {
+      setAdminLoading(true);
+      setError('');
+      const chunks = await fetchAdminChunks({ ...nextFilters, page, pageSize: adminChunkPage?.pageSize ?? 8 });
+      setAdminChunkPage(chunks);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleAdminChunkFilterChange(patch: Partial<AdminChunkFilters>) {
+    const nextFilters = { ...adminChunkFilters, ...patch };
+    setAdminChunkFilters(nextFilters);
+    await loadAdminChunkPage(nextFilters, 1);
   }
 
   async function handleAdminUserStatus(userItem: AdminUser, status: 'NORMAL' | 'DISABLED') {
@@ -1361,6 +1395,8 @@ export default function App() {
             overview={adminOverview}
             tracePage={adminTracePage}
             traceFilters={adminTraceFilters}
+            chunkPage={adminChunkPage}
+            chunkFilters={adminChunkFilters}
             users={adminUsers}
             agentPipelineNodes={agentPipelineNodes}
             ingestionPipelineNodes={ingestionPipelineNodes}
@@ -1376,6 +1412,8 @@ export default function App() {
             onRefresh={() => void loadAdminData()}
             onTraceFilterChange={(patch) => void handleAdminTraceFilterChange(patch)}
             onTracePageChange={(page) => void loadAdminTracePage(adminTraceFilters, page)}
+            onChunkFilterChange={(patch) => void handleAdminChunkFilterChange(patch)}
+            onChunkPageChange={(page) => void loadAdminChunkPage(adminChunkFilters, page)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
             onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
@@ -2038,6 +2076,8 @@ function AdminView({
   overview,
   tracePage,
   traceFilters,
+  chunkPage,
+  chunkFilters,
   users,
   agentPipelineNodes,
   ingestionPipelineNodes,
@@ -2053,6 +2093,8 @@ function AdminView({
   onRefresh,
   onTraceFilterChange,
   onTracePageChange,
+  onChunkFilterChange,
+  onChunkPageChange,
   onUserStatusChange,
   onCreateQueryMapping,
   onUpdateQueryMapping,
@@ -2074,6 +2116,8 @@ function AdminView({
   overview: AdminOverview | null;
   tracePage: PageResponse<AdminTrace> | null;
   traceFilters: AdminTraceFilters;
+  chunkPage: PageResponse<AdminChunk> | null;
+  chunkFilters: AdminChunkFilters;
   users: AdminUser[];
   agentPipelineNodes: AdminAgentPipelineNode[];
   ingestionPipelineNodes: AdminIngestionPipelineNode[];
@@ -2089,6 +2133,8 @@ function AdminView({
   onRefresh: () => void;
   onTraceFilterChange: (patch: Partial<AdminTraceFilters>) => void;
   onTracePageChange: (page: number) => void;
+  onChunkFilterChange: (patch: Partial<AdminChunkFilters>) => void;
+  onChunkPageChange: (page: number) => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
   onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
@@ -2265,6 +2311,14 @@ function AdminView({
       />
 
       <IngestionPipelinePanel nodes={ingestionPipelineNodes} />
+
+      <KnowledgeChunkExplorerPanel
+        page={chunkPage}
+        filters={chunkFilters}
+        loading={loading}
+        onFilterChange={onChunkFilterChange}
+        onPageChange={onChunkPageChange}
+      />
 
       <div className="admin-panel admin-job-panel">
         <div className="admin-panel-head">
@@ -2553,6 +2607,103 @@ function AdminView({
         </div>
       </div>
     </section>
+  );
+}
+
+function KnowledgeChunkExplorerPanel({
+  page,
+  filters,
+  loading,
+  onFilterChange,
+  onPageChange
+}: {
+  page: PageResponse<AdminChunk> | null;
+  filters: AdminChunkFilters;
+  loading: boolean;
+  onFilterChange: (patch: Partial<AdminChunkFilters>) => void;
+  onPageChange: (page: number) => void;
+}) {
+  const [draft, setDraft] = useState<AdminChunkFilters>(filters);
+  const chunks = page?.items ?? [];
+  const currentPage = page?.page ?? 1;
+  const totalPages = page?.totalPages ?? 0;
+  const total = page?.total ?? 0;
+
+  useEffect(() => {
+    setDraft(filters);
+  }, [filters.paperId, filters.keyword]);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onFilterChange(draft);
+  }
+
+  return (
+    <div className="admin-panel admin-chunk-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>知识片段治理</h3>
+          <p>按文献或关键词检查入库后的 chunk 内容、页码和向量化状态。</p>
+        </div>
+        <Database size={18} />
+      </div>
+      <form className="admin-trace-filter admin-chunk-filter" onSubmit={submit}>
+        <label>
+          <span>文献 ID</span>
+          <input type="number" min={1} value={draft.paperId} onChange={(event) => setDraft((current) => ({ ...current, paperId: event.target.value }))} />
+        </label>
+        <label className="trace-filter-keyword">
+          <span>关键词</span>
+          <input value={draft.keyword} placeholder="片段正文、标题、作者、用户" onChange={(event) => setDraft((current) => ({ ...current, keyword: event.target.value }))} />
+        </label>
+        <button className="secondary-button compact-action" type="submit" disabled={loading}>
+          查询
+        </button>
+        <button
+          className="secondary-button compact-action"
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            setDraft(defaultChunkFilters);
+            onFilterChange(defaultChunkFilters);
+          }}
+        >
+          重置
+        </button>
+      </form>
+      <div className="admin-trace-explorer-meta">
+        <span>{total} 个知识片段</span>
+        <span>第 {totalPages === 0 ? 0 : currentPage} / {totalPages} 页</span>
+      </div>
+      <div className="admin-chunk-list">
+        {chunks.length === 0 ? (
+          <EmptyState compact title="暂无匹配片段" detail="解析 PDF 后可按正文或文献 ID 检索 chunk。" />
+        ) : (
+          chunks.map((chunk) => (
+            <article className="admin-chunk-row" key={chunk.id}>
+              <div className="admin-chunk-row-head">
+                <strong>#{chunk.id} · P{chunk.pageNumber} · C{chunk.chunkIndex}</strong>
+                <span className={`admin-chunk-embed ${chunk.embedded ? 'is-embedded' : 'is-missing'}`}>
+                  {chunk.embedded ? '已向量化' : '未向量化'}
+                </span>
+              </div>
+              <small>
+                {chunk.username} · 文献 #{chunk.paperId} · {compactText(chunk.paperTitle, 96)} · {chunk.contentLength.toLocaleString('zh-CN')} 字 · {formatTime(chunk.createdAt)}
+              </small>
+              <p>{chunk.contentPreview}</p>
+            </article>
+          ))
+        )}
+      </div>
+      <div className="admin-trace-pagination">
+        <button className="secondary-button compact-action" type="button" disabled={loading || currentPage <= 1} onClick={() => onPageChange(Math.max(1, currentPage - 1))}>
+          上一页
+        </button>
+        <button className="secondary-button compact-action" type="button" disabled={loading || totalPages === 0 || currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          下一页
+        </button>
+      </div>
+    </div>
   );
 }
 

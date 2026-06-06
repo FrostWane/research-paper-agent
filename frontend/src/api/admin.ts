@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminIngestionPipelineNode, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -35,6 +35,20 @@ export function fetchAgentPipelineNodes() {
 
 export function fetchIngestionPipelineNodes() {
   return unwrap<AdminIngestionPipelineNode[]>(api.get('/api/admin/ingestion-pipeline/nodes'));
+}
+
+export function fetchAdminChunks(query: {
+  paperId?: string;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const params = {
+    ...query,
+    paperId: query.paperId?.trim() || undefined,
+    keyword: query.keyword?.trim() || undefined
+  };
+  return unwrap<PageResponse<AdminChunk>>(api.get('/api/admin/chunks', { params }));
 }
 
 export function updateAdminUserStatus(id: number, status: 'NORMAL' | 'DISABLED') {

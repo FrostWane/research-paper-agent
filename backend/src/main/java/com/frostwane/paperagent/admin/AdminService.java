@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ChatRateLimitResponse;
@@ -419,6 +420,33 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
+    public PageResponse<AdminChunkResponse> chunks(
+        User currentUser,
+        Long paperId,
+        String keyword,
+        int page,
+        int pageSize
+    ) {
+        requireAdmin(currentUser);
+        int safePage = Math.max(1, page);
+        int safePageSize = Math.max(5, Math.min(80, pageSize));
+        int offset = (safePage - 1) * safePageSize;
+        List<Object> params = new ArrayList<>();
+        String where = chunkWhere(paperId, keyword, params);
+        long total = numberValue("select count(*) " + chunkFromSql() + where, params);
+        List<Object> rowParams = new ArrayList<>(params);
+        rowParams.add(safePageSize);
+        rowParams.add(offset);
+        List<AdminChunkResponse> items = jdbcTemplate.query(
+            chunkSelectSql() + where + " order by c.created_at desc, c.id desc limit ? offset ?",
+            this::mapChunk,
+            rowParams.toArray()
+        );
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
+        return new PageResponse<>(items, total, safePage, safePageSize, totalPages);
+    }
+
+    @Transactional(readOnly = true)
     public PageResponse<RagTraceResponse> ragTraces(
         User currentUser,
         String status,
@@ -621,6 +649,73 @@ public class AdminService {
 
     private List<RagTraceResponse> recentTraces() {
         return jdbcTemplate.query(traceSelectSql() + " order by t.created_at desc limit 8", this::mapTrace);
+    }
+
+    private String chunkSelectSql() {
+        return """
+            select
+              c.id,
+              u.username,
+              p.id as paper_id,
+              p.title as paper_title,
+              c.page_number,
+              c.chunk_index,
+              case
+                when length(c.content) > 1200 then substring(c.content from 1 for 1200) || '...'
+                else c.content
+              end as content_preview,
+              length(c.content) as content_length,
+              c.embedding is not null as embedded,
+              c.created_at
+            """ + chunkFromSql();
+    }
+
+    private String chunkFromSql() {
+        return """
+            from paper_chunks c
+            join papers p on p.id = c.paper_id
+            join users u on u.id = p.owner_id
+            """;
+    }
+
+    private String chunkWhere(Long paperId, String keyword, List<Object> params) {
+        StringBuilder where = new StringBuilder(" where 1 = 1");
+        if (paperId != null && paperId > 0) {
+            where.append(" and p.id = ?");
+            params.add(paperId);
+        }
+        String normalizedKeyword = compact(keyword, 160);
+        if (normalizedKeyword != null) {
+            String pattern = "%" + normalizedKeyword.toLowerCase(Locale.ROOT) + "%";
+            where.append("""
+                 and (
+                   lower(c.content) like ?
+                   or lower(p.title) like ?
+                   or lower(coalesce(p.authors, '')) like ?
+                   or lower(coalesce(p.keywords, '')) like ?
+                   or lower(u.username) like ?
+                 )
+                """);
+            for (int i = 0; i < 5; i++) {
+                params.add(pattern);
+            }
+        }
+        return where.toString();
+    }
+
+    private AdminChunkResponse mapChunk(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminChunkResponse(
+            rs.getLong("id"),
+            rs.getString("username"),
+            rs.getLong("paper_id"),
+            rs.getString("paper_title"),
+            rs.getInt("page_number"),
+            rs.getInt("chunk_index"),
+            rs.getString("content_preview"),
+            rs.getInt("content_length"),
+            rs.getBoolean("embedded"),
+            offsetDateTime(rs, "created_at")
+        );
     }
 
     private String traceSelectSql() {

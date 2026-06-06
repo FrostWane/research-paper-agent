@@ -135,6 +135,20 @@ public final class AdminDtos {
     ) {
     }
 
+    public record AdminChunkResponse(
+        Long id,
+        String username,
+        Long paperId,
+        String paperTitle,
+        int pageNumber,
+        int chunkIndex,
+        String contentPreview,
+        int contentLength,
+        boolean embedded,
+        OffsetDateTime createdAt
+    ) {
+    }
+
     public record ChatRateLimitResponse(
         boolean enabled,
         int activeGlobal,
