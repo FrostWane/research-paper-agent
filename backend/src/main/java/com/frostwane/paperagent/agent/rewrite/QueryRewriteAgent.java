@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.agent.model.ModelRoutingService;
 import com.frostwane.paperagent.agent.model.ModelRoutingService.RoutedAnswer;
+import com.frostwane.paperagent.agent.model.ModelTaskType;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ public class QueryRewriteAgent {
     public QueryRewriteResult rewrite(String question, String conversationHistory, boolean libraryScope, int maxSubQuestions) {
         String normalizedQuestion = defaultText(question, "");
         RoutedAnswer answer = modelRoutingService.generate(
+            ModelTaskType.QUERY_REWRITE,
             systemPrompt(),
             userPrompt(normalizedQuestion, conversationHistory, libraryScope, maxSubQuestions),
             () -> fallbackJson(normalizedQuestion)

@@ -3,6 +3,7 @@ package com.frostwane.paperagent.agent;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
 import com.frostwane.paperagent.agent.model.ModelRoutingService;
 import com.frostwane.paperagent.agent.model.ModelRoutingService.RoutedAnswer;
+import com.frostwane.paperagent.agent.model.ModelTaskType;
 import com.frostwane.paperagent.agent.prompt.AnswerPromptTemplateService;
 import com.frostwane.paperagent.agent.prompt.RenderedAnswerPrompt;
 import com.frostwane.paperagent.paper.Paper;
@@ -35,6 +36,7 @@ public class AnswerAgent {
     ) {
         RenderedAnswerPrompt prompt = answerPromptTemplateService.render(paper, question, sources, conversationHistory, answerStrategy, answerContract);
         RoutedAnswer answer = modelRoutingService.generate(
+            ModelTaskType.ANSWER_GENERATION,
             prompt.systemPrompt(),
             prompt.userPrompt(),
             () -> fallbackAnswer(paper, question, sources, answerStrategy)

@@ -73,6 +73,7 @@ public final class AdminDtos {
     }
 
     public record ModelHealthResponse(
+        String taskType,
         String provider,
         String modelName,
         String targetName,
@@ -302,6 +303,7 @@ public final class AdminDtos {
         Long id,
         String code,
         String provider,
+        String taskType,
         String modelName,
         String description,
         String baseUrl,
@@ -317,6 +319,7 @@ public final class AdminDtos {
     public record ModelTargetRequest(
         @NotBlank @Size(max = 64) String code,
         @NotBlank @Size(max = 64) String provider,
+        @Size(max = 64) String taskType,
         @NotBlank @Size(max = 160) String modelName,
         @Size(max = 500) String description,
         @Size(max = 500) String baseUrl,

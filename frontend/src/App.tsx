@@ -159,6 +159,7 @@ type AnswerPromptTemplateInput = {
 type ModelTargetInput = {
   code: string;
   provider: string;
+  taskType: string;
   modelName: string;
   description: string;
   baseUrl: string;
@@ -744,6 +745,7 @@ export default function App() {
       const updated = await updateModelTarget(target.id, {
         code: patch.code ?? target.code,
         provider: patch.provider ?? target.provider,
+        taskType: patch.taskType ?? target.taskType ?? 'GENERAL',
         modelName: patch.modelName ?? target.modelName,
         description: patch.description ?? target.description ?? '',
         baseUrl: patch.baseUrl ?? target.baseUrl ?? '',
@@ -1759,8 +1761,8 @@ function AdminView({
       <div className="admin-panel admin-model-health-panel">
         <div className="admin-panel-head">
           <div>
-            <h3>模型健康</h3>
-            <p>模型路由目标、最近状态、成功率和 fallback 情况。</p>
+          <h3>模型健康</h3>
+          <p>模型路由任务、最近状态、成功率和 fallback 情况。</p>
           </div>
           <Bot size={18} />
         </div>
@@ -1769,12 +1771,12 @@ function AdminView({
             <EmptyState compact title="暂无模型记录" detail="完成一次问答后会记录模型路由状态。" />
           ) : (
             overview!.modelHealth.map((model) => (
-              <div className={`admin-model-health-row ${model.lastStatus === 'FAILED' ? 'is-failed' : model.lastStatus === 'FALLBACK' ? 'is-fallback' : ''}`} key={model.targetName}>
+              <div className={`admin-model-health-row ${model.lastStatus === 'FAILED' ? 'is-failed' : model.lastStatus === 'FALLBACK' ? 'is-fallback' : ''}`} key={`${model.taskType}-${model.targetName}`}>
                 <strong className={`admin-model-health-status ${model.lastStatus === 'SUCCESS' ? 'is-success' : model.lastStatus === 'FAILED' ? 'is-failed' : 'is-fallback'}`}>
                   {modelHealthStatusLabel(model.lastStatus)}
                 </strong>
                 <span>
-                  <b>{model.targetName}</b>
+                  <b>{modelTaskLabel(model.taskType)} · {model.targetName}</b>
                   <small>{model.provider} · {model.modelName} · {model.lastSeenAt ? formatTime(model.lastSeenAt) : '暂无时间'}</small>
                 </span>
                 <em>{model.totalCalls} 次</em>
@@ -2097,6 +2099,7 @@ function ModelTargetPanel({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [code, setCode] = useState('');
   const [provider, setProvider] = useState('OPENAI_COMPATIBLE');
+  const [taskType, setTaskType] = useState('GENERAL');
   const [modelName, setModelName] = useState('');
   const [description, setDescription] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
@@ -2110,6 +2113,7 @@ function ModelTargetPanel({
     setEditingId(null);
     setCode('');
     setProvider('OPENAI_COMPATIBLE');
+    setTaskType('GENERAL');
     setModelName('');
     setDescription('');
     setBaseUrl('');
@@ -2122,6 +2126,7 @@ function ModelTargetPanel({
     setEditingId(target.id);
     setCode(target.code);
     setProvider(target.provider);
+    setTaskType(target.taskType ?? 'GENERAL');
     setModelName(target.modelName);
     setDescription(target.description ?? '');
     setBaseUrl(target.baseUrl ?? '');
@@ -2135,6 +2140,7 @@ function ModelTargetPanel({
     const input = {
       code: code.trim(),
       provider,
+      taskType,
       modelName: modelName.trim(),
       description: description.trim(),
       baseUrl: baseUrl.trim(),
@@ -2142,7 +2148,7 @@ function ModelTargetPanel({
       priority: Number.parseInt(priority, 10) || 100,
       timeoutSeconds: Number.parseInt(timeoutSeconds, 10) || 45
     };
-    if (!input.code || !input.provider || !input.modelName || (providerRequiresUrl && !input.baseUrl)) {
+    if (!input.code || !input.provider || !input.taskType || !input.modelName || (providerRequiresUrl && !input.baseUrl)) {
       return;
     }
     if (editingTarget) {
@@ -2158,7 +2164,7 @@ function ModelTargetPanel({
       <div className="admin-panel-head">
         <div>
           <h3>模型目标</h3>
-          <p>按优先级配置模型路由目标，失败后自动尝试下一个。</p>
+          <p>按任务类型和优先级配置模型目标，失败后自动尝试下一个。</p>
         </div>
         <ServerCog size={18} />
       </div>
@@ -2172,6 +2178,14 @@ function ModelTargetPanel({
           <select value={provider} onChange={(event) => setProvider(event.target.value)}>
             <option value="OPENAI_COMPATIBLE">OPENAI_COMPATIBLE</option>
             <option value="ENV">ENV</option>
+          </select>
+        </label>
+        <label>
+          <span>任务类型</span>
+          <select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
+            {modelTaskOptions.map((option) => (
+              <option value={option.value} key={option.value}>{option.label}</option>
+            ))}
           </select>
         </label>
         <label>
@@ -2219,7 +2233,7 @@ function ModelTargetPanel({
               <strong>{target.priority}</strong>
               <span>
                 <b>{target.code}</b>
-                <small>{target.provider} · {target.modelName} · {target.apiKeyConfigured ? '已配置密钥' : '无密钥'} · {target.timeoutSeconds}s</small>
+                <small>{modelTaskLabel(target.taskType)} · {target.provider} · {target.modelName} · {target.apiKeyConfigured ? '已配置密钥' : '无密钥'} · {target.timeoutSeconds}s</small>
               </span>
               <em>{target.baseUrl || target.description || '环境配置'}</em>
               <button className="secondary-button compact-action" type="button" onClick={() => startEdit(target)}>
@@ -3563,10 +3577,28 @@ function compareAnswerPromptTemplates(a: AnswerPromptTemplate, b: AnswerPromptTe
 }
 
 function compareModelTargets(a: ModelTarget, b: ModelTarget) {
+  if (modelTaskOrder(a.taskType) !== modelTaskOrder(b.taskType)) {
+    return modelTaskOrder(a.taskType) - modelTaskOrder(b.taskType);
+  }
   if ((a.priority ?? 100) !== (b.priority ?? 100)) {
     return (a.priority ?? 100) - (b.priority ?? 100);
   }
   return a.id - b.id;
+}
+
+const modelTaskOptions = [
+  { value: 'GENERAL', label: '通用兜底' },
+  { value: 'ANSWER_GENERATION', label: '回答生成' },
+  { value: 'QUERY_REWRITE', label: '查询改写' }
+];
+
+function modelTaskLabel(taskType = 'GENERAL') {
+  return modelTaskOptions.find((option) => option.value === taskType)?.label ?? taskType;
+}
+
+function modelTaskOrder(taskType = 'GENERAL') {
+  const index = modelTaskOptions.findIndex((option) => option.value === taskType);
+  return index < 0 ? modelTaskOptions.length : index;
 }
 
 function compareSamplePrompts(a: SamplePrompt, b: SamplePrompt) {

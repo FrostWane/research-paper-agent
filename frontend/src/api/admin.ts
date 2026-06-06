@@ -114,6 +114,7 @@ export function fetchModelTargets() {
 export function createModelTarget(input: {
   code: string;
   provider: string;
+  taskType: string;
   modelName: string;
   description?: string;
   baseUrl?: string;
@@ -130,6 +131,7 @@ export function updateModelTarget(
   input: {
     code: string;
     provider: string;
+    taskType: string;
     modelName: string;
     description?: string;
     baseUrl?: string;

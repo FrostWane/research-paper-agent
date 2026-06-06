@@ -113,6 +113,7 @@ export interface AdminModelUsage {
 }
 
 export interface AdminModelHealth {
+  taskType: string;
   provider: string;
   modelName: string;
   targetName: string;
@@ -318,6 +319,7 @@ export interface ModelTarget {
   id: number;
   code: string;
   provider: string;
+  taskType: string;
   modelName: string;
   description?: string;
   baseUrl?: string;

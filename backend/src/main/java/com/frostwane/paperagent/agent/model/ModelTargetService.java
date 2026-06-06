@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Stream;
 
 @Service
 public class ModelTargetService {
@@ -37,10 +38,24 @@ public class ModelTargetService {
 
     @Transactional(readOnly = true)
     public List<RoutingTarget> routingTargets() {
-        List<RoutingTarget> targets = repository.findAllByEnabledTrueOrderByPriorityAscIdAsc().stream()
+        return routingTargets(ModelTaskType.ANSWER_GENERATION);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoutingTarget> routingTargets(ModelTaskType taskType) {
+        ModelTaskType requestedTask = taskType == null ? ModelTaskType.ANSWER_GENERATION : taskType;
+        List<ModelTarget> enabledTargets = repository.findAllByEnabledTrueOrderByPriorityAscIdAsc();
+        if (enabledTargets.isEmpty()) {
+            return List.of(envDefaultTarget());
+        }
+        Stream<ModelTarget> taskTargets = enabledTargets.stream()
+            .filter(target -> requestedTask.code().equals(targetTaskType(target)));
+        Stream<ModelTarget> generalTargets = requestedTask == ModelTaskType.GENERAL
+            ? Stream.empty()
+            : enabledTargets.stream().filter(target -> ModelTaskType.GENERAL.code().equals(targetTaskType(target)));
+        return Stream.concat(taskTargets, generalTargets)
             .map(this::routingTarget)
             .toList();
-        return targets.isEmpty() ? List.of(envDefaultTarget()) : targets;
     }
 
     @Transactional
@@ -91,6 +106,7 @@ public class ModelTargetService {
         }
         target.setCode(code);
         target.setProvider(provider);
+        target.setTaskType(normalizeTaskType(request.taskType(), target.getTaskType()));
         target.setModelName(modelName);
         target.setDescription(compact(request.description(), 500));
         target.setBaseUrl(ENV_PROVIDER.equals(provider) ? null : baseUrl);
@@ -112,6 +128,7 @@ public class ModelTargetService {
         return new RoutingTarget(
             target.getCode(),
             target.getProvider(),
+            targetTaskType(target),
             target.getModelName(),
             target.getCode() + ":" + target.getModelName(),
             target.getBaseUrl(),
@@ -127,6 +144,7 @@ public class ModelTargetService {
         return new RoutingTarget(
             target.getCode(),
             provider,
+            targetTaskType(target),
             modelName,
             "fallback".equalsIgnoreCase(provider) ? "fallback-agent" : provider + ":" + modelName,
             null,
@@ -139,7 +157,7 @@ public class ModelTargetService {
     private RoutingTarget envDefaultTarget() {
         String provider = defaultText(properties.getAi().getProvider(), "fallback");
         String modelName = defaultText(properties.getAi().getChatModel(), "unknown-model");
-        return new RoutingTarget("ENV_DEFAULT", provider, modelName, "fallback".equalsIgnoreCase(provider) ? "fallback-agent" : provider + ":" + modelName, null, null, 45, true);
+        return new RoutingTarget("ENV_DEFAULT", provider, ModelTaskType.GENERAL.code(), modelName, "fallback".equalsIgnoreCase(provider) ? "fallback-agent" : provider + ":" + modelName, null, null, 45, true);
     }
 
     private ModelTargetResponse response(ModelTarget target) {
@@ -147,6 +165,7 @@ public class ModelTargetService {
             target.getId(),
             target.getCode(),
             target.getProvider(),
+            targetTaskType(target),
             target.getModelName(),
             target.getDescription(),
             target.getBaseUrl(),
@@ -186,6 +205,19 @@ public class ModelTargetService {
         return normalized;
     }
 
+    private String normalizeTaskType(String value, String fallback) {
+        try {
+            ModelTaskType fallbackTask = ModelTaskType.fromCode(fallback, ModelTaskType.GENERAL);
+            return ModelTaskType.fromCode(value, fallbackTask).code();
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException("任务类型仅支持 GENERAL、ANSWER_GENERATION 或 QUERY_REWRITE");
+        }
+    }
+
+    private String targetTaskType(ModelTarget target) {
+        return ModelTaskType.fromCode(target.getTaskType(), ModelTaskType.GENERAL).code();
+    }
+
     private String compact(String value, int maxLength) {
         if (value == null || value.isBlank()) {
             return null;
@@ -206,6 +238,7 @@ public class ModelTargetService {
     public record RoutingTarget(
         String code,
         String provider,
+        String taskType,
         String modelName,
         String targetName,
         String baseUrl,

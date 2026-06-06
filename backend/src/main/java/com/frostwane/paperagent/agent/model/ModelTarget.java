@@ -25,6 +25,9 @@ public class ModelTarget {
     @Column(nullable = false, length = 64)
     private String provider = "ENV";
 
+    @Column(name = "task_type", nullable = false, length = 64)
+    private String taskType = ModelTaskType.GENERAL.code();
+
     @Column(name = "model_name", nullable = false, length = 160)
     private String modelName;
 
@@ -82,6 +85,14 @@ public class ModelTarget {
 
     public void setProvider(String provider) {
         this.provider = provider;
+    }
+
+    public String getTaskType() {
+        return taskType;
+    }
+
+    public void setTaskType(String taskType) {
+        this.taskType = taskType;
     }
 
     public String getModelName() {

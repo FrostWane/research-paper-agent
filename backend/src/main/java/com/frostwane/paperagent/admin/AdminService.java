@@ -244,6 +244,7 @@ public class AdminService {
     private List<ModelHealthResponse> modelHealth() {
         return jdbcTemplate.query("""
             select
+              m.task_type,
               m.provider,
               m.model_name,
               m.target_name,
@@ -256,15 +257,17 @@ public class AdminService {
                 select latest.status
                 from model_invocations latest
                 where latest.target_name = m.target_name
+                  and latest.task_type = m.task_type
                 order by latest.created_at desc
                 limit 1
               ) as last_status,
               max(m.created_at) as last_seen_at
             from model_invocations m
-            group by m.provider, m.model_name, m.target_name
+            group by m.task_type, m.provider, m.model_name, m.target_name
             order by max(m.created_at) desc
             limit 8
             """, (rs, rowNum) -> new ModelHealthResponse(
+            rs.getString("task_type"),
             rs.getString("provider"),
             rs.getString("model_name"),
             rs.getString("target_name"),

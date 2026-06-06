@@ -1387,7 +1387,7 @@ select,
 
 .model-target-form {
   display: grid;
-  grid-template-columns: minmax(130px, 0.42fr) minmax(150px, 0.38fr) minmax(180px, 0.58fr) 86px 86px;
+  grid-template-columns: minmax(120px, 0.36fr) minmax(132px, 0.32fr) minmax(126px, 0.34fr) minmax(176px, 0.54fr) 82px 82px;
   align-items: end;
   gap: 10px;
   padding: 14px;

@@ -27,6 +27,9 @@ public class ModelInvocation {
     @Column(name = "target_name", nullable = false, length = 220)
     private String targetName;
 
+    @Column(name = "task_type", nullable = false, length = 64)
+    private String taskType = ModelTaskType.GENERAL.code();
+
     @Column(nullable = false, length = 32)
     private String status;
 
@@ -70,6 +73,14 @@ public class ModelInvocation {
 
     public void setTargetName(String targetName) {
         this.targetName = targetName;
+    }
+
+    public String getTaskType() {
+        return taskType;
+    }
+
+    public void setTaskType(String taskType) {
+        this.taskType = taskType;
     }
 
     public String getStatus() {

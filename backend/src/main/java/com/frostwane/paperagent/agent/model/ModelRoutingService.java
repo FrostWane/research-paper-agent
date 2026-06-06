@@ -40,12 +40,17 @@ public class ModelRoutingService {
     }
 
     public RoutedAnswer generate(String systemPrompt, String userPrompt, Supplier<String> fallbackSupplier) {
-        List<RoutingTarget> targets = modelTargetService.routingTargets();
+        return generate(ModelTaskType.ANSWER_GENERATION, systemPrompt, userPrompt, fallbackSupplier);
+    }
+
+    public RoutedAnswer generate(ModelTaskType taskType, String systemPrompt, String userPrompt, Supplier<String> fallbackSupplier) {
+        ModelTaskType requestedTask = taskType == null ? ModelTaskType.ANSWER_GENERATION : taskType;
+        List<RoutingTarget> targets = modelTargetService.routingTargets(requestedTask);
         String lastFailure = null;
         for (RoutingTarget target : targets) {
             if ("fallback".equalsIgnoreCase(target.provider())) {
                 lastFailure = "Target " + target.code() + " uses fallback provider";
-                record(target.provider(), target.modelName(), target.targetName(), "FALLBACK", 0, lastFailure);
+                record(requestedTask, target.provider(), target.modelName(), target.targetName(), "FALLBACK", 0, lastFailure);
                 continue;
             }
             Instant started = Instant.now();
@@ -56,14 +61,14 @@ public class ModelRoutingService {
                 if (content == null || content.isBlank()) {
                     throw new IllegalStateException("Model returned empty content");
                 }
-                record(target.provider(), target.modelName(), target.targetName(), "SUCCESS", elapsedMs(started), null);
+                record(requestedTask, target.provider(), target.modelName(), target.targetName(), "SUCCESS", elapsedMs(started), null);
                 return new RoutedAnswer(content.trim(), target.targetName());
             } catch (Exception ex) {
                 lastFailure = "Target " + target.code() + " failed: " + ex.getClass().getSimpleName();
-                record(target.provider(), target.modelName(), target.targetName(), "FAILED", elapsedMs(started), ex.getClass().getSimpleName() + ": " + ex.getMessage());
+                record(requestedTask, target.provider(), target.modelName(), target.targetName(), "FAILED", elapsedMs(started), ex.getClass().getSimpleName() + ": " + ex.getMessage());
             }
         }
-        return fallback(fallbackSupplier, defaultText(lastFailure, "No model target available"));
+        return fallback(requestedTask, fallbackSupplier, defaultText(lastFailure, "No model target available"));
     }
 
     private String callEnvironmentTarget(String systemPrompt, String userPrompt) {
@@ -108,13 +113,14 @@ public class ModelRoutingService {
         return content.isMissingNode() ? null : content.asText();
     }
 
-    private RoutedAnswer fallback(Supplier<String> fallbackSupplier, String reason) {
-        record("fallback", FALLBACK_TARGET, FALLBACK_TARGET, "FALLBACK", 0, reason);
+    private RoutedAnswer fallback(ModelTaskType taskType, Supplier<String> fallbackSupplier, String reason) {
+        record(taskType, "fallback", FALLBACK_TARGET, FALLBACK_TARGET, "FALLBACK", 0, reason);
         return new RoutedAnswer(fallbackSupplier.get(), FALLBACK_TARGET);
     }
 
-    private void record(String provider, String modelName, String targetName, String status, int latencyMs, String errorMessage) {
+    private void record(ModelTaskType taskType, String provider, String modelName, String targetName, String status, int latencyMs, String errorMessage) {
         ModelInvocation invocation = new ModelInvocation();
+        invocation.setTaskType((taskType == null ? ModelTaskType.GENERAL : taskType).code());
         invocation.setProvider(defaultText(provider, "fallback"));
         invocation.setModelName(defaultText(modelName, FALLBACK_TARGET));
         invocation.setTargetName(defaultText(targetName, FALLBACK_TARGET));
