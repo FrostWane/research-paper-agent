@@ -6,9 +6,10 @@ import java.util.List;
 
 public record RetrievalResult(
     List<SourceResponse> sources,
-    List<RetrievalChannelTrace> channels
+    List<RetrievalChannelTrace> channels,
+    List<RetrievalProcessorTrace> processors
 ) {
     public static RetrievalResult empty() {
-        return new RetrievalResult(List.of(), List.of());
+        return new RetrievalResult(List.of(), List.of(), List.of());
     }
 }

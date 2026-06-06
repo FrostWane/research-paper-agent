@@ -5,22 +5,23 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @Service
 public class MultiChannelRetrievalEngine {
 
     private final List<RetrievalChannel> channels;
+    private final List<RetrievalPostProcessor> postProcessors;
 
-    public MultiChannelRetrievalEngine(List<RetrievalChannel> channels) {
+    public MultiChannelRetrievalEngine(List<RetrievalChannel> channels, List<RetrievalPostProcessor> postProcessors) {
         this.channels = channels.stream()
             .sorted(Comparator.comparingInt(RetrievalChannel::priority))
+            .toList();
+        this.postProcessors = postProcessors.stream()
+            .sorted(Comparator.comparingInt(RetrievalPostProcessor::order))
             .toList();
     }
 
@@ -37,7 +38,8 @@ public class MultiChannelRetrievalEngine {
             .map(CompletableFuture::join)
             .toList();
 
-        List<SourceResponse> sources = rerank(channelResults, resultLimit).stream()
+        ProcessedRetrieval processed = runPostProcessors(new RetrievalProcessingContext(request, channelResults, resultLimit));
+        List<SourceResponse> sources = processed.candidates().stream()
             .map(candidate -> new SourceResponse(
                 candidate.paperId(),
                 candidate.title(),
@@ -48,7 +50,8 @@ public class MultiChannelRetrievalEngine {
 
         return new RetrievalResult(
             sources,
-            channelResults.stream().map(RetrievalChannelTrace::from).toList()
+            channelResults.stream().map(RetrievalChannelTrace::from).toList(),
+            processed.processorTraces()
         );
     }
 
@@ -62,50 +65,23 @@ public class MultiChannelRetrievalEngine {
         }
     }
 
-    private List<RetrievalCandidate> rerank(List<RetrievalChannelResult> channelResults, int resultLimit) {
-        Map<String, AggregatedCandidate> candidates = new LinkedHashMap<>();
-        for (RetrievalChannelResult result : channelResults) {
-            if (!"SUCCESS".equals(result.status()) || result.candidates().isEmpty()) {
+    private ProcessedRetrieval runPostProcessors(RetrievalProcessingContext context) {
+        List<RetrievalCandidate> candidates = List.of();
+        List<RetrievalProcessorTrace> traces = new ArrayList<>();
+        for (RetrievalPostProcessor processor : postProcessors) {
+            if (!processor.supports(context)) {
                 continue;
             }
-            double maxScore = result.candidates().stream()
-                .mapToDouble(RetrievalCandidate::score)
-                .max()
-                .orElse(1.0d);
-            int size = result.candidates().size();
-            for (int i = 0; i < size; i++) {
-                RetrievalCandidate candidate = result.candidates().get(i);
-                String key = candidateKey(candidate);
-                double normalizedScore = maxScore <= 0 ? 0 : candidate.score() / maxScore;
-                double rankScore = (size - i) / (double) Math.max(size, 1);
-                double contribution = channelWeight(result.name()) * (0.65d * rankScore + 0.35d * normalizedScore);
-                candidates.computeIfAbsent(key, ignored -> new AggregatedCandidate(candidate))
-                    .add(contribution, result.name());
+            int inputCount = candidates.size();
+            Instant started = Instant.now();
+            try {
+                candidates = processor.process(context, candidates);
+                traces.add(RetrievalProcessorTrace.success(processor, inputCount, candidates.size(), elapsedMs(started)));
+            } catch (Exception ex) {
+                traces.add(RetrievalProcessorTrace.failure(processor, inputCount, candidates.size(), elapsedMs(started), ex));
             }
         }
-
-        return candidates.values().stream()
-            .sorted(Comparator.comparingDouble(AggregatedCandidate::score).reversed()
-                .thenComparing(item -> item.candidate().title())
-                .thenComparingInt(item -> item.candidate().pageNumber()))
-            .limit(resultLimit)
-            .map(AggregatedCandidate::toCandidate)
-            .toList();
-    }
-
-    private double channelWeight(String channelName) {
-        return switch (channelName) {
-            case "vector" -> 1.0d;
-            case "keyword" -> 0.78d;
-            default -> 0.65d;
-        };
-    }
-
-    private String candidateKey(RetrievalCandidate candidate) {
-        if (candidate.chunkId() != null) {
-            return "chunk:" + candidate.chunkId();
-        }
-        return "paper:" + candidate.paperId() + ":page:" + candidate.pageNumber() + ":index:" + candidate.chunkIndex();
+        return new ProcessedRetrieval(candidates, traces);
     }
 
     private int elapsedMs(Instant started) {
@@ -119,41 +95,9 @@ public class MultiChannelRetrievalEngine {
         return value.substring(0, maxLength).trim() + "...";
     }
 
-    private static class AggregatedCandidate {
-        private final RetrievalCandidate candidate;
-        private final List<String> channels = new ArrayList<>();
-        private double score;
-
-        private AggregatedCandidate(RetrievalCandidate candidate) {
-            this.candidate = candidate;
-        }
-
-        private void add(double contribution, String channelName) {
-            score += contribution;
-            if (!channels.contains(channelName)) {
-                channels.add(channelName);
-            }
-        }
-
-        private double score() {
-            return score;
-        }
-
-        private RetrievalCandidate candidate() {
-            return candidate;
-        }
-
-        private RetrievalCandidate toCandidate() {
-            return new RetrievalCandidate(
-                candidate.chunkId(),
-                candidate.paperId(),
-                candidate.title(),
-                candidate.pageNumber(),
-                candidate.chunkIndex(),
-                candidate.content(),
-                score,
-                channels.stream().collect(Collectors.joining("+"))
-            );
-        }
+    private record ProcessedRetrieval(
+        List<RetrievalCandidate> candidates,
+        List<RetrievalProcessorTrace> processorTraces
+    ) {
     }
 }

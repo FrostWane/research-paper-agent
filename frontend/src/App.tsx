@@ -1328,6 +1328,21 @@ function AdminView({
                         ))}
                       </div>
                     )}
+                    {(trace.retrievalProcessors ?? []).length > 0 && (
+                      <div className="admin-retrieval-processors">
+                        {trace.retrievalProcessors.map((processor) => (
+                          <span
+                            className={`admin-retrieval-processor ${processor.status === 'FAILED' ? 'is-failed' : ''}`}
+                            key={`${trace.id}-${processor.name}`}
+                            title={processor.errorMessage || processor.label || processor.name}
+                          >
+                            <i>{processor.label || processor.name}</i>
+                            <b>{`${processor.inputCount}->${processor.outputCount}`}</b>
+                            <em>{formatLatency(processor.latencyMs)}</em>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {(trace.nodeSpans ?? []).length > 0 && (
                       <div className="admin-node-spans">
                         {trace.nodeSpans.map((span) => (

@@ -60,6 +60,10 @@ public class RagTrace {
     @JdbcTypeCode(SqlTypes.JSON)
     private String retrievalChannelsJson = "[]";
 
+    @Column(name = "retrieval_processors_json", nullable = false, columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String retrievalProcessorsJson = "[]";
+
     @Column(name = "query_intent", nullable = false, length = 64)
     private String queryIntent = "GENERAL_QA";
 
@@ -186,6 +190,14 @@ public class RagTrace {
 
     public void setRetrievalChannelsJson(String retrievalChannelsJson) {
         this.retrievalChannelsJson = retrievalChannelsJson;
+    }
+
+    public String getRetrievalProcessorsJson() {
+        return retrievalProcessorsJson;
+    }
+
+    public void setRetrievalProcessorsJson(String retrievalProcessorsJson) {
+        this.retrievalProcessorsJson = retrievalProcessorsJson;
     }
 
     public String getQueryIntent() {

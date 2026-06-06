@@ -29,6 +29,7 @@ public class RagTraceService {
         String pipelineName,
         String nodeSpansJson,
         String retrievalChannelsJson,
+        String retrievalProcessorsJson,
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
@@ -52,6 +53,7 @@ public class RagTraceService {
             pipelineName,
             nodeSpansJson,
             retrievalChannelsJson,
+            retrievalProcessorsJson,
             queryIntent,
             searchQuery,
             comparisonRequested,
@@ -77,6 +79,7 @@ public class RagTraceService {
         String pipelineName,
         String nodeSpansJson,
         String retrievalChannelsJson,
+        String retrievalProcessorsJson,
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
@@ -101,6 +104,7 @@ public class RagTraceService {
             pipelineName,
             nodeSpansJson,
             retrievalChannelsJson,
+            retrievalProcessorsJson,
             queryIntent,
             searchQuery,
             comparisonRequested,
@@ -127,6 +131,7 @@ public class RagTraceService {
         String pipelineName,
         String nodeSpansJson,
         String retrievalChannelsJson,
+        String retrievalProcessorsJson,
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
@@ -151,6 +156,7 @@ public class RagTraceService {
         trace.setPipelineName(defaultText(pipelineName, "agent-pipeline-v1"));
         trace.setNodeSpansJson(defaultText(nodeSpansJson, "[]"));
         trace.setRetrievalChannelsJson(defaultText(retrievalChannelsJson, "[]"));
+        trace.setRetrievalProcessorsJson(defaultText(retrievalProcessorsJson, "[]"));
         trace.setQueryIntent(defaultText(queryIntent, "GENERAL_QA"));
         trace.setSearchQuery(searchQuery);
         trace.setComparisonRequested(comparisonRequested);

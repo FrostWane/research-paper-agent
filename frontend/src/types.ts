@@ -140,6 +140,7 @@ export interface AdminTrace {
   totalMs: number;
   errorMessage?: string;
   retrievalChannels: AdminRetrievalChannel[];
+  retrievalProcessors: AdminRetrievalProcessor[];
   nodeSpans: AdminTraceNodeSpan[];
   createdAt: string;
 }
@@ -149,6 +150,16 @@ export interface AdminRetrievalChannel {
   label: string;
   status: 'SUCCESS' | 'FAILED' | string;
   candidateCount: number;
+  latencyMs: number;
+  errorMessage?: string;
+}
+
+export interface AdminRetrievalProcessor {
+  name: string;
+  label: string;
+  status: 'SUCCESS' | 'FAILED' | string;
+  inputCount: number;
+  outputCount: number;
   latencyMs: number;
   errorMessage?: string;
 }

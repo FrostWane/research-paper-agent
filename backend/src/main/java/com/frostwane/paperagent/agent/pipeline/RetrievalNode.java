@@ -35,5 +35,6 @@ public class RetrievalNode implements AgentNode {
             : retrieverAgent.retrieveWithDiagnostics(context.paper(), context.searchQuery(), context.useRag());
         context.sources(result.sources());
         context.retrievalChannels(result.channels());
+        context.retrievalProcessors(result.processors());
     }
 }

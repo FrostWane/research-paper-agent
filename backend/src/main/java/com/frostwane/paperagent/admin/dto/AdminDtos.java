@@ -83,6 +83,7 @@ public final class AdminDtos {
         int totalMs,
         String errorMessage,
         List<RagTraceRetrievalChannelResponse> retrievalChannels,
+        List<RagTraceRetrievalProcessorResponse> retrievalProcessors,
         List<RagTraceNodeSpanResponse> nodeSpans,
         OffsetDateTime createdAt
     ) {
@@ -93,6 +94,17 @@ public final class AdminDtos {
         String label,
         String status,
         int candidateCount,
+        int latencyMs,
+        String errorMessage
+    ) {
+    }
+
+    public record RagTraceRetrievalProcessorResponse(
+        String name,
+        String label,
+        String status,
+        int inputCount,
+        int outputCount,
         int latencyMs,
         String errorMessage
     ) {

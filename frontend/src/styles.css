@@ -1502,6 +1502,48 @@ select,
   font-weight: 600;
 }
 
+.admin-retrieval-processors {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-retrieval-processor {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 7px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-retrieval-processor.is-failed {
+  color: var(--red);
+  background: #fff1f3;
+  border-color: #ffd5dd;
+}
+
+.admin-retrieval-processor i,
+.admin-retrieval-processor b,
+.admin-retrieval-processor em {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.admin-retrieval-processor em {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .admin-node-spans {
   display: flex;
   gap: 5px;
