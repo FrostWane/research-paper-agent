@@ -33,6 +33,10 @@ public class ChatRecord {
     @JoinColumn(name = "paper_id")
     private Paper paper;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "session_id", nullable = false)
+    private ChatSession session;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String question;
 
@@ -84,6 +88,14 @@ public class ChatRecord {
 
     public void setPaper(Paper paper) {
         this.paper = paper;
+    }
+
+    public ChatSession getSession() {
+        return session;
+    }
+
+    public void setSession(ChatSession session) {
+        this.session = session;
     }
 
     public String getQuestion() {

@@ -33,6 +33,10 @@
   - `POST /api/files/papers`
   - `GET /api/files/papers/{fileId}/preview`
   - `POST /api/agent/chat`
+  - `GET /api/agent/sessions`
+  - `POST /api/agent/sessions`
+  - `PATCH /api/agent/sessions/{id}`
+  - `GET /api/agent/sessions/{id}/chats`
   - `GET /api/papers/{paperId}/chats`
 
 ## Phase 2: RAG + 多 Agent Lite
@@ -45,7 +49,7 @@
   - 使用 Spring AI + `AgentPipeline` + `AgentOrchestratorService`。
   - 参考 ragent 的节点化框架，先采用轻量 Spring Bean Pipeline，而不是直接引入 AOP Trace 和异步流式上下文。
   - `ScopeResolutionNode`：解析单篇 / 全库问答范围。
-  - `ConversationMemoryNode`：按当前问答范围读取最近历史，生成滑动窗口记忆并注入回答 Prompt。
+  - `ConversationMemoryNode`：优先按当前会话读取最近历史，生成滑动窗口记忆并注入回答 Prompt。
   - `QueryRewriteNode`：参考 ragent 的问题改写与拆分，把用户问题转换为更适合检索的查询和子问题。
   - `QueryPlanningNode`：识别问题意图，生成检索式，标记跨文献比较需求。
   - `RetrievalNode`：通过多通道检索引擎混合向量检索和关键词检索，并用后处理器链完成融合、检索式感知精排、多样性重排和截断。
@@ -76,7 +80,7 @@
   - 管理员可配置 RAG 候选召回数、最终来源数、来源摘录长度、向量通道权重、关键词通道权重、记忆轮数、记忆字符上限、查询改写开关、子问题上限和模型质量评审开关。
   - 新增轻量任务感知模型路由和模型调用日志，管理员可查看并维护目标模型，按任务观察最近状态、成功 / 失败 / fallback 次数和平均延迟。
   - 管理员可启用 / 禁用普通用户。
-  - 新增简化 RAG Trace，记录问答范围、问题意图、检索式、改写查询、子问题、回答策略、输出契约、检索通道、检索后处理器、会话记忆轮数、会话记忆字符数、来源数量、答案质量分、质量标签、质量方法、评审模型、评审置信度、质量解释、Pipeline 节点 span、检索耗时、生成耗时、校验耗时、评估耗时、格式化耗时、总耗时和失败信息。
+  - 新增简化 RAG Trace，记录会话、问答范围、问题意图、检索式、改写查询、子问题、回答策略、输出契约、检索通道、检索后处理器、会话记忆轮数、会话记忆字符数、来源数量、答案质量分、质量标签、质量方法、评审模型、评审置信度、质量解释、Pipeline 节点 span、检索耗时、生成耗时、校验耗时、评估耗时、格式化耗时、总耗时和失败信息。
   - 新增解析任务日志，记录 PDF 入库状态、页数、片段数、耗时、失败信息和入库节点 span。
 
 ## Phase 3: Android 简化端
@@ -109,8 +113,9 @@
 - `papers`：用户归属、标题、作者、年份、关键词、摘要、备注、阅读状态、处理状态、文件引用。
 - `paper_files`：用户归属、原始文件名、MinIO object key、MIME、大小、SHA-256、页数。
 - `paper_chunks`：文献 ID、页码、块序号、文本内容、embedding vector。
-- `chat_records`：用户归属、可为空的文献 ID、问题、回答、来源 JSON、模型名、耗时。
-- `rag_traces`：用户归属、可为空的文献 ID、可为空的聊天记录 ID、问答范围、状态、模型名、Pipeline 名称、问题意图、检索式、改写查询、子问题 JSON、回答策略、输出契约、检索通道 JSON、检索后处理器 JSON、节点 span JSON、会话记忆轮数、会话记忆字符数、来源数量、答案质量分、质量标签、质量方法、评审模型、评审置信度、质量解释、分段耗时、错误信息。
+- `chat_sessions`：用户归属、可为空的文献 ID、问答范围、标题、归档状态、消息数、最后问答时间，用于组织单篇/全库多轮会话。
+- `chat_records`：用户归属、会话 ID、可为空的文献 ID、问题、回答、来源 JSON、模型名、耗时。
+- `rag_traces`：用户归属、可为空的会话 ID、可为空的文献 ID、可为空的聊天记录 ID、问答范围、状态、模型名、Pipeline 名称、问题意图、检索式、改写查询、子问题 JSON、回答策略、输出契约、检索通道 JSON、检索后处理器 JSON、节点 span JSON、会话记忆轮数、会话记忆字符数、来源数量、答案质量分、质量标签、质量方法、评审模型、评审置信度、质量解释、分段耗时、错误信息。
 - `parse_jobs`：用户归属、可为空的文献/文件 ID、文献标题快照、文件名、状态、页数、片段数、耗时、失败信息。
 - `rag_settings`：全局 RAG 运行时参数，包含候选召回数、最终来源数、来源摘录长度、检索通道融合权重、会话记忆窗口、查询改写配置和模型质量评审开关。
 - `intent_routes`：轻量意图路由规则，包含意图标识、关键词、检索提示、回答策略、输出契约、比较标记和启用状态。
@@ -129,7 +134,7 @@
   - 文献 CRUD、搜索分页、状态更新。
   - PDF 上传校验：非 PDF、超大文件、正常 PDF。
   - PDF 解析、分块入库、pgvector 检索。
-  - Agent 问答、来源页码、历史保存。
+  - Agent 问答、来源页码、会话化历史保存。
 - Android：
   - 登录态持久化。
   - 文献列表和详情加载。

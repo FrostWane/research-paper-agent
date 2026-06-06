@@ -13,6 +13,7 @@ public final class AgentDtos {
     }
 
     public record ChatRequest(
+        Long sessionId,
         Long paperId,
         @NotBlank @Size(max = 4000) String question,
         boolean useRag
@@ -31,6 +32,8 @@ public final class AgentDtos {
         String answer,
         List<SourceResponse> sources,
         Long recordId,
+        Long sessionId,
+        String sessionTitle,
         String modelName,
         int latencyMs
     ) {
@@ -38,6 +41,7 @@ public final class AgentDtos {
 
     public record ChatRecordResponse(
         Long id,
+        Long sessionId,
         Long paperId,
         String question,
         String answer,
@@ -48,6 +52,31 @@ public final class AgentDtos {
         String feedbackComment,
         OffsetDateTime feedbackAt,
         OffsetDateTime createdAt
+    ) {
+    }
+
+    public record ChatSessionResponse(
+        Long id,
+        Long paperId,
+        String scope,
+        String title,
+        boolean archived,
+        int messageCount,
+        OffsetDateTime lastMessageAt,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record ChatSessionCreateRequest(
+        Long paperId,
+        @Size(max = 160) String title
+    ) {
+    }
+
+    public record ChatSessionUpdateRequest(
+        @Size(max = 160) String title,
+        Boolean archived
     ) {
     }
 

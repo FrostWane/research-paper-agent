@@ -83,12 +83,15 @@ export interface ChatResponse {
   answer: string;
   sources: SourceResponse[];
   recordId: number;
+  sessionId: number;
+  sessionTitle: string;
   modelName: string;
   latencyMs: number;
 }
 
 export interface ChatRecord {
   id: number;
+  sessionId?: number;
   paperId?: number;
   question: string;
   answer: string;
@@ -99,6 +102,18 @@ export interface ChatRecord {
   feedbackComment?: string;
   feedbackAt?: string;
   createdAt: string;
+}
+
+export interface ChatSession {
+  id: number;
+  paperId?: number;
+  scope: 'PAPER' | 'LIBRARY' | string;
+  title: string;
+  archived: boolean;
+  messageCount: number;
+  lastMessageAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdminStatusCount {
@@ -139,6 +154,8 @@ export interface AdminTrace {
   username: string;
   paperId?: number;
   paperTitle?: string;
+  sessionId?: number;
+  sessionTitle?: string;
   scope: 'PAPER' | 'LIBRARY' | string;
   question: string;
   status: 'SUCCESS' | 'FAILED' | string;

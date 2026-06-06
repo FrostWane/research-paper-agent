@@ -23,6 +23,7 @@ import {
   LogIn,
   LogOut,
   MessageSquareText,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -67,12 +68,22 @@ import {
   updateRagSettings,
   updateQueryTermMapping
 } from './api/admin';
-import { askAgent, listChats, listLibraryChats, listSamplePrompts, submitChatFeedback } from './api/agent';
+import {
+  askAgent,
+  createChatSession,
+  listChats,
+  listChatSessions,
+  listLibraryChats,
+  listSamplePrompts,
+  listSessionChats,
+  submitChatFeedback,
+  updateChatSession
+} from './api/agent';
 import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminUser, AnswerPromptTemplate, ChatRecord, IntentRoute, ModelTarget, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminOverview, AdminUser, AnswerPromptTemplate, ChatRecord, ChatSession, IntentRoute, ModelTarget, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -210,6 +221,8 @@ export default function App() {
   const [form, setForm] = useState<PaperForm>(emptyForm);
   const [file, setFile] = useState<File | null>(null);
   const [metadataStatus, setMetadataStatus] = useState('');
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [chats, setChats] = useState<ChatRecord[]>([]);
   const [question, setQuestion] = useState('');
   const [pdfJump, setPdfJump] = useState<PdfJump | null>(null);
@@ -251,11 +264,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (activeView === 'libraryChat' || readerScope === 'library') {
+    if (activeView === 'libraryChat') {
+      void loadSessionList(null);
+    } else if (activeView === 'reader' && selectedPaper?.id) {
+      void loadSessionList(selectedPaper.id);
+    } else if (activeView === 'history' && readerScope === 'library') {
       void loadLibraryChatList();
-    } else if (selectedPaper?.id) {
+    } else if (activeView === 'history' && selectedPaper?.id) {
       void loadChatList(selectedPaper.id);
     } else {
+      setChatSessions([]);
+      setSelectedSessionId(null);
       setChats([]);
     }
   }, [activeView, readerScope, selectedPaper?.id]);
@@ -309,6 +328,34 @@ export default function App() {
     }
   }
 
+  async function loadSessionList(paperId: number | null, preferredSessionId = selectedSessionId) {
+    try {
+      const sessions = await listChatSessions(paperId);
+      setChatSessions(sessions);
+      const nextSessionId =
+        preferredSessionId && sessions.some((session) => session.id === preferredSessionId)
+          ? preferredSessionId
+          : sessions[0]?.id ?? null;
+      setSelectedSessionId(nextSessionId);
+      if (nextSessionId) {
+        await loadSessionChatList(nextSessionId);
+      } else {
+        setChats([]);
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
+  }
+
+  async function loadSessionChatList(sessionId: number) {
+    try {
+      const result = await listSessionChats(sessionId);
+      setChats(result);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
+  }
+
   async function loadPromptPresets() {
     try {
       const [paper, library] = await Promise.all([listSamplePrompts('PAPER'), listSamplePrompts('LIBRARY')]);
@@ -348,6 +395,8 @@ export default function App() {
     setPapers([]);
     setSelectedPaperId(null);
     setReaderScope('paper');
+    setChatSessions([]);
+    setSelectedSessionId(null);
     setChats([]);
     setAdminOverview(null);
     setAdminUsers([]);
@@ -446,8 +495,10 @@ export default function App() {
       setQuestion('');
       setBusyText('多 Agent 正在检索、生成并校验引用...');
       const paperId = isLibraryQuestion ? null : selectedPaper!.id;
-      await askAgent(paperId, prompt.trim(), true);
-      if (isLibraryQuestion) {
+      const response = await askAgent(paperId, prompt.trim(), true, selectedSessionId);
+      if (activeView === 'libraryChat' || activeView === 'reader') {
+        await loadSessionList(paperId, response.sessionId);
+      } else if (isLibraryQuestion) {
         await loadLibraryChatList();
       } else {
         await loadChatList(selectedPaper!.id);
@@ -471,6 +522,63 @@ export default function App() {
       showNotice(nextScore === null ? '已取消反馈。' : '反馈已记录。');
     } catch (err) {
       setError(extractErrorMessage(err));
+    }
+  }
+
+  async function handleCreateChatSession() {
+    const paperId = activeView === 'libraryChat' || readerScope === 'library' ? null : selectedPaper?.id ?? null;
+    try {
+      setBusyText('正在创建新会话...');
+      const session = await createChatSession(paperId, '新对话');
+      setChatSessions((current) => [session, ...current.filter((item) => item.id !== session.id)]);
+      setSelectedSessionId(session.id);
+      setChats([]);
+      showNotice('新会话已创建。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleSelectChatSession(session: ChatSession) {
+    try {
+      setSelectedSessionId(session.id);
+      await loadSessionChatList(session.id);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
+  }
+
+  async function handleRenameChatSession(session: ChatSession) {
+    const title = window.prompt('请输入新的会话标题', session.title);
+    if (title == null) {
+      return;
+    }
+    try {
+      const updated = await updateChatSession(session.id, { title });
+      setChatSessions((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      showNotice('会话标题已更新。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
+  }
+
+  async function handleArchiveChatSession(session: ChatSession) {
+    const confirmed = window.confirm('归档后该会话会从当前会话列表隐藏，历史问答仍然保留。确定继续吗？');
+    if (!confirmed) {
+      return;
+    }
+    const paperId = session.paperId ?? null;
+    try {
+      setBusyText('正在归档会话...');
+      await updateChatSession(session.id, { archived: true });
+      await loadSessionList(paperId, session.id === selectedSessionId ? null : selectedSessionId);
+      showNotice('会话已归档。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
     }
   }
 
@@ -1027,6 +1135,8 @@ export default function App() {
             papers={papers}
             scope="paper"
             selectedPaper={selectedPaper}
+            sessions={chatSessions}
+            selectedSessionId={selectedSessionId}
             chats={chats}
             prompts={paperPrompts}
             question={question}
@@ -1039,6 +1149,10 @@ export default function App() {
               }
             }}
             onAsk={(prompt) => void handleAsk(prompt)}
+            onCreateSession={() => void handleCreateChatSession()}
+            onSelectSession={(session) => void handleSelectChatSession(session)}
+            onRenameSession={(session) => void handleRenameChatSession(session)}
+            onArchiveSession={(session) => void handleArchiveChatSession(session)}
             onToggleRead={(paper) => void handleToggleRead(paper)}
             onParse={(paper) => void handleParse(paper)}
             onUnparse={(paper) => void handleUnparse(paper)}
@@ -1051,11 +1165,17 @@ export default function App() {
         {activeView === 'libraryChat' && (
           <LibraryChatView
             papers={papers}
+            sessions={chatSessions}
+            selectedSessionId={selectedSessionId}
             chats={chats}
             prompts={libraryPrompts}
             question={question}
             onQuestionChange={setQuestion}
             onAsk={(prompt) => void handleAsk(prompt)}
+            onCreateSession={() => void handleCreateChatSession()}
+            onSelectSession={(session) => void handleSelectChatSession(session)}
+            onRenameSession={(session) => void handleRenameChatSession(session)}
+            onArchiveSession={(session) => void handleArchiveChatSession(session)}
             onSelectPaper={(paper) => {
               setSelectedPaperId(paper.id);
               setReaderScope('paper');
@@ -1313,12 +1433,18 @@ function ReaderView({
   papers,
   scope,
   selectedPaper,
+  sessions,
+  selectedSessionId,
   chats,
   prompts,
   question,
   onQuestionChange,
   onSelectScope,
   onAsk,
+  onCreateSession,
+  onSelectSession,
+  onRenameSession,
+  onArchiveSession,
   onToggleRead,
   onParse,
   onUnparse,
@@ -1329,12 +1455,18 @@ function ReaderView({
   papers: Paper[];
   scope: ReaderScope;
   selectedPaper: Paper | null;
+  sessions: ChatSession[];
+  selectedSessionId: number | null;
   chats: ChatRecord[];
   prompts: string[];
   question: string;
   onQuestionChange: (value: string) => void;
   onSelectScope: (scope: ReaderScope, id?: number) => void;
   onAsk: (prompt?: string) => void;
+  onCreateSession: () => void;
+  onSelectSession: (session: ChatSession) => void;
+  onRenameSession: (session: ChatSession) => void;
+  onArchiveSession: (session: ChatSession) => void;
   onToggleRead: (paper: Paper) => void;
   onParse: (paper: Paper) => void;
   onUnparse: (paper: Paper) => void;
@@ -1438,6 +1570,14 @@ function ReaderView({
             <button key={prompt} type="button" onClick={() => onAsk(prompt)}>{prompt}</button>
           ))}
         </div>
+        <ChatSessionBar
+          sessions={sessions}
+          selectedSessionId={selectedSessionId}
+          onCreate={onCreateSession}
+          onSelect={onSelectSession}
+          onRename={onRenameSession}
+          onArchive={onArchiveSession}
+        />
         <div className="chat-list">
           {chats.length === 0 ? (
             <EmptyState compact title="暂无问答" detail="提出一个问题，Agent 会保存回答和来源片段。" />
@@ -1464,22 +1604,34 @@ function ReaderView({
 
 function LibraryChatView({
   papers,
+  sessions,
+  selectedSessionId,
   chats,
   prompts,
   question,
   onQuestionChange,
   onAsk,
+  onCreateSession,
+  onSelectSession,
+  onRenameSession,
+  onArchiveSession,
   onSelectPaper,
   onUpload,
   onSourceClick,
   onFeedback
 }: {
   papers: Paper[];
+  sessions: ChatSession[];
+  selectedSessionId: number | null;
   chats: ChatRecord[];
   prompts: string[];
   question: string;
   onQuestionChange: (value: string) => void;
   onAsk: (prompt?: string) => void;
+  onCreateSession: () => void;
+  onSelectSession: (session: ChatSession) => void;
+  onRenameSession: (session: ChatSession) => void;
+  onArchiveSession: (session: ChatSession) => void;
   onSelectPaper: (paper: Paper) => void;
   onUpload: () => void;
   onSourceClick: (source: SourceResponse) => void;
@@ -1537,6 +1689,14 @@ function LibraryChatView({
             <p>面向所有已解析文献检索、回答和引用校验。</p>
           </div>
         </div>
+        <ChatSessionBar
+          sessions={sessions}
+          selectedSessionId={selectedSessionId}
+          onCreate={onCreateSession}
+          onSelect={onSelectSession}
+          onRename={onRenameSession}
+          onArchive={onArchiveSession}
+        />
         <div className="chat-list">
           {chats.length === 0 ? (
             <EmptyState compact title="暂无全库问答" detail="提出一个跨论文问题，Agent 会保存回答和来源片段。" />
@@ -1618,6 +1778,66 @@ function HistoryView({
         )}
       </div>
     </section>
+  );
+}
+
+function ChatSessionBar({
+  sessions,
+  selectedSessionId,
+  onCreate,
+  onSelect,
+  onRename,
+  onArchive
+}: {
+  sessions: ChatSession[];
+  selectedSessionId: number | null;
+  onCreate: () => void;
+  onSelect: (session: ChatSession) => void;
+  onRename: (session: ChatSession) => void;
+  onArchive: (session: ChatSession) => void;
+}) {
+  const selected = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0] ?? null;
+
+  return (
+    <div className="chat-session-bar">
+      <div className="chat-session-head">
+        <span>
+          <MessageSquareText size={15} />
+          会话
+        </span>
+        <button className="icon-button small" type="button" title="新建会话" onClick={onCreate}>
+          <Plus size={15} />
+        </button>
+      </div>
+      {sessions.length > 0 ? (
+        <div className="chat-session-list">
+          {sessions.slice(0, 8).map((session) => (
+            <button
+              className={`chat-session-item ${session.id === selected?.id ? 'active' : ''}`}
+              key={session.id}
+              type="button"
+              onClick={() => onSelect(session)}
+            >
+              <span>{session.title || '新对话'}</span>
+              <em>{session.messageCount} 轮</em>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="chat-session-empty">还没有会话，发送问题时会自动创建。</p>
+      )}
+      {selected && (
+        <div className="chat-session-actions">
+          <button className="icon-button small" type="button" title="重命名会话" onClick={() => onRename(selected)}>
+            <Pencil size={14} />
+          </button>
+          <button className="icon-button small danger" type="button" title="归档会话" onClick={() => onArchive(selected)}>
+            <Trash2 size={14} />
+          </button>
+          <span>{selected.lastMessageAt ? formatTime(selected.lastMessageAt) : '等待第一轮问答'}</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1710,7 +1930,7 @@ function AdminView({
         <AdminStat icon={ServerCog} label="模型目标" value={overview?.totalModelTargets ?? 0} detail={`${overview?.enabledModelTargets ?? 0} 条启用`} />
         <AdminStat icon={Brain} label="示例问题" value={overview?.totalSamplePrompts ?? 0} detail={`${overview?.enabledSamplePrompts ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
-        <AdminStat icon={CheckCircle2} label="质量均分" value={overview?.averageAnswerQualityScore ?? 0} detail="成功 Trace 的启发式评分" />
+        <AdminStat icon={CheckCircle2} label="质量均分" value={overview?.averageAnswerQualityScore ?? 0} detail="成功 Trace 的评估分" />
       </div>
 
       <div className="admin-grid">
@@ -1920,7 +2140,7 @@ function AdminView({
                   <span className="admin-trace-question">
                     <strong>{trace.question}</strong>
                     <small>
-                      {trace.username} · {scopeLabel(trace.scope)} · {intentLabel(trace.queryIntent)} · {strategyLabel(trace.answerStrategy)}{trace.comparisonRequested ? ' · 比较' : ''} · {trace.pipelineName || 'agent-pipeline'} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
+                      {trace.username} · {scopeLabel(trace.scope)} · {intentLabel(trace.queryIntent)} · {strategyLabel(trace.answerStrategy)}{trace.comparisonRequested ? ' · 比较' : ''} · {trace.sessionTitle ? `会话：${trace.sessionTitle} · ` : ''}{trace.pipelineName || 'agent-pipeline'} · {trace.scope === 'LIBRARY' ? '全库知识库' : trace.paperTitle || '单篇文献'} · {formatTime(trace.createdAt)}
                     </small>
                     {trace.searchQuery && trace.searchQuery.trim() !== trace.question.trim() && (
                       <small className="admin-trace-search-query">检索式：{trace.searchQuery}</small>

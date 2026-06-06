@@ -59,6 +59,13 @@ public class ConversationMemoryNode implements AgentNode {
 
     private List<ChatRecord> loadRecent(AgentPipelineContext context, int limit) {
         PageRequest page = PageRequest.of(0, limit);
+        if (context.chatSession() != null) {
+            return new ArrayList<>(chatRecordRepository.findByOwnerIdAndSessionIdOrderByCreatedAtDesc(
+                context.owner().getId(),
+                context.chatSession().getId(),
+                page
+            ));
+        }
         if (context.libraryScope()) {
             return new ArrayList<>(chatRecordRepository.findByOwnerIdAndPaperIsNullOrderByCreatedAtDesc(context.owner().getId(), page));
         }

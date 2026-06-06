@@ -21,6 +21,7 @@ public class RagTraceService {
     @Transactional
     public void recordSuccess(
         User owner,
+        ChatSession session,
         Paper paper,
         ChatRecord chatRecord,
         String scope,
@@ -59,6 +60,7 @@ public class RagTraceService {
     ) {
         ragTraceRepository.save(trace(
             owner,
+            session,
             paper,
             chatRecord,
             scope,
@@ -102,6 +104,7 @@ public class RagTraceService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordFailure(
         User owner,
+        ChatSession session,
         Paper paper,
         String scope,
         String question,
@@ -140,6 +143,7 @@ public class RagTraceService {
     ) {
         ragTraceRepository.save(trace(
             owner,
+            session,
             paper,
             null,
             scope,
@@ -182,6 +186,7 @@ public class RagTraceService {
 
     private RagTrace trace(
         User owner,
+        ChatSession session,
         Paper paper,
         ChatRecord chatRecord,
         String scope,
@@ -222,6 +227,7 @@ public class RagTraceService {
     ) {
         RagTrace trace = new RagTrace();
         trace.setOwner(entityManager.getReference(User.class, owner.getId()));
+        trace.setSession(session == null ? null : entityManager.getReference(ChatSession.class, session.getId()));
         trace.setPaper(paper == null ? null : entityManager.getReference(Paper.class, paper.getId()));
         trace.setChatRecord(chatRecord == null ? null : entityManager.getReference(ChatRecord.class, chatRecord.getId()));
         trace.setScope(scope);

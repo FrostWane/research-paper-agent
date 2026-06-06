@@ -2,6 +2,7 @@ package com.frostwane.paperagent.agent.pipeline;
 
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
+import com.frostwane.paperagent.agent.ChatSession;
 import com.frostwane.paperagent.agent.retrieval.RetrievalChannelTrace;
 import com.frostwane.paperagent.agent.retrieval.RetrievalProcessorTrace;
 import com.frostwane.paperagent.agent.term.QueryTermExpansion;
@@ -23,6 +24,7 @@ public class AgentPipelineContext {
     private final Map<AgentNodeType, Integer> timings = new EnumMap<>(AgentNodeType.class);
     private final List<NodeSpan> nodeSpans = new ArrayList<>();
 
+    private ChatSession chatSession;
     private Paper paper;
     private List<SourceResponse> sources = List.of();
     private List<RetrievalChannelTrace> retrievalChannels = List.of();
@@ -82,6 +84,14 @@ public class AgentPipelineContext {
 
     public boolean useRag() {
         return request.useRag();
+    }
+
+    public ChatSession chatSession() {
+        return chatSession;
+    }
+
+    public void chatSession(ChatSession chatSession) {
+        this.chatSession = chatSession;
     }
 
     public Paper paper() {

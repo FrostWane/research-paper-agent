@@ -37,6 +37,10 @@ GET  /api/files/papers/{fileId}/preview
 
 ```http
 POST /api/agent/chat
+GET  /api/agent/sessions?paperId=1
+POST /api/agent/sessions
+PATCH /api/agent/sessions/{id}
+GET  /api/agent/sessions/{id}/chats
 GET  /api/agent/chats
 GET  /api/papers/{paperId}/chats
 GET  /api/agent/sample-prompts?scope=PAPER
@@ -47,6 +51,7 @@ PATCH /api/agent/chats/{id}/feedback
 
 ```json
 {
+  "sessionId": 12,
   "paperId": 1,
   "question": "请总结这篇论文的实验设计",
   "useRag": true
@@ -57,13 +62,34 @@ PATCH /api/agent/chats/{id}/feedback
 
 ```json
 {
+  "sessionId": 18,
   "paperId": null,
   "question": "请比较这些论文的主要方法路线",
   "useRag": true
 }
 ```
 
-响应中的 `sources` 会返回命中的论文 ID、标题、来源页码和片段。`GET /api/agent/chats` 返回全库问答历史，`GET /api/papers/{paperId}/chats` 返回单篇问答历史。
+`sessionId` 可为空；为空时后端会为当前单篇或全库范围复用最近的未归档会话，没有会话时自动创建。响应会返回 `recordId`、`sessionId`、`sessionTitle`、`modelName`、`latencyMs` 和 `sources`，其中 `sources` 包含命中的论文 ID、标题、来源页码和片段。`GET /api/agent/chats` 返回全库问答历史，`GET /api/papers/{paperId}/chats` 返回单篇问答历史，`GET /api/agent/sessions/{id}/chats` 返回某个会话内的消息。
+
+会话创建请求：
+
+```json
+{
+  "paperId": null,
+  "title": "综述选题讨论"
+}
+```
+
+`paperId` 为空表示全库会话；有值表示单篇会话，后端会校验论文归属。会话更新请求支持重命名和归档：
+
+```json
+{
+  "title": "药物靶点预测综述",
+  "archived": false
+}
+```
+
+归档会话会从默认会话列表隐藏，但历史问答记录仍然保留。问答记忆优先读取当前 `sessionId` 下最近轮次；旧接口不带会话时仍可按当前范围自动落到最近未归档会话。
 
 回答反馈请求：
 
@@ -116,7 +142,7 @@ PATCH /api/admin/sample-prompts/{id}
 DELETE /api/admin/sample-prompts/{id}
 ```
 
-`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；回答模板指标包含 `totalAnswerPromptTemplates`、`enabledAnswerPromptTemplates`，用于观察 AnswerAgent Prompt 运营规模；模型目标指标包含 `totalModelTargets`、`enabledModelTargets`，用于观察模型路由候选规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；`averageAnswerQualityScore` 表示成功 Trace 的平均质量分；模型健康字段包含 `taskType`、`provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于按查询改写、回答生成、质量评估等任务观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`rewrittenQuery`、`querySubQuestions`、`queryRewriteEnabled`、`queryRewriteModelName`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`memoryTurnCount`、`memoryChars`、`answerQualityScore`、`answerQualityLabel`、`answerQualityNotes`、`answerQualityMethod`、`answerQualityJudgeEnabled`、`answerQualityJudgeModelName`、`answerQualityConfidence`、`retrievalMs`、`generationMs`、`verificationMs`、`evaluationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的改写、规划、术语扩展、策略、会话记忆、检索通道、后处理器、质量评估、节点链路、检索和生成耗时。
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；回答模板指标包含 `totalAnswerPromptTemplates`、`enabledAnswerPromptTemplates`，用于观察 AnswerAgent Prompt 运营规模；模型目标指标包含 `totalModelTargets`、`enabledModelTargets`，用于观察模型路由候选规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；`averageAnswerQualityScore` 表示成功 Trace 的平均质量分；模型健康字段包含 `taskType`、`provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于按查询改写、回答生成、质量评估等任务观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `sessionId`、`sessionTitle`、`scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`rewrittenQuery`、`querySubQuestions`、`queryRewriteEnabled`、`queryRewriteModelName`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`memoryTurnCount`、`memoryChars`、`answerQualityScore`、`answerQualityLabel`、`answerQualityNotes`、`answerQualityMethod`、`answerQualityJudgeEnabled`、`answerQualityJudgeModelName`、`answerQualityConfidence`、`retrievalMs`、`generationMs`、`verificationMs`、`evaluationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的改写、规划、术语扩展、策略、会话记忆、检索通道、后处理器、质量评估、节点链路、检索和生成耗时。
 
 查询术语映射请求：
 

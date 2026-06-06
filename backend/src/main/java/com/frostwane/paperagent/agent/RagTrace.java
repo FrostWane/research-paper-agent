@@ -37,6 +37,10 @@ public class RagTrace {
     @JoinColumn(name = "chat_record_id")
     private ChatRecord chatRecord;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id")
+    private ChatSession session;
+
     @Column(nullable = false, length = 32)
     private String scope;
 
@@ -181,6 +185,14 @@ public class RagTrace {
 
     public void setChatRecord(ChatRecord chatRecord) {
         this.chatRecord = chatRecord;
+    }
+
+    public ChatSession getSession() {
+        return session;
+    }
+
+    public void setSession(ChatSession session) {
+        this.session = session;
     }
 
     public String getScope() {

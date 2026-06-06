@@ -304,6 +304,8 @@ public class AdminService {
               u.username,
               p.id as paper_id,
               p.title as paper_title,
+              s.id as session_id,
+              s.title as session_title,
               t.scope,
               t.question,
               t.status,
@@ -343,6 +345,7 @@ public class AdminService {
             from rag_traces t
             join users u on u.id = t.owner_id
             left join papers p on p.id = t.paper_id
+            left join chat_sessions s on s.id = t.session_id
             order by t.created_at desc
             limit 8
             """, (rs, rowNum) -> new RagTraceResponse(
@@ -350,6 +353,8 @@ public class AdminService {
             rs.getString("username"),
             nullableLong(rs, "paper_id"),
             rs.getString("paper_title"),
+            nullableLong(rs, "session_id"),
+            rs.getString("session_title"),
             rs.getString("scope"),
             rs.getString("question"),
             rs.getString("status"),

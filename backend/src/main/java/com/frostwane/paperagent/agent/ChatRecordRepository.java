@@ -9,7 +9,9 @@ import java.util.Optional;
 public interface ChatRecordRepository extends JpaRepository<ChatRecord, Long> {
     List<ChatRecord> findByOwnerIdAndPaperIdOrderByCreatedAtAsc(Long ownerId, Long paperId);
     List<ChatRecord> findByOwnerIdAndPaperIsNullOrderByCreatedAtAsc(Long ownerId);
+    List<ChatRecord> findByOwnerIdAndSessionIdOrderByCreatedAtAsc(Long ownerId, Long sessionId);
     List<ChatRecord> findByOwnerIdAndPaperIdOrderByCreatedAtDesc(Long ownerId, Long paperId, Pageable pageable);
     List<ChatRecord> findByOwnerIdAndPaperIsNullOrderByCreatedAtDesc(Long ownerId, Pageable pageable);
+    List<ChatRecord> findByOwnerIdAndSessionIdOrderByCreatedAtDesc(Long ownerId, Long sessionId, Pageable pageable);
     Optional<ChatRecord> findByIdAndOwnerId(Long id, Long ownerId);
 }

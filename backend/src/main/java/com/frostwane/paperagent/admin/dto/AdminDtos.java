@@ -101,6 +101,8 @@ public final class AdminDtos {
         String username,
         Long paperId,
         String paperTitle,
+        Long sessionId,
+        String sessionTitle,
         String scope,
         String question,
         String status,

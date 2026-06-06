@@ -4,6 +4,9 @@ import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRecordResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatFeedbackRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatResponse;
+import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionCreateRequest;
+import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionResponse;
+import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionUpdateRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.auth.CurrentUserService;
@@ -50,6 +53,26 @@ public class AgentController {
     @GetMapping("/api/agent/chats")
     public ApiResponse<List<ChatRecordResponse>> libraryChats() {
         return ApiResponse.ok(orchestratorService.listLibraryChats(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/api/agent/sessions")
+    public ApiResponse<List<ChatSessionResponse>> sessions(@RequestParam(required = false) Long paperId) {
+        return ApiResponse.ok(orchestratorService.listSessions(paperId, currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/api/agent/sessions")
+    public ApiResponse<ChatSessionResponse> createSession(@Valid @RequestBody ChatSessionCreateRequest request) {
+        return ApiResponse.ok(orchestratorService.createSession(request, currentUserService.getRequiredUser()));
+    }
+
+    @PatchMapping("/api/agent/sessions/{id}")
+    public ApiResponse<ChatSessionResponse> updateSession(@PathVariable Long id, @Valid @RequestBody ChatSessionUpdateRequest request) {
+        return ApiResponse.ok(orchestratorService.updateSession(id, request, currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/api/agent/sessions/{id}/chats")
+    public ApiResponse<List<ChatRecordResponse>> sessionChats(@PathVariable Long id) {
+        return ApiResponse.ok(orchestratorService.listSessionChats(id, currentUserService.getRequiredUser()));
     }
 
     @GetMapping("/api/agent/sample-prompts")
