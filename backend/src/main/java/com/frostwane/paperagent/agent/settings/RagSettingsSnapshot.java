@@ -9,6 +9,7 @@ public record RagSettingsSnapshot(
     int memoryHistoryTurns,
     int memoryMaxChars,
     boolean queryRewriteEnabled,
-    int queryRewriteMaxSubQuestions
+    int queryRewriteMaxSubQuestions,
+    boolean answerQualityJudgeEnabled
 ) {
 }

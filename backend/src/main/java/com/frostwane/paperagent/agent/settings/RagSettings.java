@@ -42,6 +42,9 @@ public class RagSettings {
     @Column(name = "query_rewrite_max_sub_questions", nullable = false)
     private Integer queryRewriteMaxSubQuestions = 3;
 
+    @Column(name = "answer_quality_judge_enabled", nullable = false)
+    private Boolean answerQualityJudgeEnabled = true;
+
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
@@ -132,6 +135,14 @@ public class RagSettings {
 
     public void setQueryRewriteMaxSubQuestions(Integer queryRewriteMaxSubQuestions) {
         this.queryRewriteMaxSubQuestions = queryRewriteMaxSubQuestions;
+    }
+
+    public Boolean getAnswerQualityJudgeEnabled() {
+        return answerQualityJudgeEnabled;
+    }
+
+    public void setAnswerQualityJudgeEnabled(Boolean answerQualityJudgeEnabled) {
+        this.answerQualityJudgeEnabled = answerQualityJudgeEnabled;
     }
 
     public OffsetDateTime getUpdatedAt() {

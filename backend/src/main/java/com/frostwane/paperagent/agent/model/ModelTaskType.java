@@ -5,7 +5,8 @@ import java.util.Locale;
 public enum ModelTaskType {
     GENERAL,
     ANSWER_GENERATION,
-    QUERY_REWRITE;
+    QUERY_REWRITE,
+    QUALITY_EVALUATION;
 
     public String code() {
         return name();

@@ -177,8 +177,12 @@ type RagSettingsInput = {
   memoryMaxChars: number;
   queryRewriteEnabled: boolean;
   queryRewriteMaxSubQuestions: number;
+  answerQualityJudgeEnabled: boolean;
 };
-type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'queryRewriteEnabled'> & { queryRewriteEnabled: boolean };
+type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'queryRewriteEnabled' | 'answerQualityJudgeEnabled'> & {
+  queryRewriteEnabled: boolean;
+  answerQualityJudgeEnabled: boolean;
+};
 
 const defaultRagSettingsInput: RagSettingsInput = {
   candidateLimit: 10,
@@ -189,7 +193,8 @@ const defaultRagSettingsInput: RagSettingsInput = {
   memoryHistoryTurns: 4,
   memoryMaxChars: 2400,
   queryRewriteEnabled: true,
-  queryRewriteMaxSubQuestions: 3
+  queryRewriteMaxSubQuestions: 3,
+  answerQualityJudgeEnabled: true
 };
 
 export default function App() {
@@ -1945,6 +1950,9 @@ function AdminView({
                     {trace.answerQualityNotes && (
                       <small className="admin-trace-quality-note">质量：{trace.answerQualityNotes}</small>
                     )}
+                    <small className="admin-trace-quality-note">
+                      评估：{qualityMethodLabel(trace.answerQualityMethod)}{trace.answerQualityConfidence ? ` · 置信 ${trace.answerQualityConfidence}%` : ''}{trace.answerQualityJudgeModelName ? ` · ${trace.answerQualityJudgeModelName}` : ''}
+                    </small>
                     {(trace.retrievalChannels ?? []).length > 0 && (
                       <div className="admin-retrieval-channels">
                         {trace.retrievalChannels.map((channel) => (
@@ -1991,7 +1999,7 @@ function AdminView({
                     )}
                     {trace.status === 'FAILED' && trace.errorMessage && <small className="admin-trace-error">{trace.errorMessage}</small>}
                   </span>
-                  <span className={`admin-quality-badge ${qualityBadgeClass(trace.answerQualityLabel)}`} title={trace.answerQualityNotes || qualityLabel(trace.answerQualityLabel)}>
+                  <span className={`admin-quality-badge ${qualityBadgeClass(trace.answerQualityLabel)}`} title={`${qualityMethodLabel(trace.answerQualityMethod)} · ${trace.answerQualityNotes || qualityLabel(trace.answerQualityLabel)}`}>
                     <b>{trace.answerQualityScore}</b>
                     <small>{qualityLabel(trace.answerQualityLabel)}</small>
                   </span>
@@ -2275,7 +2283,8 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       memoryHistoryTurns: boundedInt(form.memoryHistoryTurns, 0, 12, defaultRagSettingsInput.memoryHistoryTurns),
       memoryMaxChars: boundedInt(form.memoryMaxChars, 0, 8000, defaultRagSettingsInput.memoryMaxChars),
       queryRewriteEnabled: form.queryRewriteEnabled,
-      queryRewriteMaxSubQuestions: boundedInt(form.queryRewriteMaxSubQuestions, 1, 6, defaultRagSettingsInput.queryRewriteMaxSubQuestions)
+      queryRewriteMaxSubQuestions: boundedInt(form.queryRewriteMaxSubQuestions, 1, 6, defaultRagSettingsInput.queryRewriteMaxSubQuestions),
+      answerQualityJudgeEnabled: form.answerQualityJudgeEnabled
     });
   }
 
@@ -2284,7 +2293,7 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       <div className="admin-panel-head">
         <div>
           <h3>RAG 检索参数</h3>
-          <p>控制查询改写、候选召回、来源摘录、会话记忆和多通道融合权重。</p>
+          <p>控制查询改写、候选召回、来源摘录、会话记忆、模型评审和多通道融合权重。</p>
         </div>
         <SlidersHorizontal size={18} />
       </div>
@@ -2324,6 +2333,10 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
         <label className="rag-settings-check">
           <span>查询改写</span>
           <input type="checkbox" checked={form.queryRewriteEnabled} onChange={(event) => setForm((current) => ({ ...current, queryRewriteEnabled: event.target.checked }))} />
+        </label>
+        <label className="rag-settings-check">
+          <span>模型评审</span>
+          <input type="checkbox" checked={form.answerQualityJudgeEnabled} onChange={(event) => setForm((current) => ({ ...current, answerQualityJudgeEnabled: event.target.checked }))} />
         </label>
         <div className="rag-settings-actions">
           <em>{settings?.updatedAt ? `更新于 ${formatTime(settings.updatedAt)}` : '使用默认参数'}</em>
@@ -3511,6 +3524,15 @@ function qualityBadgeClass(label = 'UNASSESSED') {
   return '';
 }
 
+function qualityMethodLabel(method = 'HEURISTIC') {
+  const labels: Record<string, string> = {
+    LLM_JUDGE: '模型评审',
+    HEURISTIC: '启发式',
+    HEURISTIC_FALLBACK: '启发式兜底'
+  };
+  return labels[method] || method;
+}
+
 function scopeLabel(scope: string) {
   return scope === 'LIBRARY' ? '全库' : '单篇';
 }
@@ -3531,7 +3553,8 @@ function toRagSettingsForm(settings: RagSettings | null): RagSettingsFormState {
     memoryHistoryTurns: String(source.memoryHistoryTurns),
     memoryMaxChars: String(source.memoryMaxChars),
     queryRewriteEnabled: source.queryRewriteEnabled,
-    queryRewriteMaxSubQuestions: String(source.queryRewriteMaxSubQuestions)
+    queryRewriteMaxSubQuestions: String(source.queryRewriteMaxSubQuestions),
+    answerQualityJudgeEnabled: source.answerQualityJudgeEnabled ?? true
   };
 }
 
@@ -3589,7 +3612,8 @@ function compareModelTargets(a: ModelTarget, b: ModelTarget) {
 const modelTaskOptions = [
   { value: 'GENERAL', label: '通用兜底' },
   { value: 'ANSWER_GENERATION', label: '回答生成' },
-  { value: 'QUERY_REWRITE', label: '查询改写' }
+  { value: 'QUERY_REWRITE', label: '查询改写' },
+  { value: 'QUALITY_EVALUATION', label: '质量评估' }
 ];
 
 function modelTaskLabel(taskType = 'GENERAL') {

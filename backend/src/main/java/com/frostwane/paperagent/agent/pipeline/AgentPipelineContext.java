@@ -44,6 +44,10 @@ public class AgentPipelineContext {
     private int answerQualityScore;
     private String answerQualityLabel = "UNASSESSED";
     private String answerQualityNotes;
+    private String answerQualityMethod = "HEURISTIC";
+    private boolean answerQualityJudgeEnabled;
+    private String answerQualityJudgeModelName;
+    private int answerQualityConfidence;
     private String conversationHistory = "";
     private int memoryTurnCount;
     private int memoryChars;
@@ -274,6 +278,38 @@ public class AgentPipelineContext {
 
     public void answerQualityNotes(String answerQualityNotes) {
         this.answerQualityNotes = answerQualityNotes == null ? null : answerQualityNotes.trim();
+    }
+
+    public String answerQualityMethod() {
+        return answerQualityMethod;
+    }
+
+    public void answerQualityMethod(String answerQualityMethod) {
+        this.answerQualityMethod = answerQualityMethod == null || answerQualityMethod.isBlank() ? "HEURISTIC" : answerQualityMethod.trim();
+    }
+
+    public boolean answerQualityJudgeEnabled() {
+        return answerQualityJudgeEnabled;
+    }
+
+    public void answerQualityJudgeEnabled(boolean answerQualityJudgeEnabled) {
+        this.answerQualityJudgeEnabled = answerQualityJudgeEnabled;
+    }
+
+    public String answerQualityJudgeModelName() {
+        return answerQualityJudgeModelName;
+    }
+
+    public void answerQualityJudgeModelName(String answerQualityJudgeModelName) {
+        this.answerQualityJudgeModelName = answerQualityJudgeModelName == null ? null : answerQualityJudgeModelName.trim();
+    }
+
+    public int answerQualityConfidence() {
+        return answerQualityConfidence;
+    }
+
+    public void answerQualityConfidence(int answerQualityConfidence) {
+        this.answerQualityConfidence = Math.max(0, Math.min(100, answerQualityConfidence));
     }
 
     public String conversationHistory() {

@@ -152,7 +152,7 @@ export function fetchRagSettings() {
   return unwrap<RagSettings>(api.get('/api/admin/rag-settings'));
 }
 
-export function updateRagSettings(input: Partial<Pick<RagSettings, 'candidateLimit' | 'resultLimit' | 'sourceExcerptChars' | 'vectorWeight' | 'keywordWeight' | 'memoryHistoryTurns' | 'memoryMaxChars' | 'queryRewriteEnabled' | 'queryRewriteMaxSubQuestions'>>) {
+export function updateRagSettings(input: Partial<Pick<RagSettings, 'candidateLimit' | 'resultLimit' | 'sourceExcerptChars' | 'vectorWeight' | 'keywordWeight' | 'memoryHistoryTurns' | 'memoryMaxChars' | 'queryRewriteEnabled' | 'queryRewriteMaxSubQuestions' | 'answerQualityJudgeEnabled'>>) {
   return unwrap<RagSettings>(api.patch('/api/admin/rag-settings', input));
 }
 

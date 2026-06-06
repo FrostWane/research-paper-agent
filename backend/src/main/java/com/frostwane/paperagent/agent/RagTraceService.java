@@ -51,6 +51,10 @@ public class RagTraceService {
         int answerQualityScore,
         String answerQualityLabel,
         String answerQualityNotes,
+        String answerQualityMethod,
+        boolean answerQualityJudgeEnabled,
+        String answerQualityJudgeModelName,
+        int answerQualityConfidence,
         int totalMs
     ) {
         ragTraceRepository.save(trace(
@@ -86,6 +90,10 @@ public class RagTraceService {
             answerQualityScore,
             answerQualityLabel,
             answerQualityNotes,
+            answerQualityMethod,
+            answerQualityJudgeEnabled,
+            answerQualityJudgeModelName,
+            answerQualityConfidence,
             totalMs,
             null
         ));
@@ -123,6 +131,10 @@ public class RagTraceService {
         int answerQualityScore,
         String answerQualityLabel,
         String answerQualityNotes,
+        String answerQualityMethod,
+        boolean answerQualityJudgeEnabled,
+        String answerQualityJudgeModelName,
+        int answerQualityConfidence,
         int totalMs,
         String errorMessage
     ) {
@@ -159,6 +171,10 @@ public class RagTraceService {
             answerQualityScore,
             answerQualityLabel,
             answerQualityNotes,
+            answerQualityMethod,
+            answerQualityJudgeEnabled,
+            answerQualityJudgeModelName,
+            answerQualityConfidence,
             totalMs,
             sanitizeError(errorMessage)
         ));
@@ -197,6 +213,10 @@ public class RagTraceService {
         int answerQualityScore,
         String answerQualityLabel,
         String answerQualityNotes,
+        String answerQualityMethod,
+        boolean answerQualityJudgeEnabled,
+        String answerQualityJudgeModelName,
+        int answerQualityConfidence,
         int totalMs,
         String errorMessage
     ) {
@@ -233,6 +253,10 @@ public class RagTraceService {
         trace.setAnswerQualityScore(Math.max(0, Math.min(100, answerQualityScore)));
         trace.setAnswerQualityLabel(defaultText(answerQualityLabel, "UNASSESSED"));
         trace.setAnswerQualityNotes(answerQualityNotes);
+        trace.setAnswerQualityMethod(defaultText(answerQualityMethod, "HEURISTIC"));
+        trace.setAnswerQualityJudgeEnabled(answerQualityJudgeEnabled);
+        trace.setAnswerQualityJudgeModelName(answerQualityJudgeModelName);
+        trace.setAnswerQualityConfidence(Math.max(0, Math.min(100, answerQualityConfidence)));
         trace.setTotalMs(totalMs);
         trace.setErrorMessage(errorMessage);
         return trace;

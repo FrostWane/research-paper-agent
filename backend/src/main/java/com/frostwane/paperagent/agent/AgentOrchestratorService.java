@@ -96,6 +96,10 @@ public class AgentOrchestratorService {
                 context.answerQualityScore(),
                 context.answerQualityLabel(),
                 context.answerQualityNotes(),
+                context.answerQualityMethod(),
+                context.answerQualityJudgeEnabled(),
+                context.answerQualityJudgeModelName(),
+                context.answerQualityConfidence(),
                 latencyMs
             );
 
@@ -225,6 +229,10 @@ public class AgentOrchestratorService {
                 context.answerQualityScore(),
                 context.answerQualityLabel(),
                 context.answerQualityNotes(),
+                context.answerQualityMethod(),
+                context.answerQualityJudgeEnabled(),
+                context.answerQualityJudgeModelName(),
+                context.answerQualityConfidence(),
                 totalMs,
                 exception.getClass().getSimpleName() + ": " + exception.getMessage()
             );

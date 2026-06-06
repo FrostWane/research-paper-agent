@@ -127,6 +127,10 @@ public final class AdminDtos {
         int answerQualityScore,
         String answerQualityLabel,
         String answerQualityNotes,
+        String answerQualityMethod,
+        boolean answerQualityJudgeEnabled,
+        String answerQualityJudgeModelName,
+        int answerQualityConfidence,
         int totalMs,
         String errorMessage,
         List<RagTraceRetrievalChannelResponse> retrievalChannels,
@@ -340,6 +344,7 @@ public final class AdminDtos {
         int memoryMaxChars,
         boolean queryRewriteEnabled,
         int queryRewriteMaxSubQuestions,
+        boolean answerQualityJudgeEnabled,
         OffsetDateTime updatedAt
     ) {
     }
@@ -353,7 +358,8 @@ public final class AdminDtos {
         @Min(0) @Max(12) Integer memoryHistoryTurns,
         @Min(0) @Max(8000) Integer memoryMaxChars,
         Boolean queryRewriteEnabled,
-        @Min(1) @Max(6) Integer queryRewriteMaxSubQuestions
+        @Min(1) @Max(6) Integer queryRewriteMaxSubQuestions,
+        Boolean answerQualityJudgeEnabled
     ) {
     }
 }

@@ -126,6 +126,18 @@ public class RagTrace {
     @Column(name = "answer_quality_notes", columnDefinition = "TEXT")
     private String answerQualityNotes;
 
+    @Column(name = "answer_quality_method", nullable = false, length = 32)
+    private String answerQualityMethod = "HEURISTIC";
+
+    @Column(name = "answer_quality_judge_enabled", nullable = false)
+    private Boolean answerQualityJudgeEnabled = false;
+
+    @Column(name = "answer_quality_judge_model_name", length = 120)
+    private String answerQualityJudgeModelName;
+
+    @Column(name = "answer_quality_confidence", nullable = false)
+    private Integer answerQualityConfidence = 0;
+
     @Column(name = "evaluation_ms", nullable = false)
     private Integer evaluationMs = 0;
 
@@ -393,6 +405,38 @@ public class RagTrace {
 
     public void setAnswerQualityNotes(String answerQualityNotes) {
         this.answerQualityNotes = answerQualityNotes;
+    }
+
+    public String getAnswerQualityMethod() {
+        return answerQualityMethod;
+    }
+
+    public void setAnswerQualityMethod(String answerQualityMethod) {
+        this.answerQualityMethod = answerQualityMethod;
+    }
+
+    public Boolean getAnswerQualityJudgeEnabled() {
+        return answerQualityJudgeEnabled;
+    }
+
+    public void setAnswerQualityJudgeEnabled(Boolean answerQualityJudgeEnabled) {
+        this.answerQualityJudgeEnabled = answerQualityJudgeEnabled;
+    }
+
+    public String getAnswerQualityJudgeModelName() {
+        return answerQualityJudgeModelName;
+    }
+
+    public void setAnswerQualityJudgeModelName(String answerQualityJudgeModelName) {
+        this.answerQualityJudgeModelName = answerQualityJudgeModelName;
+    }
+
+    public Integer getAnswerQualityConfidence() {
+        return answerQualityConfidence;
+    }
+
+    public void setAnswerQualityConfidence(Integer answerQualityConfidence) {
+        this.answerQualityConfidence = answerQualityConfidence;
     }
 
     public Integer getEvaluationMs() {

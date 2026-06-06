@@ -43,6 +43,7 @@ public class RagSettingsService {
         settings.setMemoryMaxChars(clamp(request.memoryMaxChars(), 0, 8000, 2400));
         settings.setQueryRewriteEnabled(request.queryRewriteEnabled() == null || request.queryRewriteEnabled());
         settings.setQueryRewriteMaxSubQuestions(clamp(request.queryRewriteMaxSubQuestions(), 1, 6, 3));
+        settings.setAnswerQualityJudgeEnabled(request.answerQualityJudgeEnabled() == null || request.answerQualityJudgeEnabled());
         settings.touch();
         return response(repository.save(settings));
     }
@@ -67,7 +68,8 @@ public class RagSettingsService {
             clamp(settings.getMemoryHistoryTurns(), 0, 12, 4),
             clamp(settings.getMemoryMaxChars(), 0, 8000, 2400),
             Boolean.TRUE.equals(settings.getQueryRewriteEnabled()),
-            clamp(settings.getQueryRewriteMaxSubQuestions(), 1, 6, 3)
+            clamp(settings.getQueryRewriteMaxSubQuestions(), 1, 6, 3),
+            Boolean.TRUE.equals(settings.getAnswerQualityJudgeEnabled())
         );
     }
 
@@ -83,6 +85,7 @@ public class RagSettingsService {
             snapshot.memoryMaxChars(),
             snapshot.queryRewriteEnabled(),
             snapshot.queryRewriteMaxSubQuestions(),
+            snapshot.answerQualityJudgeEnabled(),
             settings.getUpdatedAt()
         );
     }

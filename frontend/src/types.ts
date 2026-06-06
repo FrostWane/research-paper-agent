@@ -165,6 +165,10 @@ export interface AdminTrace {
   answerQualityScore: number;
   answerQualityLabel: string;
   answerQualityNotes?: string;
+  answerQualityMethod: string;
+  answerQualityJudgeEnabled: boolean;
+  answerQualityJudgeModelName?: string;
+  answerQualityConfidence: number;
   totalMs: number;
   errorMessage?: string;
   retrievalChannels: AdminRetrievalChannel[];
@@ -353,6 +357,7 @@ export interface RagSettings {
   memoryMaxChars: number;
   queryRewriteEnabled: boolean;
   queryRewriteMaxSubQuestions: number;
+  answerQualityJudgeEnabled: boolean;
   updatedAt?: string;
 }
 
