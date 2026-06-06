@@ -44,6 +44,11 @@ public class RagTraceService {
         int sourceCount,
         int memoryTurnCount,
         int memoryChars,
+        boolean memorySummaryUsed,
+        int memorySummaryTurnCount,
+        int memorySummaryChars,
+        String memorySummaryMethod,
+        String memorySummaryModelName,
         int retrievalMs,
         int generationMs,
         int verificationMs,
@@ -84,6 +89,11 @@ public class RagTraceService {
             sourceCount,
             memoryTurnCount,
             memoryChars,
+            memorySummaryUsed,
+            memorySummaryTurnCount,
+            memorySummaryChars,
+            memorySummaryMethod,
+            memorySummaryModelName,
             retrievalMs,
             generationMs,
             verificationMs,
@@ -126,6 +136,11 @@ public class RagTraceService {
         int sourceCount,
         int memoryTurnCount,
         int memoryChars,
+        boolean memorySummaryUsed,
+        int memorySummaryTurnCount,
+        int memorySummaryChars,
+        String memorySummaryMethod,
+        String memorySummaryModelName,
         int retrievalMs,
         int generationMs,
         int verificationMs,
@@ -167,6 +182,11 @@ public class RagTraceService {
             sourceCount,
             memoryTurnCount,
             memoryChars,
+            memorySummaryUsed,
+            memorySummaryTurnCount,
+            memorySummaryChars,
+            memorySummaryMethod,
+            memorySummaryModelName,
             retrievalMs,
             generationMs,
             verificationMs,
@@ -210,6 +230,11 @@ public class RagTraceService {
         int sourceCount,
         int memoryTurnCount,
         int memoryChars,
+        boolean memorySummaryUsed,
+        int memorySummaryTurnCount,
+        int memorySummaryChars,
+        String memorySummaryMethod,
+        String memorySummaryModelName,
         int retrievalMs,
         int generationMs,
         int verificationMs,
@@ -251,6 +276,11 @@ public class RagTraceService {
         trace.setSourceCount(sourceCount);
         trace.setMemoryTurnCount(Math.max(0, memoryTurnCount));
         trace.setMemoryChars(Math.max(0, memoryChars));
+        trace.setMemorySummaryUsed(memorySummaryUsed);
+        trace.setMemorySummaryTurnCount(Math.max(0, memorySummaryTurnCount));
+        trace.setMemorySummaryChars(Math.max(0, memorySummaryChars));
+        trace.setMemorySummaryMethod(defaultText(memorySummaryMethod, "NONE"));
+        trace.setMemorySummaryModelName(memorySummaryModelName);
         trace.setRetrievalMs(retrievalMs);
         trace.setGenerationMs(generationMs);
         trace.setVerificationMs(verificationMs);

@@ -36,6 +36,15 @@ public class RagSettings {
     @Column(name = "memory_max_chars", nullable = false)
     private Integer memoryMaxChars = 2400;
 
+    @Column(name = "memory_summary_enabled", nullable = false)
+    private Boolean memorySummaryEnabled = true;
+
+    @Column(name = "memory_summary_start_turns", nullable = false)
+    private Integer memorySummaryStartTurns = 6;
+
+    @Column(name = "memory_summary_max_chars", nullable = false)
+    private Integer memorySummaryMaxChars = 1800;
+
     @Column(name = "query_rewrite_enabled", nullable = false)
     private Boolean queryRewriteEnabled = true;
 
@@ -119,6 +128,30 @@ public class RagSettings {
 
     public void setMemoryMaxChars(Integer memoryMaxChars) {
         this.memoryMaxChars = memoryMaxChars;
+    }
+
+    public Boolean getMemorySummaryEnabled() {
+        return memorySummaryEnabled;
+    }
+
+    public void setMemorySummaryEnabled(Boolean memorySummaryEnabled) {
+        this.memorySummaryEnabled = memorySummaryEnabled;
+    }
+
+    public Integer getMemorySummaryStartTurns() {
+        return memorySummaryStartTurns;
+    }
+
+    public void setMemorySummaryStartTurns(Integer memorySummaryStartTurns) {
+        this.memorySummaryStartTurns = memorySummaryStartTurns;
+    }
+
+    public Integer getMemorySummaryMaxChars() {
+        return memorySummaryMaxChars;
+    }
+
+    public void setMemorySummaryMaxChars(Integer memorySummaryMaxChars) {
+        this.memorySummaryMaxChars = memorySummaryMaxChars;
     }
 
     public Boolean getQueryRewriteEnabled() {

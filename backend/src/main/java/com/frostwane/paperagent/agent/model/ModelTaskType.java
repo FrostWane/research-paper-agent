@@ -6,7 +6,8 @@ public enum ModelTaskType {
     GENERAL,
     ANSWER_GENERATION,
     QUERY_REWRITE,
-    QUALITY_EVALUATION;
+    QUALITY_EVALUATION,
+    CONVERSATION_SUMMARY;
 
     public String code() {
         return name();

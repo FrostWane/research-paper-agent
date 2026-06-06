@@ -8,6 +8,9 @@ public record RagSettingsSnapshot(
     double keywordWeight,
     int memoryHistoryTurns,
     int memoryMaxChars,
+    boolean memorySummaryEnabled,
+    int memorySummaryStartTurns,
+    int memorySummaryMaxChars,
     boolean queryRewriteEnabled,
     int queryRewriteMaxSubQuestions,
     boolean answerQualityJudgeEnabled

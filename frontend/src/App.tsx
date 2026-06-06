@@ -186,11 +186,15 @@ type RagSettingsInput = {
   keywordWeight: number;
   memoryHistoryTurns: number;
   memoryMaxChars: number;
+  memorySummaryEnabled: boolean;
+  memorySummaryStartTurns: number;
+  memorySummaryMaxChars: number;
   queryRewriteEnabled: boolean;
   queryRewriteMaxSubQuestions: number;
   answerQualityJudgeEnabled: boolean;
 };
-type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'queryRewriteEnabled' | 'answerQualityJudgeEnabled'> & {
+type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'memorySummaryEnabled' | 'queryRewriteEnabled' | 'answerQualityJudgeEnabled'> & {
+  memorySummaryEnabled: boolean;
   queryRewriteEnabled: boolean;
   answerQualityJudgeEnabled: boolean;
 };
@@ -203,6 +207,9 @@ const defaultRagSettingsInput: RagSettingsInput = {
   keywordWeight: 0.78,
   memoryHistoryTurns: 4,
   memoryMaxChars: 2400,
+  memorySummaryEnabled: true,
+  memorySummaryStartTurns: 6,
+  memorySummaryMaxChars: 1800,
   queryRewriteEnabled: true,
   queryRewriteMaxSubQuestions: 3,
   answerQualityJudgeEnabled: true
@@ -2167,6 +2174,11 @@ function AdminView({
                     {trace.memoryTurnCount > 0 && (
                       <small className="admin-trace-memory">记忆：{trace.memoryTurnCount} 轮 / {trace.memoryChars} 字</small>
                     )}
+                    {trace.memorySummaryUsed && (
+                      <small className="admin-trace-memory">
+                        摘要：{trace.memorySummaryTurnCount} 轮 / {trace.memorySummaryChars} 字 · {memorySummaryMethodLabel(trace.memorySummaryMethod)}{trace.memorySummaryModelName ? ` · ${trace.memorySummaryModelName}` : ''}
+                      </small>
+                    )}
                     {trace.answerQualityNotes && (
                       <small className="admin-trace-quality-note">质量：{trace.answerQualityNotes}</small>
                     )}
@@ -2502,6 +2514,9 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       keywordWeight: boundedFloat(form.keywordWeight, 0, 3, defaultRagSettingsInput.keywordWeight),
       memoryHistoryTurns: boundedInt(form.memoryHistoryTurns, 0, 12, defaultRagSettingsInput.memoryHistoryTurns),
       memoryMaxChars: boundedInt(form.memoryMaxChars, 0, 8000, defaultRagSettingsInput.memoryMaxChars),
+      memorySummaryEnabled: form.memorySummaryEnabled,
+      memorySummaryStartTurns: boundedInt(form.memorySummaryStartTurns, 2, 50, defaultRagSettingsInput.memorySummaryStartTurns),
+      memorySummaryMaxChars: boundedInt(form.memorySummaryMaxChars, 300, 6000, defaultRagSettingsInput.memorySummaryMaxChars),
       queryRewriteEnabled: form.queryRewriteEnabled,
       queryRewriteMaxSubQuestions: boundedInt(form.queryRewriteMaxSubQuestions, 1, 6, defaultRagSettingsInput.queryRewriteMaxSubQuestions),
       answerQualityJudgeEnabled: form.answerQualityJudgeEnabled
@@ -2547,8 +2562,20 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
           <input type="number" min={0} max={8000} step={200} value={form.memoryMaxChars} onChange={(event) => updateField('memoryMaxChars', event.target.value)} />
         </label>
         <label>
+          <span>摘要触发</span>
+          <input type="number" min={2} max={50} value={form.memorySummaryStartTurns} onChange={(event) => updateField('memorySummaryStartTurns', event.target.value)} />
+        </label>
+        <label>
+          <span>摘要字符</span>
+          <input type="number" min={300} max={6000} step={100} value={form.memorySummaryMaxChars} onChange={(event) => updateField('memorySummaryMaxChars', event.target.value)} />
+        </label>
+        <label>
           <span>改写子问</span>
           <input type="number" min={1} max={6} value={form.queryRewriteMaxSubQuestions} onChange={(event) => updateField('queryRewriteMaxSubQuestions', event.target.value)} />
+        </label>
+        <label className="rag-settings-check">
+          <span>会话摘要</span>
+          <input type="checkbox" checked={form.memorySummaryEnabled} onChange={(event) => setForm((current) => ({ ...current, memorySummaryEnabled: event.target.checked }))} />
         </label>
         <label className="rag-settings-check">
           <span>查询改写</span>
@@ -3753,6 +3780,16 @@ function qualityMethodLabel(method = 'HEURISTIC') {
   return labels[method] || method;
 }
 
+function memorySummaryMethodLabel(method = 'NONE') {
+  const labels: Record<string, string> = {
+    LLM_SUMMARY: '模型摘要',
+    HEURISTIC: '启发式',
+    HEURISTIC_FALLBACK: '启发式兜底',
+    NONE: '无摘要'
+  };
+  return labels[method] || method;
+}
+
 function scopeLabel(scope: string) {
   return scope === 'LIBRARY' ? '全库' : '单篇';
 }
@@ -3772,6 +3809,9 @@ function toRagSettingsForm(settings: RagSettings | null): RagSettingsFormState {
     keywordWeight: String(source.keywordWeight),
     memoryHistoryTurns: String(source.memoryHistoryTurns),
     memoryMaxChars: String(source.memoryMaxChars),
+    memorySummaryEnabled: source.memorySummaryEnabled ?? true,
+    memorySummaryStartTurns: String(source.memorySummaryStartTurns ?? defaultRagSettingsInput.memorySummaryStartTurns),
+    memorySummaryMaxChars: String(source.memorySummaryMaxChars ?? defaultRagSettingsInput.memorySummaryMaxChars),
     queryRewriteEnabled: source.queryRewriteEnabled,
     queryRewriteMaxSubQuestions: String(source.queryRewriteMaxSubQuestions),
     answerQualityJudgeEnabled: source.answerQualityJudgeEnabled ?? true
@@ -3833,7 +3873,8 @@ const modelTaskOptions = [
   { value: 'GENERAL', label: '通用兜底' },
   { value: 'ANSWER_GENERATION', label: '回答生成' },
   { value: 'QUERY_REWRITE', label: '查询改写' },
-  { value: 'QUALITY_EVALUATION', label: '质量评估' }
+  { value: 'QUALITY_EVALUATION', label: '质量评估' },
+  { value: 'CONVERSATION_SUMMARY', label: '会话摘要' }
 ];
 
 function modelTaskLabel(taskType = 'GENERAL') {

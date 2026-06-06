@@ -41,6 +41,9 @@ public class RagSettingsService {
         settings.setKeywordWeight(clamp(request.keywordWeight(), 0.0d, 3.0d, 0.78d));
         settings.setMemoryHistoryTurns(clamp(request.memoryHistoryTurns(), 0, 12, 4));
         settings.setMemoryMaxChars(clamp(request.memoryMaxChars(), 0, 8000, 2400));
+        settings.setMemorySummaryEnabled(request.memorySummaryEnabled() == null || request.memorySummaryEnabled());
+        settings.setMemorySummaryStartTurns(clamp(request.memorySummaryStartTurns(), 2, 50, 6));
+        settings.setMemorySummaryMaxChars(clamp(request.memorySummaryMaxChars(), 300, 6000, 1800));
         settings.setQueryRewriteEnabled(request.queryRewriteEnabled() == null || request.queryRewriteEnabled());
         settings.setQueryRewriteMaxSubQuestions(clamp(request.queryRewriteMaxSubQuestions(), 1, 6, 3));
         settings.setAnswerQualityJudgeEnabled(request.answerQualityJudgeEnabled() == null || request.answerQualityJudgeEnabled());
@@ -67,6 +70,9 @@ public class RagSettingsService {
             clamp(settings.getKeywordWeight(), 0.0d, 3.0d, 0.78d),
             clamp(settings.getMemoryHistoryTurns(), 0, 12, 4),
             clamp(settings.getMemoryMaxChars(), 0, 8000, 2400),
+            Boolean.TRUE.equals(settings.getMemorySummaryEnabled()),
+            clamp(settings.getMemorySummaryStartTurns(), 2, 50, 6),
+            clamp(settings.getMemorySummaryMaxChars(), 300, 6000, 1800),
             Boolean.TRUE.equals(settings.getQueryRewriteEnabled()),
             clamp(settings.getQueryRewriteMaxSubQuestions(), 1, 6, 3),
             Boolean.TRUE.equals(settings.getAnswerQualityJudgeEnabled())
@@ -83,6 +89,9 @@ public class RagSettingsService {
             snapshot.keywordWeight(),
             snapshot.memoryHistoryTurns(),
             snapshot.memoryMaxChars(),
+            snapshot.memorySummaryEnabled(),
+            snapshot.memorySummaryStartTurns(),
+            snapshot.memorySummaryMaxChars(),
             snapshot.queryRewriteEnabled(),
             snapshot.queryRewriteMaxSubQuestions(),
             snapshot.answerQualityJudgeEnabled(),

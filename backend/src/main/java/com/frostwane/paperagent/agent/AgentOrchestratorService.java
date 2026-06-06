@@ -35,6 +35,7 @@ public class AgentOrchestratorService {
     private final PaperService paperService;
     private final ChatRecordRepository chatRecordRepository;
     private final ChatSessionRepository chatSessionRepository;
+    private final ConversationSummaryService conversationSummaryService;
     private final RagTraceService ragTraceService;
     private final ObjectMapper objectMapper;
 
@@ -43,6 +44,7 @@ public class AgentOrchestratorService {
         PaperService paperService,
         ChatRecordRepository chatRecordRepository,
         ChatSessionRepository chatSessionRepository,
+        ConversationSummaryService conversationSummaryService,
         RagTraceService ragTraceService,
         ObjectMapper objectMapper
     ) {
@@ -50,6 +52,7 @@ public class AgentOrchestratorService {
         this.paperService = paperService;
         this.chatRecordRepository = chatRecordRepository;
         this.chatSessionRepository = chatSessionRepository;
+        this.conversationSummaryService = conversationSummaryService;
         this.ragTraceService = ragTraceService;
         this.objectMapper = objectMapper;
     }
@@ -102,6 +105,11 @@ public class AgentOrchestratorService {
                 context.sourceCount(),
                 context.memoryTurnCount(),
                 context.memoryChars(),
+                context.memorySummaryUsed(),
+                context.memorySummaryTurnCount(),
+                context.memorySummaryChars(),
+                context.memorySummaryMethod(),
+                context.memorySummaryModelName(),
                 context.timingMs(AgentNodeType.RETRIEVAL),
                 context.timingMs(AgentNodeType.GENERATION),
                 context.timingMs(AgentNodeType.VERIFICATION),
@@ -116,6 +124,7 @@ public class AgentOrchestratorService {
                 context.answerQualityConfidence(),
                 latencyMs
             );
+            refreshConversationSummary(owner, savedSession);
 
             return new ChatResponse(
                 context.formattedAnswer(),
@@ -342,6 +351,14 @@ public class AgentOrchestratorService {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    private void refreshConversationSummary(User owner, ChatSession session) {
+        try {
+            conversationSummaryService.refreshAfterTurn(owner, session);
+        } catch (RuntimeException ignored) {
+            // Long-term memory compression is best effort; the answer and trace are already persisted.
+        }
+    }
+
     private void recordFailureTrace(
         User owner,
         AgentPipelineContext context,
@@ -373,6 +390,11 @@ public class AgentOrchestratorService {
                 context.sourceCount(),
                 context.memoryTurnCount(),
                 context.memoryChars(),
+                context.memorySummaryUsed(),
+                context.memorySummaryTurnCount(),
+                context.memorySummaryChars(),
+                context.memorySummaryMethod(),
+                context.memorySummaryModelName(),
                 context.timingMs(AgentNodeType.RETRIEVAL),
                 context.timingMs(AgentNodeType.GENERATION),
                 context.timingMs(AgentNodeType.VERIFICATION),

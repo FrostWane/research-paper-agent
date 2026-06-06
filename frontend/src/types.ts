@@ -174,6 +174,11 @@ export interface AdminTrace {
   sourceCount: number;
   memoryTurnCount: number;
   memoryChars: number;
+  memorySummaryUsed: boolean;
+  memorySummaryTurnCount: number;
+  memorySummaryChars: number;
+  memorySummaryMethod: string;
+  memorySummaryModelName?: string;
   retrievalMs: number;
   generationMs: number;
   verificationMs: number;
@@ -372,6 +377,9 @@ export interface RagSettings {
   keywordWeight: number;
   memoryHistoryTurns: number;
   memoryMaxChars: number;
+  memorySummaryEnabled: boolean;
+  memorySummaryStartTurns: number;
+  memorySummaryMaxChars: number;
   queryRewriteEnabled: boolean;
   queryRewriteMaxSubQuestions: number;
   answerQualityJudgeEnabled: boolean;

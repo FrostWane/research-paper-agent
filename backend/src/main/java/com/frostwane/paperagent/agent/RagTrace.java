@@ -109,6 +109,21 @@ public class RagTrace {
     @Column(name = "memory_chars", nullable = false)
     private Integer memoryChars = 0;
 
+    @Column(name = "memory_summary_used", nullable = false)
+    private Boolean memorySummaryUsed = false;
+
+    @Column(name = "memory_summary_turn_count", nullable = false)
+    private Integer memorySummaryTurnCount = 0;
+
+    @Column(name = "memory_summary_chars", nullable = false)
+    private Integer memorySummaryChars = 0;
+
+    @Column(name = "memory_summary_method", nullable = false, length = 32)
+    private String memorySummaryMethod = "NONE";
+
+    @Column(name = "memory_summary_model_name", length = 120)
+    private String memorySummaryModelName;
+
     @Column(name = "retrieval_ms", nullable = false)
     private Integer retrievalMs = 0;
 
@@ -361,6 +376,46 @@ public class RagTrace {
 
     public void setMemoryChars(Integer memoryChars) {
         this.memoryChars = memoryChars;
+    }
+
+    public Boolean getMemorySummaryUsed() {
+        return memorySummaryUsed;
+    }
+
+    public void setMemorySummaryUsed(Boolean memorySummaryUsed) {
+        this.memorySummaryUsed = memorySummaryUsed;
+    }
+
+    public Integer getMemorySummaryTurnCount() {
+        return memorySummaryTurnCount;
+    }
+
+    public void setMemorySummaryTurnCount(Integer memorySummaryTurnCount) {
+        this.memorySummaryTurnCount = memorySummaryTurnCount;
+    }
+
+    public Integer getMemorySummaryChars() {
+        return memorySummaryChars;
+    }
+
+    public void setMemorySummaryChars(Integer memorySummaryChars) {
+        this.memorySummaryChars = memorySummaryChars;
+    }
+
+    public String getMemorySummaryMethod() {
+        return memorySummaryMethod;
+    }
+
+    public void setMemorySummaryMethod(String memorySummaryMethod) {
+        this.memorySummaryMethod = memorySummaryMethod;
+    }
+
+    public String getMemorySummaryModelName() {
+        return memorySummaryModelName;
+    }
+
+    public void setMemorySummaryModelName(String memorySummaryModelName) {
+        this.memorySummaryModelName = memorySummaryModelName;
     }
 
     public Integer getRetrievalMs() {

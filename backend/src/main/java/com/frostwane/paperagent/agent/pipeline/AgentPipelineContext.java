@@ -53,6 +53,11 @@ public class AgentPipelineContext {
     private String conversationHistory = "";
     private int memoryTurnCount;
     private int memoryChars;
+    private boolean memorySummaryUsed;
+    private int memorySummaryTurnCount;
+    private int memorySummaryChars;
+    private String memorySummaryMethod = "NONE";
+    private String memorySummaryModelName;
 
     public AgentPipelineContext(ChatRequest request, User owner) {
         this.request = request;
@@ -341,6 +346,46 @@ public class AgentPipelineContext {
 
     public int memoryChars() {
         return memoryChars;
+    }
+
+    public boolean memorySummaryUsed() {
+        return memorySummaryUsed;
+    }
+
+    public void memorySummaryUsed(boolean memorySummaryUsed) {
+        this.memorySummaryUsed = memorySummaryUsed;
+    }
+
+    public int memorySummaryTurnCount() {
+        return memorySummaryTurnCount;
+    }
+
+    public void memorySummaryTurnCount(int memorySummaryTurnCount) {
+        this.memorySummaryTurnCount = Math.max(0, memorySummaryTurnCount);
+    }
+
+    public int memorySummaryChars() {
+        return memorySummaryChars;
+    }
+
+    public void memorySummaryChars(int memorySummaryChars) {
+        this.memorySummaryChars = Math.max(0, memorySummaryChars);
+    }
+
+    public String memorySummaryMethod() {
+        return memorySummaryMethod;
+    }
+
+    public void memorySummaryMethod(String memorySummaryMethod) {
+        this.memorySummaryMethod = memorySummaryMethod == null || memorySummaryMethod.isBlank() ? "NONE" : memorySummaryMethod.trim();
+    }
+
+    public String memorySummaryModelName() {
+        return memorySummaryModelName;
+    }
+
+    public void memorySummaryModelName(String memorySummaryModelName) {
+        this.memorySummaryModelName = memorySummaryModelName == null ? null : memorySummaryModelName.trim();
     }
 
     public void recordTiming(AgentNodeType type, int latencyMs) {
