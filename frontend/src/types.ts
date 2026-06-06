@@ -154,6 +154,10 @@ export interface AdminTrace {
   generationMs: number;
   verificationMs: number;
   formattingMs: number;
+  evaluationMs: number;
+  answerQualityScore: number;
+  answerQualityLabel: string;
+  answerQualityNotes?: string;
   totalMs: number;
   errorMessage?: string;
   retrievalChannels: AdminRetrievalChannel[];
@@ -251,6 +255,7 @@ export interface AdminOverview {
   failedTraces: number;
   averageRetrievalMs: number;
   averageGenerationMs: number;
+  averageAnswerQualityScore: number;
   totalParseJobs: number;
   failedParseJobs: number;
   averageParseMs: number;

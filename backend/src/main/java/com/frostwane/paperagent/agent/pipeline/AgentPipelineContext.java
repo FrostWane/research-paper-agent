@@ -36,6 +36,9 @@ public class AgentPipelineContext {
     private String verifiedAnswer;
     private String formattedAnswer;
     private String modelName;
+    private int answerQualityScore;
+    private String answerQualityLabel = "UNASSESSED";
+    private String answerQualityNotes;
 
     public AgentPipelineContext(ChatRequest request, User owner) {
         this.request = request;
@@ -183,6 +186,30 @@ public class AgentPipelineContext {
 
     public void modelName(String modelName) {
         this.modelName = modelName;
+    }
+
+    public int answerQualityScore() {
+        return answerQualityScore;
+    }
+
+    public void answerQualityScore(int answerQualityScore) {
+        this.answerQualityScore = Math.max(0, Math.min(100, answerQualityScore));
+    }
+
+    public String answerQualityLabel() {
+        return answerQualityLabel;
+    }
+
+    public void answerQualityLabel(String answerQualityLabel) {
+        this.answerQualityLabel = answerQualityLabel == null || answerQualityLabel.isBlank() ? "UNASSESSED" : answerQualityLabel;
+    }
+
+    public String answerQualityNotes() {
+        return answerQualityNotes;
+    }
+
+    public void answerQualityNotes(String answerQualityNotes) {
+        this.answerQualityNotes = answerQualityNotes == null ? null : answerQualityNotes.trim();
     }
 
     public void recordTiming(AgentNodeType type, int latencyMs) {

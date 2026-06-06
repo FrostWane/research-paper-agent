@@ -1608,6 +1608,7 @@ function AdminView({
         <AdminStat icon={Bot} label="回答模板" value={overview?.totalAnswerPromptTemplates ?? 0} detail={`${overview?.enabledAnswerPromptTemplates ?? 0} 条启用`} />
         <AdminStat icon={Brain} label="示例问题" value={overview?.totalSamplePrompts ?? 0} detail={`${overview?.enabledSamplePrompts ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
+        <AdminStat icon={CheckCircle2} label="质量均分" value={overview?.averageAnswerQualityScore ?? 0} detail="成功 Trace 的启发式评分" />
       </div>
 
       <div className="admin-grid">
@@ -1794,10 +1795,12 @@ function AdminView({
               <div className="admin-trace-row head">
                 <span>状态</span>
                 <span>问题</span>
+                <span>质量</span>
                 <span>模型</span>
                 <span>来源</span>
                 <span>检索</span>
                 <span>生成</span>
+                <span>评估</span>
                 <span>总耗时</span>
               </div>
               {overview!.recentTraces.map((trace) => (
@@ -1825,6 +1828,9 @@ function AdminView({
                     )}
                     {trace.answerContract && (
                       <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 96)}</small>
+                    )}
+                    {trace.answerQualityNotes && (
+                      <small className="admin-trace-quality-note">质量：{trace.answerQualityNotes}</small>
                     )}
                     {(trace.retrievalChannels ?? []).length > 0 && (
                       <div className="admin-retrieval-channels">
@@ -1872,10 +1878,15 @@ function AdminView({
                     )}
                     {trace.status === 'FAILED' && trace.errorMessage && <small className="admin-trace-error">{trace.errorMessage}</small>}
                   </span>
+                  <span className={`admin-quality-badge ${qualityBadgeClass(trace.answerQualityLabel)}`} title={trace.answerQualityNotes || qualityLabel(trace.answerQualityLabel)}>
+                    <b>{trace.answerQualityScore}</b>
+                    <small>{qualityLabel(trace.answerQualityLabel)}</small>
+                  </span>
                   <em>{trace.modelName || 'fallback'}</em>
                   <span>{trace.sourceCount}</span>
                   <span>{formatLatency(trace.retrievalMs)}</span>
                   <span>{formatLatency(trace.generationMs)}</span>
+                  <span>{formatLatency(trace.evaluationMs)}</span>
                   <strong>{formatLatency(trace.totalMs)}</strong>
                 </div>
               ))}
@@ -3126,6 +3137,7 @@ function nodeSpanLabel(name: string) {
     'answer-planning': '策略',
     'answer-generation': '生成',
     'citation-verification': '校验',
+    'answer-quality-evaluation': '评估',
     'answer-formatting': '格式'
   };
   return labels[name] || name;
@@ -3168,6 +3180,32 @@ function strategyLabel(strategy = 'EVIDENCE_GROUNDED_QA') {
     EVIDENCE_GAP: '证据不足'
   };
   return labels[strategy] || strategy;
+}
+
+function qualityLabel(label = 'UNASSESSED') {
+  const labels: Record<string, string> = {
+    STRONG: '优秀',
+    GOOD: '良好',
+    NEEDS_REVIEW: '复核',
+    LOW_EVIDENCE: '低证据',
+    MATERIAL_LIMITED: '材料不足',
+    EMPTY: '空回答',
+    UNASSESSED: '未评估'
+  };
+  return labels[label] || label;
+}
+
+function qualityBadgeClass(label = 'UNASSESSED') {
+  if (label === 'STRONG' || label === 'GOOD') {
+    return 'is-good';
+  }
+  if (label === 'MATERIAL_LIMITED' || label === 'NEEDS_REVIEW') {
+    return 'is-watch';
+  }
+  if (label === 'LOW_EVIDENCE' || label === 'EMPTY') {
+    return 'is-risk';
+  }
+  return '';
 }
 
 function scopeLabel(scope: string) {

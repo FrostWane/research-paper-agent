@@ -41,6 +41,10 @@ public class RagTraceService {
         int generationMs,
         int verificationMs,
         int formattingMs,
+        int evaluationMs,
+        int answerQualityScore,
+        String answerQualityLabel,
+        String answerQualityNotes,
         int totalMs
     ) {
         ragTraceRepository.save(trace(
@@ -66,6 +70,10 @@ public class RagTraceService {
             generationMs,
             verificationMs,
             formattingMs,
+            evaluationMs,
+            answerQualityScore,
+            answerQualityLabel,
+            answerQualityNotes,
             totalMs,
             null
         ));
@@ -93,6 +101,10 @@ public class RagTraceService {
         int generationMs,
         int verificationMs,
         int formattingMs,
+        int evaluationMs,
+        int answerQualityScore,
+        String answerQualityLabel,
+        String answerQualityNotes,
         int totalMs,
         String errorMessage
     ) {
@@ -119,6 +131,10 @@ public class RagTraceService {
             generationMs,
             verificationMs,
             formattingMs,
+            evaluationMs,
+            answerQualityScore,
+            answerQualityLabel,
+            answerQualityNotes,
             totalMs,
             sanitizeError(errorMessage)
         ));
@@ -147,6 +163,10 @@ public class RagTraceService {
         int generationMs,
         int verificationMs,
         int formattingMs,
+        int evaluationMs,
+        int answerQualityScore,
+        String answerQualityLabel,
+        String answerQualityNotes,
         int totalMs,
         String errorMessage
     ) {
@@ -173,6 +193,10 @@ public class RagTraceService {
         trace.setGenerationMs(generationMs);
         trace.setVerificationMs(verificationMs);
         trace.setFormattingMs(formattingMs);
+        trace.setEvaluationMs(evaluationMs);
+        trace.setAnswerQualityScore(Math.max(0, Math.min(100, answerQualityScore)));
+        trace.setAnswerQualityLabel(defaultText(answerQualityLabel, "UNASSESSED"));
+        trace.setAnswerQualityNotes(answerQualityNotes);
         trace.setTotalMs(totalMs);
         trace.setErrorMessage(errorMessage);
         return trace;

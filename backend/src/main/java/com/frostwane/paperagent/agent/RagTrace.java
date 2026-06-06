@@ -98,6 +98,18 @@ public class RagTrace {
     @Column(name = "formatting_ms", nullable = false)
     private Integer formattingMs = 0;
 
+    @Column(name = "answer_quality_score", nullable = false)
+    private Integer answerQualityScore = 0;
+
+    @Column(name = "answer_quality_label", nullable = false, length = 32)
+    private String answerQualityLabel = "UNASSESSED";
+
+    @Column(name = "answer_quality_notes", columnDefinition = "TEXT")
+    private String answerQualityNotes;
+
+    @Column(name = "evaluation_ms", nullable = false)
+    private Integer evaluationMs = 0;
+
     @Column(name = "total_ms", nullable = false)
     private Integer totalMs = 0;
 
@@ -290,6 +302,38 @@ public class RagTrace {
 
     public void setFormattingMs(Integer formattingMs) {
         this.formattingMs = formattingMs;
+    }
+
+    public Integer getAnswerQualityScore() {
+        return answerQualityScore;
+    }
+
+    public void setAnswerQualityScore(Integer answerQualityScore) {
+        this.answerQualityScore = answerQualityScore;
+    }
+
+    public String getAnswerQualityLabel() {
+        return answerQualityLabel;
+    }
+
+    public void setAnswerQualityLabel(String answerQualityLabel) {
+        this.answerQualityLabel = answerQualityLabel;
+    }
+
+    public String getAnswerQualityNotes() {
+        return answerQualityNotes;
+    }
+
+    public void setAnswerQualityNotes(String answerQualityNotes) {
+        this.answerQualityNotes = answerQualityNotes;
+    }
+
+    public Integer getEvaluationMs() {
+        return evaluationMs;
+    }
+
+    public void setEvaluationMs(Integer evaluationMs) {
+        this.evaluationMs = evaluationMs;
     }
 
     public Integer getTotalMs() {

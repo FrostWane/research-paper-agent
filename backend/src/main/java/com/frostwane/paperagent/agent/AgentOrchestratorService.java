@@ -86,6 +86,10 @@ public class AgentOrchestratorService {
                 context.timingMs(AgentNodeType.GENERATION),
                 context.timingMs(AgentNodeType.VERIFICATION),
                 context.timingMs(AgentNodeType.FORMATTING),
+                context.timingMs(AgentNodeType.EVALUATION),
+                context.answerQualityScore(),
+                context.answerQualityLabel(),
+                context.answerQualityNotes(),
                 latencyMs
             );
 
@@ -205,6 +209,10 @@ public class AgentOrchestratorService {
                 context.timingMs(AgentNodeType.GENERATION),
                 context.timingMs(AgentNodeType.VERIFICATION),
                 context.timingMs(AgentNodeType.FORMATTING),
+                context.timingMs(AgentNodeType.EVALUATION),
+                context.answerQualityScore(),
+                context.answerQualityLabel(),
+                context.answerQualityNotes(),
                 totalMs,
                 exception.getClass().getSimpleName() + ": " + exception.getMessage()
             );

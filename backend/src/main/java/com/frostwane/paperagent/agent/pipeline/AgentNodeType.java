@@ -7,5 +7,6 @@ public enum AgentNodeType {
     ANSWER_PLANNING,
     GENERATION,
     VERIFICATION,
+    EVALUATION,
     FORMATTING
 }
