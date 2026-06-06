@@ -8,6 +8,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ChatRateLimitResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.GuidanceResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.IngestionPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelHealthResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobNodeSpanResponse;
@@ -33,6 +34,8 @@ import com.frostwane.paperagent.agent.tool.AgentTool;
 import com.frostwane.paperagent.agent.tool.AgentToolRegistry;
 import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.common.PageResponse;
+import com.frostwane.paperagent.parse.IngestionPipelineCatalog;
+import com.frostwane.paperagent.parse.IngestionPipelineCatalog.IngestionPipelineNodeDefinition;
 import com.frostwane.paperagent.user.User;
 import com.frostwane.paperagent.user.UserRepository;
 import com.frostwane.paperagent.user.UserRole;
@@ -62,6 +65,7 @@ public class AdminService {
     private final AgentRateLimiterService agentRateLimiterService;
     private final AgentToolRegistry agentToolRegistry;
     private final AgentPipeline agentPipeline;
+    private final IngestionPipelineCatalog ingestionPipelineCatalog;
     private final ObjectMapper objectMapper;
 
     public AdminService(
@@ -71,6 +75,7 @@ public class AdminService {
         AgentRateLimiterService agentRateLimiterService,
         AgentToolRegistry agentToolRegistry,
         AgentPipeline agentPipeline,
+        IngestionPipelineCatalog ingestionPipelineCatalog,
         ObjectMapper objectMapper
     ) {
         this.jdbcTemplate = jdbcTemplate;
@@ -79,6 +84,7 @@ public class AdminService {
         this.agentRateLimiterService = agentRateLimiterService;
         this.agentToolRegistry = agentToolRegistry;
         this.agentPipeline = agentPipeline;
+        this.ingestionPipelineCatalog = ingestionPipelineCatalog;
         this.objectMapper = objectMapper;
     }
 
@@ -288,6 +294,67 @@ public class AdminService {
         };
     }
 
+    private IngestionPipelineNodeResponse ingestionPipelineNodeResponse(IngestionPipelineNodeDefinition node, IngestionNodeStats stats) {
+        IngestionNodeStats safeStats = stats == null ? IngestionNodeStats.empty() : stats;
+        return new IngestionPipelineNodeResponse(
+            IngestionPipelineCatalog.PIPELINE_NAME,
+            node.type(),
+            node.name(),
+            node.label(),
+            node.description(),
+            node.order(),
+            node.enabled(),
+            safeStats.totalRuns(),
+            safeStats.successRuns(),
+            safeStats.failedRuns(),
+            safeStats.averageLatencyMs(),
+            safeStats.lastSeenAt()
+        );
+    }
+
+    private Map<String, IngestionNodeStats> ingestionNodeStats() {
+        Map<String, IngestionNodeStats> stats = new HashMap<>();
+        jdbcTemplate.query("""
+            select
+              coalesce(node.item->>'type', '') as type,
+              coalesce(node.item->>'name', '') as name,
+              count(*) as total_runs,
+              sum(case when node.item->>'status' = 'SUCCESS' then 1 else 0 end) as success_runs,
+              sum(case when node.item->>'status' = 'FAILED' then 1 else 0 end) as failed_runs,
+              coalesce(round(avg(
+                case
+                  when jsonb_typeof(node.item->'durationMs') = 'number'
+                  then (node.item->>'durationMs')::numeric
+                  else null
+                end
+              )), 0) as average_latency_ms,
+              max(j.started_at) as last_seen_at
+            from parse_jobs j
+            cross join lateral jsonb_array_elements(coalesce(j.node_spans_json, '[]'::jsonb)) as node(item)
+            where coalesce(node.item->>'type', '') <> ''
+            group by coalesce(node.item->>'type', ''), coalesce(node.item->>'name', '')
+            """, rs -> {
+            while (rs.next()) {
+                stats.put(ingestionNodeKey(rs.getString("type"), rs.getString("name")), new IngestionNodeStats(
+                    rs.getLong("total_runs"),
+                    rs.getLong("success_runs"),
+                    rs.getLong("failed_runs"),
+                    rs.getInt("average_latency_ms"),
+                    offsetDateTime(rs, "last_seen_at")
+                ));
+            }
+        });
+        return stats;
+    }
+
+    private String ingestionNodeKey(IngestionPipelineNodeDefinition node) {
+        return ingestionNodeKey(node.type(), node.name());
+    }
+
+    private String ingestionNodeKey(String type, String name) {
+        return defaultText(type, "") + "::" + defaultText(name, "");
+    }
+
     @Transactional(readOnly = true)
     public List<AdminUserResponse> users(User currentUser) {
         requireAdmin(currentUser);
@@ -339,6 +406,15 @@ public class AdminService {
         Map<String, AgentNodeStats> stats = agentNodeStats();
         return agentPipeline.nodes().stream()
             .map(node -> agentPipelineNodeResponse(node, stats.get(agentNodeKey(node))))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<IngestionPipelineNodeResponse> ingestionPipelineNodes(User currentUser) {
+        requireAdmin(currentUser);
+        Map<String, IngestionNodeStats> stats = ingestionNodeStats();
+        return ingestionPipelineCatalog.nodes().stream()
+            .map(node -> ingestionPipelineNodeResponse(node, stats.get(ingestionNodeKey(node))))
             .toList();
     }
 
@@ -898,6 +974,18 @@ public class AdminService {
     ) {
         static AgentNodeStats empty() {
             return new AgentNodeStats(0, 0, 0, 0, null);
+        }
+    }
+
+    private record IngestionNodeStats(
+        long totalRuns,
+        long successRuns,
+        long failedRuns,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
+    ) {
+        static IngestionNodeStats empty() {
+            return new IngestionNodeStats(0, 0, 0, 0, null);
         }
     }
 }

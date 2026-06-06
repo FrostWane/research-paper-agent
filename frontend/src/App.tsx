@@ -59,6 +59,7 @@ import {
   fetchAgentPipelineNodes,
   fetchAgentTools,
   fetchIntentRoutes,
+  fetchIngestionPipelineNodes,
   fetchModelTargets,
   fetchRagSettings,
   fetchSamplePrompts,
@@ -87,7 +88,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminIngestionPipelineNode, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -270,6 +271,7 @@ export default function App() {
   const [adminTraceFilters, setAdminTraceFilters] = useState<AdminTraceFilters>(defaultTraceFilters);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [agentPipelineNodes, setAgentPipelineNodes] = useState<AdminAgentPipelineNode[]>([]);
+  const [ingestionPipelineNodes, setIngestionPipelineNodes] = useState<AdminIngestionPipelineNode[]>([]);
   const [agentTools, setAgentTools] = useState<AdminAgentTool[]>([]);
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
   const [intentRoutes, setIntentRoutes] = useState<IntentRoute[]>([]);
@@ -450,6 +452,7 @@ export default function App() {
     setAdminTraceFilters(defaultTraceFilters);
     setAdminUsers([]);
     setAgentPipelineNodes([]);
+    setIngestionPipelineNodes([]);
     setAgentTools([]);
     setQueryMappings([]);
     setIntentRoutes([]);
@@ -750,11 +753,12 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, users, pipelineNodes, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, users, pipelineNodes, ingestionNodes, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
         fetchAdminUsers(),
         fetchAgentPipelineNodes(),
+        fetchIngestionPipelineNodes(),
         fetchAgentTools(),
         fetchQueryTermMappings(),
         fetchIntentRoutes(),
@@ -767,6 +771,7 @@ export default function App() {
       setAdminTracePage(traces);
       setAdminUsers(users);
       setAgentPipelineNodes(pipelineNodes);
+      setIngestionPipelineNodes(ingestionNodes);
       setAgentTools(tools);
       setQueryMappings(mappings);
       setIntentRoutes(routes);
@@ -1358,6 +1363,7 @@ export default function App() {
             traceFilters={adminTraceFilters}
             users={adminUsers}
             agentPipelineNodes={agentPipelineNodes}
+            ingestionPipelineNodes={ingestionPipelineNodes}
             agentTools={agentTools}
             queryMappings={queryMappings}
             intentRoutes={intentRoutes}
@@ -2034,6 +2040,7 @@ function AdminView({
   traceFilters,
   users,
   agentPipelineNodes,
+  ingestionPipelineNodes,
   agentTools,
   queryMappings,
   intentRoutes,
@@ -2069,6 +2076,7 @@ function AdminView({
   traceFilters: AdminTraceFilters;
   users: AdminUser[];
   agentPipelineNodes: AdminAgentPipelineNode[];
+  ingestionPipelineNodes: AdminIngestionPipelineNode[];
   agentTools: AdminAgentTool[];
   queryMappings: QueryTermMapping[];
   intentRoutes: IntentRoute[];
@@ -2255,6 +2263,8 @@ function AdminView({
         onUpdate={onUpdateSamplePrompt}
         onDelete={onDeleteSamplePrompt}
       />
+
+      <IngestionPipelinePanel nodes={ingestionPipelineNodes} />
 
       <div className="admin-panel admin-job-panel">
         <div className="admin-panel-head">
@@ -2779,6 +2789,41 @@ function AgentPipelinePanel({ nodes }: { nodes: AdminAgentPipelineNode[] }) {
           nodes.map((node) => (
             <div className={`agent-pipeline-row ${node.enabled ? '' : 'is-disabled'}`} key={`${node.pipelineName}-${node.sortOrder}-${node.name}`}>
               <strong className="agent-pipeline-order">#{node.sortOrder}</strong>
+              <span>
+                <b>{node.label}</b>
+                <small>{node.name} · {node.type}</small>
+              </span>
+              <p>{node.description}</p>
+              <em>{node.totalRuns} 次</em>
+              <em>{node.successRuns} 成功</em>
+              <em>{node.failedRuns} 失败</em>
+              <strong>{formatLatency(node.averageLatencyMs)}</strong>
+              <small>{node.lastSeenAt ? formatTime(node.lastSeenAt) : '尚未运行'}</small>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IngestionPipelinePanel({ nodes }: { nodes: AdminIngestionPipelineNode[] }) {
+  return (
+    <div className="admin-panel admin-ingestion-pipeline-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>入库 Pipeline 节点</h3>
+          <p>PDF 解析入库链路的节点顺序、职责和历史运行画像。</p>
+        </div>
+        <Loader2 size={18} />
+      </div>
+      <div className="ingestion-pipeline-list">
+        {nodes.length === 0 ? (
+          <EmptyState compact title="暂无节点" detail="注册入库 Pipeline 节点后会显示在这里。" />
+        ) : (
+          nodes.map((node) => (
+            <div className={`ingestion-pipeline-row ${node.enabled ? '' : 'is-disabled'}`} key={`${node.pipelineName}-${node.sortOrder}-${node.name}`}>
+              <strong className="ingestion-pipeline-order">#{node.sortOrder}</strong>
               <span>
                 <b>{node.label}</b>
                 <small>{node.name} · {node.type}</small>

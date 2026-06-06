@@ -177,6 +177,21 @@ export interface AdminAgentPipelineNode {
   lastSeenAt?: string;
 }
 
+export interface AdminIngestionPipelineNode {
+  pipelineName: string;
+  type: string;
+  name: string;
+  label: string;
+  description: string;
+  sortOrder: number;
+  enabled: boolean;
+  totalRuns: number;
+  successRuns: number;
+  failedRuns: number;
+  averageLatencyMs: number;
+  lastSeenAt?: string;
+}
+
 export interface AdminChatRateLimit {
   enabled: boolean;
   activeGlobal: number;

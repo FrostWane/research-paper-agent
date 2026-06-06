@@ -6,6 +6,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.IngestionPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetRequest;
@@ -112,6 +113,11 @@ public class AdminController {
     @GetMapping("/agent-pipeline/nodes")
     public ApiResponse<List<AgentPipelineNodeResponse>> agentPipelineNodes() {
         return ApiResponse.ok(adminService.agentPipelineNodes(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/ingestion-pipeline/nodes")
+    public ApiResponse<List<IngestionPipelineNodeResponse>> ingestionPipelineNodes() {
+        return ApiResponse.ok(adminService.ingestionPipelineNodes(currentUserService.getRequiredUser()));
     }
 
     @PatchMapping("/users/{id}/status")

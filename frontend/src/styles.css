@@ -1329,6 +1329,7 @@ select,
 .admin-model-list,
 .admin-model-health-list,
 .agent-pipeline-list,
+.ingestion-pipeline-list,
 .agent-tool-list,
 .admin-recent-list,
 .admin-user-table,
@@ -1486,6 +1487,7 @@ select,
 }
 
 .admin-agent-pipeline-panel,
+.admin-ingestion-pipeline-panel,
 .admin-agent-tool-panel {
   overflow-x: auto;
 }
@@ -1556,6 +1558,75 @@ select,
 
 .agent-pipeline-row em,
 .agent-pipeline-row > strong:last-of-type {
+  justify-self: end;
+}
+
+.ingestion-pipeline-list {
+  min-width: 960px;
+}
+
+.ingestion-pipeline-row {
+  display: grid;
+  grid-template-columns: 62px minmax(150px, 0.9fr) minmax(300px, 1.7fr) 66px 72px 72px 76px 130px;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.ingestion-pipeline-row.is-disabled {
+  opacity: .62;
+}
+
+.ingestion-pipeline-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  color: #7c2d12;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.ingestion-pipeline-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ingestion-pipeline-row span b,
+.ingestion-pipeline-row span small,
+.ingestion-pipeline-row p,
+.ingestion-pipeline-row em,
+.ingestion-pipeline-row > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ingestion-pipeline-row span b {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.ingestion-pipeline-row span small,
+.ingestion-pipeline-row p,
+.ingestion-pipeline-row em,
+.ingestion-pipeline-row > small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.ingestion-pipeline-row em,
+.ingestion-pipeline-row > strong:last-of-type {
   justify-self: end;
 }
 
