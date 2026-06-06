@@ -10,6 +10,10 @@ public interface AgentTool {
 
     String description();
 
+    default String triggerDescription() {
+        return "由工具自身根据问题、范围和上下文自动匹配。";
+    }
+
     boolean supports(AgentPipelineContext context);
 
     ToolExecutionOutput execute(AgentPipelineContext context);

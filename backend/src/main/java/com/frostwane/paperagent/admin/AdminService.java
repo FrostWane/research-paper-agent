@@ -2,6 +2,7 @@ package com.frostwane.paperagent.admin;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ChatRateLimitResponse;
@@ -24,6 +25,8 @@ import com.frostwane.paperagent.agent.limit.AgentRateLimitStatus;
 import com.frostwane.paperagent.agent.limit.AgentRateLimiterService;
 import com.frostwane.paperagent.agent.term.QueryTermMapping;
 import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
+import com.frostwane.paperagent.agent.tool.AgentTool;
+import com.frostwane.paperagent.agent.tool.AgentToolRegistry;
 import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.common.PageResponse;
 import com.frostwane.paperagent.user.User;
@@ -41,8 +44,10 @@ import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 public class AdminService {
@@ -51,6 +56,7 @@ public class AdminService {
     private final UserRepository userRepository;
     private final QueryTermMappingRepository queryTermMappingRepository;
     private final AgentRateLimiterService agentRateLimiterService;
+    private final AgentToolRegistry agentToolRegistry;
     private final ObjectMapper objectMapper;
 
     public AdminService(
@@ -58,12 +64,14 @@ public class AdminService {
         UserRepository userRepository,
         QueryTermMappingRepository queryTermMappingRepository,
         AgentRateLimiterService agentRateLimiterService,
+        AgentToolRegistry agentToolRegistry,
         ObjectMapper objectMapper
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.userRepository = userRepository;
         this.queryTermMappingRepository = queryTermMappingRepository;
         this.agentRateLimiterService = agentRateLimiterService;
+        this.agentToolRegistry = agentToolRegistry;
         this.objectMapper = objectMapper;
     }
 
@@ -127,6 +135,57 @@ public class AdminService {
         );
     }
 
+    private AgentToolResponse agentToolResponse(AgentTool tool, AgentToolStats stats) {
+        AgentToolStats safeStats = stats == null ? AgentToolStats.empty() : stats;
+        return new AgentToolResponse(
+            tool.name(),
+            tool.label(),
+            tool.description(),
+            tool.triggerDescription(),
+            "INTERNAL",
+            true,
+            safeStats.totalCalls(),
+            safeStats.successCalls(),
+            safeStats.failedCalls(),
+            safeStats.averageLatencyMs(),
+            safeStats.lastSeenAt()
+        );
+    }
+
+    private Map<String, AgentToolStats> agentToolStats() {
+        Map<String, AgentToolStats> stats = new HashMap<>();
+        jdbcTemplate.query("""
+            select
+              tool.item->>'name' as name,
+              count(*) as total_calls,
+              sum(case when tool.item->>'status' = 'SUCCESS' then 1 else 0 end) as success_calls,
+              sum(case when tool.item->>'status' = 'FAILED' then 1 else 0 end) as failed_calls,
+              coalesce(round(avg(
+                case
+                  when jsonb_typeof(tool.item->'latencyMs') = 'number'
+                  then (tool.item->>'latencyMs')::numeric
+                  else null
+                end
+              )), 0) as average_latency_ms,
+              max(t.created_at) as last_seen_at
+            from rag_traces t
+            cross join lateral jsonb_array_elements(coalesce(t.tool_executions_json, '[]'::jsonb)) as tool(item)
+            where coalesce(tool.item->>'name', '') <> ''
+            group by tool.item->>'name'
+            """, rs -> {
+            while (rs.next()) {
+                stats.put(rs.getString("name"), new AgentToolStats(
+                    rs.getLong("total_calls"),
+                    rs.getLong("success_calls"),
+                    rs.getLong("failed_calls"),
+                    rs.getInt("average_latency_ms"),
+                    offsetDateTime(rs, "last_seen_at")
+                ));
+            }
+        });
+        return stats;
+    }
+
     @Transactional(readOnly = true)
     public List<AdminUserResponse> users(User currentUser) {
         requireAdmin(currentUser);
@@ -161,6 +220,15 @@ public class AdminService {
             rs.getInt("average_latency_ms"),
             offsetDateTime(rs, "created_at")
         ));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgentToolResponse> agentTools(User currentUser) {
+        requireAdmin(currentUser);
+        Map<String, AgentToolStats> stats = agentToolStats();
+        return agentToolRegistry.tools().stream()
+            .map(tool -> agentToolResponse(tool, stats.get(tool.name())))
+            .toList();
     }
 
     @Transactional(readOnly = true)
@@ -696,5 +764,17 @@ public class AdminService {
 
     private String defaultText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private record AgentToolStats(
+        long totalCalls,
+        long successCalls,
+        long failedCalls,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
+    ) {
+        static AgentToolStats empty() {
+            return new AgentToolStats(0, 0, 0, 0, null);
+        }
     }
 }

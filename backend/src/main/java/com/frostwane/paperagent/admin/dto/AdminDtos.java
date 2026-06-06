@@ -88,6 +88,21 @@ public final class AdminDtos {
     ) {
     }
 
+    public record AgentToolResponse(
+        String name,
+        String label,
+        String description,
+        String triggerDescription,
+        String source,
+        boolean enabled,
+        long totalCalls,
+        long successCalls,
+        long failedCalls,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
+    ) {
+    }
+
     public record ChatRateLimitResponse(
         boolean enabled,
         int activeGlobal,

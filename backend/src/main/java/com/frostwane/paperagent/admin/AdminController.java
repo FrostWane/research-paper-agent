@@ -2,6 +2,7 @@ package com.frostwane.paperagent.admin;
 
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
@@ -100,6 +101,11 @@ public class AdminController {
     @GetMapping("/users")
     public ApiResponse<List<AdminUserResponse>> users() {
         return ApiResponse.ok(adminService.users(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/agent-tools")
+    public ApiResponse<List<AgentToolResponse>> agentTools() {
+        return ApiResponse.ok(adminService.agentTools(currentUserService.getRequiredUser()));
     }
 
     @PatchMapping("/users/{id}/status")

@@ -52,6 +52,11 @@ public class LibraryStatsTool implements AgentTool {
     }
 
     @Override
+    public String triggerDescription() {
+        return "当问题包含统计、数量、解析状态、PDF 文件、知识片段或问答历史等运营类意图时触发；支持全库和单篇范围。";
+    }
+
+    @Override
     public boolean supports(AgentPipelineContext context) {
         String text = normalize(context.question() + " " + context.searchQuery());
         boolean metricIntent = containsAny(text, "统计", "数量", "多少", "几篇", "概览", "状态", "情况", "解析率", "已解析", "待解析");

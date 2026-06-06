@@ -22,4 +22,8 @@ public class AgentToolRegistry {
             .filter(tool -> tool.supports(context))
             .toList();
     }
+
+    public List<AgentTool> tools() {
+        return tools;
+    }
 }

@@ -148,6 +148,20 @@ export interface AdminModelHealth {
   lastSeenAt?: string;
 }
 
+export interface AdminAgentTool {
+  name: string;
+  label: string;
+  description: string;
+  triggerDescription: string;
+  source: string;
+  enabled: boolean;
+  totalCalls: number;
+  successCalls: number;
+  failedCalls: number;
+  averageLatencyMs: number;
+  lastSeenAt?: string;
+}
+
 export interface AdminChatRateLimit {
   enabled: boolean;
   activeGlobal: number;

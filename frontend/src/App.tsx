@@ -56,6 +56,7 @@ import {
   fetchAdminOverview,
   fetchAdminTraces,
   fetchAnswerPromptTemplates,
+  fetchAgentTools,
   fetchIntentRoutes,
   fetchModelTargets,
   fetchRagSettings,
@@ -85,7 +86,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminChatRateLimit, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentTool, AdminChatRateLimit, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -267,6 +268,7 @@ export default function App() {
   const [adminTracePage, setAdminTracePage] = useState<PageResponse<AdminTrace> | null>(null);
   const [adminTraceFilters, setAdminTraceFilters] = useState<AdminTraceFilters>(defaultTraceFilters);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [agentTools, setAgentTools] = useState<AdminAgentTool[]>([]);
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
   const [intentRoutes, setIntentRoutes] = useState<IntentRoute[]>([]);
   const [answerPromptTemplates, setAnswerPromptTemplates] = useState<AnswerPromptTemplate[]>([]);
@@ -445,6 +447,7 @@ export default function App() {
     setAdminTracePage(null);
     setAdminTraceFilters(defaultTraceFilters);
     setAdminUsers([]);
+    setAgentTools([]);
     setQueryMappings([]);
     setIntentRoutes([]);
     setAnswerPromptTemplates([]);
@@ -744,10 +747,11 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, users, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, users, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
         fetchAdminUsers(),
+        fetchAgentTools(),
         fetchQueryTermMappings(),
         fetchIntentRoutes(),
         fetchAnswerPromptTemplates(),
@@ -758,6 +762,7 @@ export default function App() {
       setAdminOverview(overview);
       setAdminTracePage(traces);
       setAdminUsers(users);
+      setAgentTools(tools);
       setQueryMappings(mappings);
       setIntentRoutes(routes);
       setAnswerPromptTemplates(templates);
@@ -1347,6 +1352,7 @@ export default function App() {
             tracePage={adminTracePage}
             traceFilters={adminTraceFilters}
             users={adminUsers}
+            agentTools={agentTools}
             queryMappings={queryMappings}
             intentRoutes={intentRoutes}
             answerPromptTemplates={answerPromptTemplates}
@@ -2021,6 +2027,7 @@ function AdminView({
   tracePage,
   traceFilters,
   users,
+  agentTools,
   queryMappings,
   intentRoutes,
   answerPromptTemplates,
@@ -2054,6 +2061,7 @@ function AdminView({
   tracePage: PageResponse<AdminTrace> | null;
   traceFilters: AdminTraceFilters;
   users: AdminUser[];
+  agentTools: AdminAgentTool[];
   queryMappings: QueryTermMapping[];
   intentRoutes: IntentRoute[];
   answerPromptTemplates: AnswerPromptTemplate[];
@@ -2198,6 +2206,8 @@ function AdminView({
           )}
         </div>
       </div>
+
+      <AgentToolPanel tools={agentTools} />
 
       <ModelTargetPanel
         targets={modelTargets}
@@ -2738,6 +2748,42 @@ function TraceGuidance({ trace }: { trace: AdminTrace }) {
       {suggestions.slice(0, 3).map((item, index) => (
         <em key={`${trace.id}-guidance-${index}`}>{compactText(item, 54)}</em>
       ))}
+    </div>
+  );
+}
+
+function AgentToolPanel({ tools }: { tools: AdminAgentTool[] }) {
+  return (
+    <div className="admin-panel admin-agent-tool-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>Agent 工具目录</h3>
+          <p>当前 Pipeline 可调用的内部工具、触发规则和历史调用画像。</p>
+        </div>
+        <SlidersHorizontal size={18} />
+      </div>
+      <div className="agent-tool-list">
+        {tools.length === 0 ? (
+          <EmptyState compact title="暂无工具" detail="注册 AgentTool Bean 后会显示在这里。" />
+        ) : (
+          tools.map((tool) => (
+            <div className={`agent-tool-row ${tool.enabled ? '' : 'is-disabled'}`} key={tool.name}>
+              <strong className="agent-tool-status">{tool.enabled ? '启用' : '停用'}</strong>
+              <span>
+                <b>{tool.label}</b>
+                <small>{tool.name} · {tool.source}</small>
+              </span>
+              <p>{tool.description}</p>
+              <p>{tool.triggerDescription}</p>
+              <em>{tool.totalCalls} 次</em>
+              <em>{tool.successCalls} 成功</em>
+              <em>{tool.failedCalls} 失败</em>
+              <strong>{formatLatency(tool.averageLatencyMs)}</strong>
+              <small>{tool.lastSeenAt ? formatTime(tool.lastSeenAt) : '尚未调用'}</small>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
