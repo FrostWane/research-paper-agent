@@ -119,6 +119,7 @@ public class PaperAgentProperties {
     public static class Ai {
         private String provider = "fallback";
         private String embeddingProvider = "local";
+        private String chatModel = "gpt-4o-mini";
 
         public String getProvider() {
             return provider;
@@ -134,6 +135,14 @@ public class PaperAgentProperties {
 
         public void setEmbeddingProvider(String embeddingProvider) {
             this.embeddingProvider = embeddingProvider;
+        }
+
+        public String getChatModel() {
+            return chatModel;
+        }
+
+        public void setChatModel(String chatModel) {
+            this.chatModel = chatModel;
         }
     }
 }

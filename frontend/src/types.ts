@@ -109,6 +109,19 @@ export interface AdminModelUsage {
   averageLatencyMs: number;
 }
 
+export interface AdminModelHealth {
+  provider: string;
+  modelName: string;
+  targetName: string;
+  lastStatus: 'SUCCESS' | 'FAILED' | 'FALLBACK' | string;
+  totalCalls: number;
+  successCalls: number;
+  failedCalls: number;
+  fallbackCalls: number;
+  averageLatencyMs: number;
+  lastSeenAt?: string;
+}
+
 export interface AdminRecentPaper {
   id: number;
   title: string;
@@ -211,6 +224,7 @@ export interface AdminOverview {
   averageParseMs: number;
   processStatuses: AdminStatusCount[];
   modelUsage: AdminModelUsage[];
+  modelHealth: AdminModelHealth[];
   recentPapers: AdminRecentPaper[];
   recentParseJobs: AdminParseJob[];
   recentTraces: AdminTrace[];

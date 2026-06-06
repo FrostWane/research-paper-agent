@@ -32,6 +32,7 @@ public final class AdminDtos {
         int averageParseMs,
         List<StatusCountResponse> processStatuses,
         List<ModelUsageResponse> modelUsage,
+        List<ModelHealthResponse> modelHealth,
         List<RecentPaperResponse> recentPapers,
         List<ParseJobResponse> recentParseJobs,
         List<RagTraceResponse> recentTraces
@@ -48,6 +49,20 @@ public final class AdminDtos {
         String modelName,
         long count,
         int averageLatencyMs
+    ) {
+    }
+
+    public record ModelHealthResponse(
+        String provider,
+        String modelName,
+        String targetName,
+        String lastStatus,
+        long totalCalls,
+        long successCalls,
+        long failedCalls,
+        long fallbackCalls,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
     ) {
     }
 

@@ -58,3 +58,4 @@ paper-agent:
   ai:
     provider: ${AI_PROVIDER:fallback}
     embedding-provider: ${AI_EMBEDDING_PROVIDER:local}
+    chat-model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}

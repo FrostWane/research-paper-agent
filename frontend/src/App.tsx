@@ -1233,6 +1233,38 @@ function AdminView({
         </div>
       </div>
 
+      <div className="admin-panel admin-model-health-panel">
+        <div className="admin-panel-head">
+          <div>
+            <h3>模型健康</h3>
+            <p>模型路由目标、最近状态、成功率和 fallback 情况。</p>
+          </div>
+          <Bot size={18} />
+        </div>
+        <div className="admin-model-health-list">
+          {(overview?.modelHealth ?? []).length === 0 ? (
+            <EmptyState compact title="暂无模型记录" detail="完成一次问答后会记录模型路由状态。" />
+          ) : (
+            overview!.modelHealth.map((model) => (
+              <div className={`admin-model-health-row ${model.lastStatus === 'FAILED' ? 'is-failed' : model.lastStatus === 'FALLBACK' ? 'is-fallback' : ''}`} key={model.targetName}>
+                <strong className={`admin-model-health-status ${model.lastStatus === 'SUCCESS' ? 'is-success' : model.lastStatus === 'FAILED' ? 'is-failed' : 'is-fallback'}`}>
+                  {modelHealthStatusLabel(model.lastStatus)}
+                </strong>
+                <span>
+                  <b>{model.targetName}</b>
+                  <small>{model.provider} · {model.modelName} · {model.lastSeenAt ? formatTime(model.lastSeenAt) : '暂无时间'}</small>
+                </span>
+                <em>{model.totalCalls} 次</em>
+                <em>{model.successCalls} 成功</em>
+                <em>{model.failedCalls} 失败</em>
+                <em>{model.fallbackCalls} fallback</em>
+                <strong>{formatLatency(model.averageLatencyMs)}</strong>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       <div className="admin-panel admin-job-panel">
         <div className="admin-panel-head">
           <div>
@@ -1937,6 +1969,15 @@ function traceStatusLabel(status: string) {
   const labels: Record<string, string> = {
     SUCCESS: '成功',
     FAILED: '失败'
+  };
+  return labels[status] || status;
+}
+
+function modelHealthStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    SUCCESS: '健康',
+    FAILED: '失败',
+    FALLBACK: '兜底'
   };
   return labels[status] || status;
 }

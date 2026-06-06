@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ModelHealthResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceNodeSpanResponse;
@@ -67,6 +68,7 @@ public class AdminService {
             intValue("select coalesce(round(avg(duration_ms)), 0) from parse_jobs where finished_at is not null"),
             processStatuses(),
             modelUsage(),
+            modelHealth(),
             recentPapers(),
             recentParseJobs(),
             recentTraces()
@@ -152,6 +154,43 @@ public class AdminService {
             rs.getString("model_name"),
             rs.getLong("total"),
             rs.getInt("average_latency_ms")
+        ));
+    }
+
+    private List<ModelHealthResponse> modelHealth() {
+        return jdbcTemplate.query("""
+            select
+              m.provider,
+              m.model_name,
+              m.target_name,
+              count(*) as total_calls,
+              sum(case when m.status = 'SUCCESS' then 1 else 0 end) as success_calls,
+              sum(case when m.status = 'FAILED' then 1 else 0 end) as failed_calls,
+              sum(case when m.status = 'FALLBACK' then 1 else 0 end) as fallback_calls,
+              coalesce(round(avg(case when m.status = 'SUCCESS' then m.latency_ms end)), 0) as average_latency_ms,
+              (
+                select latest.status
+                from model_invocations latest
+                where latest.target_name = m.target_name
+                order by latest.created_at desc
+                limit 1
+              ) as last_status,
+              max(m.created_at) as last_seen_at
+            from model_invocations m
+            group by m.provider, m.model_name, m.target_name
+            order by max(m.created_at) desc
+            limit 8
+            """, (rs, rowNum) -> new ModelHealthResponse(
+            rs.getString("provider"),
+            rs.getString("model_name"),
+            rs.getString("target_name"),
+            rs.getString("last_status"),
+            rs.getLong("total_calls"),
+            rs.getLong("success_calls"),
+            rs.getLong("failed_calls"),
+            rs.getLong("fallback_calls"),
+            rs.getInt("average_latency_ms"),
+            offsetDateTime(rs, "last_seen_at")
         ));
     }
 

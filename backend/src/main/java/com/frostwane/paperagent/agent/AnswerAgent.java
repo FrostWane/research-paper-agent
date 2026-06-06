@@ -1,10 +1,9 @@
 package com.frostwane.paperagent.agent;
 
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
-import com.frostwane.paperagent.config.PaperAgentProperties;
+import com.frostwane.paperagent.agent.model.ModelRoutingService;
+import com.frostwane.paperagent.agent.model.ModelRoutingService.RoutedAnswer;
 import com.frostwane.paperagent.paper.Paper;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,12 +12,10 @@ import java.util.StringJoiner;
 @Service
 public class AnswerAgent {
 
-    private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
-    private final PaperAgentProperties properties;
+    private final ModelRoutingService modelRoutingService;
 
-    public AnswerAgent(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider, PaperAgentProperties properties) {
-        this.chatClientBuilderProvider = chatClientBuilderProvider;
-        this.properties = properties;
+    public AnswerAgent(ModelRoutingService modelRoutingService) {
+        this.modelRoutingService = modelRoutingService;
     }
 
     public GeneratedAnswer answer(Paper paper, String question, List<SourceResponse> sources) {
@@ -32,31 +29,12 @@ public class AnswerAgent {
         String answerStrategy,
         String answerContract
     ) {
-        if (shouldUseModel()) {
-            try {
-                ChatClient.Builder builder = chatClientBuilderProvider.getIfAvailable();
-                if (builder == null) {
-                    return new GeneratedAnswer(fallbackAnswer(paper, question, sources, answerStrategy), "fallback-agent");
-                }
-                ChatClient chatClient = builder.build();
-                String content = chatClient.prompt()
-                    .system(systemPrompt())
-                    .user(buildUserPrompt(paper, question, sources, answerStrategy, answerContract))
-                    .call()
-                    .content();
-                if (content != null && !content.isBlank()) {
-                    return new GeneratedAnswer(content.trim(), "spring-ai-chat");
-                }
-            } catch (Exception ignored) {
-                // Keep the reading workflow available when model credentials or provider are not ready.
-            }
-        }
-        return new GeneratedAnswer(fallbackAnswer(paper, question, sources, answerStrategy), "fallback-agent");
-    }
-
-    private boolean shouldUseModel() {
-        return !"fallback".equalsIgnoreCase(properties.getAi().getProvider())
-            && chatClientBuilderProvider.getIfAvailable() != null;
+        RoutedAnswer answer = modelRoutingService.generate(
+            systemPrompt(),
+            buildUserPrompt(paper, question, sources, answerStrategy, answerContract),
+            () -> fallbackAnswer(paper, question, sources, answerStrategy)
+        );
+        return new GeneratedAnswer(answer.content(), answer.modelName());
     }
 
     private String systemPrompt() {
