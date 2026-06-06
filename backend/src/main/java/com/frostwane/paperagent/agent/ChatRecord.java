@@ -49,6 +49,15 @@ public class ChatRecord {
     @Column(name = "latency_ms")
     private Integer latencyMs;
 
+    @Column(name = "feedback_score")
+    private Integer feedbackScore;
+
+    @Column(name = "feedback_comment", columnDefinition = "TEXT")
+    private String feedbackComment;
+
+    @Column(name = "feedback_at")
+    private OffsetDateTime feedbackAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -115,6 +124,30 @@ public class ChatRecord {
 
     public void setLatencyMs(Integer latencyMs) {
         this.latencyMs = latencyMs;
+    }
+
+    public Integer getFeedbackScore() {
+        return feedbackScore;
+    }
+
+    public void setFeedbackScore(Integer feedbackScore) {
+        this.feedbackScore = feedbackScore;
+    }
+
+    public String getFeedbackComment() {
+        return feedbackComment;
+    }
+
+    public void setFeedbackComment(String feedbackComment) {
+        this.feedbackComment = feedbackComment;
+    }
+
+    public OffsetDateTime getFeedbackAt() {
+        return feedbackAt;
+    }
+
+    public void setFeedbackAt(OffsetDateTime feedbackAt) {
+        this.feedbackAt = feedbackAt;
     }
 
     public OffsetDateTime getCreatedAt() {

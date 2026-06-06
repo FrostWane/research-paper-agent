@@ -12,3 +12,7 @@ export function listChats(paperId: number) {
 export function listLibraryChats() {
   return unwrap<ChatRecord[]>(api.get('/api/agent/chats'));
 }
+
+export function submitChatFeedback(id: number, score: 1 | -1 | null, comment = '') {
+  return unwrap<ChatRecord>(api.patch(`/api/agent/chats/${id}/feedback`, { score, comment }));
+}

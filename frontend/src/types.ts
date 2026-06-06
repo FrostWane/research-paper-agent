@@ -95,6 +95,9 @@ export interface ChatRecord {
   sources: SourceResponse[];
   modelName?: string;
   latencyMs?: number;
+  feedbackScore?: 1 | -1 | null;
+  feedbackComment?: string;
+  feedbackAt?: string;
   createdAt: string;
 }
 
@@ -226,6 +229,9 @@ export interface AdminOverview {
   embeddedChunks: number;
   totalChats: number;
   libraryChats: number;
+  totalFeedbacks: number;
+  positiveFeedbacks: number;
+  negativeFeedbacks: number;
   averageLatencyMs: number;
   failedTraces: number;
   averageRetrievalMs: number;

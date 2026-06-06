@@ -4,9 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRecordResponse;
+import com.frostwane.paperagent.agent.dto.AgentDtos.ChatFeedbackRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
+import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.agent.pipeline.AgentNodeType;
 import com.frostwane.paperagent.agent.pipeline.AgentPipeline;
 import com.frostwane.paperagent.agent.pipeline.AgentPipelineContext;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Service
@@ -114,6 +117,20 @@ public class AgentOrchestratorService {
             .toList();
     }
 
+    @Transactional
+    public ChatRecordResponse feedback(Long chatId, ChatFeedbackRequest request, User owner) {
+        ChatRecord record = chatRecordRepository.findByIdAndOwnerId(chatId, owner.getId())
+            .orElseThrow(() -> new BusinessException("问答记录不存在"));
+        Integer score = request.score();
+        if (score != null && score != 1 && score != -1) {
+            throw new BusinessException("反馈只能是有用或无用");
+        }
+        record.setFeedbackScore(score);
+        record.setFeedbackComment(score == null ? null : compact(request.comment(), 500));
+        record.setFeedbackAt(score == null ? null : OffsetDateTime.now());
+        return toResponse(chatRecordRepository.save(record));
+    }
+
     private ChatRecordResponse toResponse(ChatRecord record) {
         return new ChatRecordResponse(
             record.getId(),
@@ -123,6 +140,9 @@ public class AgentOrchestratorService {
             fromJson(record.getSourcesJson()),
             record.getModelName(),
             record.getLatencyMs(),
+            record.getFeedbackScore(),
+            record.getFeedbackComment(),
+            record.getFeedbackAt(),
             record.getCreatedAt()
         );
     }
@@ -146,6 +166,14 @@ public class AgentOrchestratorService {
 
     private int elapsedMs(Instant started) {
         return Math.toIntExact(Math.min(Duration.between(started, Instant.now()).toMillis(), Integer.MAX_VALUE));
+    }
+
+    private String compact(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() <= maxLength ? trimmed : trimmed.substring(0, maxLength);
     }
 
     private void recordFailureTrace(

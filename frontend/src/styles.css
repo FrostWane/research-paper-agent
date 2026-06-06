@@ -932,6 +932,56 @@ select,
   -webkit-line-clamp: 3;
 }
 
+.feedback-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.feedback-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 9px;
+  color: #526071;
+  background: #ffffff;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.feedback-bar button:hover {
+  border-color: #9bb7e6;
+  background: #f8fbff;
+}
+
+.feedback-bar button.is-positive {
+  color: #0f766e;
+  background: #ecfdf5;
+  border-color: #99f6e4;
+}
+
+.feedback-bar button.is-negative {
+  color: #b91c1c;
+  background: #fff1f3;
+  border-color: #ffd5dd;
+}
+
+.feedback-bar span {
+  color: inherit;
+  font-size: 12px;
+}
+
+.feedback-bar em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
 .plain-text {
   white-space: pre-wrap;
 }
@@ -1034,7 +1084,7 @@ select,
 }
 
 .history-item time,
-.history-item span {
+.history-item > span {
   display: inline-flex;
   align-items: center;
   gap: 5px;

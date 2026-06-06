@@ -29,6 +29,8 @@ import {
   Send,
   ServerCog,
   ShieldCheck,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   UserCog,
   Users,
@@ -38,7 +40,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { fetchAdminOverview, fetchAdminUsers, updateAdminUserStatus } from './api/admin';
-import { askAgent, listChats, listLibraryChats } from './api/agent';
+import { askAgent, listChats, listLibraryChats, submitChatFeedback } from './api/agent';
 import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
@@ -335,6 +337,20 @@ export default function App() {
     }
   }
 
+  async function handleChatFeedback(chat: ChatRecord, score: 1 | -1) {
+    const nextScore = chat.feedbackScore === score ? null : score;
+    try {
+      const updated = await submitChatFeedback(chat.id, nextScore);
+      setChats((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      if (activeView === 'admin' && user?.role === 'ADMIN') {
+        setAdminOverview(await fetchAdminOverview());
+      }
+      showNotice(nextScore === null ? '已取消反馈。' : '反馈已记录。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
+  }
+
   async function handleToggleRead(paper: Paper) {
     try {
       const next = paper.status === 'INTENSIVE_READ' ? 'TO_READ' : 'INTENSIVE_READ';
@@ -600,6 +616,7 @@ export default function App() {
             onParse={(paper) => void handleParse(paper)}
             onUnparse={(paper) => void handleUnparse(paper)}
             onSourceClick={handleSourceJump}
+            onFeedback={(chat, score) => void handleChatFeedback(chat, score)}
             pdfJump={pdfJump}
           />
         )}
@@ -619,6 +636,7 @@ export default function App() {
             }}
             onUpload={() => setActiveView('upload')}
             onSourceClick={handleSourceJump}
+            onFeedback={(chat, score) => void handleChatFeedback(chat, score)}
           />
         )}
 
@@ -636,6 +654,7 @@ export default function App() {
               }
             }}
             onSourceClick={handleSourceJump}
+            onFeedback={(chat, score) => void handleChatFeedback(chat, score)}
           />
         )}
 
@@ -853,6 +872,7 @@ function ReaderView({
   onParse,
   onUnparse,
   onSourceClick,
+  onFeedback,
   pdfJump
 }: {
   papers: Paper[];
@@ -867,6 +887,7 @@ function ReaderView({
   onParse: (paper: Paper) => void;
   onUnparse: (paper: Paper) => void;
   onSourceClick: (source: SourceResponse) => void;
+  onFeedback: (chat: ChatRecord, score: 1 | -1) => void;
   pdfJump: PdfJump | null;
 }) {
   const indexedCount = papers.filter((paper) => paper.processStatus === 'INDEXED').length;
@@ -970,7 +991,7 @@ function ReaderView({
           {chats.length === 0 ? (
             <EmptyState compact title="暂无问答" detail="提出一个问题，Agent 会保存回答和来源片段。" />
           ) : (
-            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} onSourceClick={onSourceClick} />)
+            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} onSourceClick={onSourceClick} onFeedback={onFeedback} />)
           )}
         </div>
         <form
@@ -998,7 +1019,8 @@ function LibraryChatView({
   onAsk,
   onSelectPaper,
   onUpload,
-  onSourceClick
+  onSourceClick,
+  onFeedback
 }: {
   papers: Paper[];
   chats: ChatRecord[];
@@ -1008,6 +1030,7 @@ function LibraryChatView({
   onSelectPaper: (paper: Paper) => void;
   onUpload: () => void;
   onSourceClick: (source: SourceResponse) => void;
+  onFeedback: (chat: ChatRecord, score: 1 | -1) => void;
 }) {
   const indexedPapers = papers.filter((paper) => paper.processStatus === 'INDEXED');
   const intensivePapers = papers.filter((paper) => paper.status === 'INTENSIVE_READ');
@@ -1065,7 +1088,7 @@ function LibraryChatView({
           {chats.length === 0 ? (
             <EmptyState compact title="暂无全库问答" detail="提出一个跨论文问题，Agent 会保存回答和来源片段。" />
           ) : (
-            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} onSourceClick={onSourceClick} />)
+            chats.map((chat) => <ChatBubble key={chat.id} chat={chat} onSourceClick={onSourceClick} onFeedback={onFeedback} />)
           )}
         </div>
         <form
@@ -1091,7 +1114,8 @@ function HistoryView({
   selectedPaper,
   chats,
   onSelectScope,
-  onSourceClick
+  onSourceClick,
+  onFeedback
 }: {
   papers: Paper[];
   scope: ReaderScope;
@@ -1099,6 +1123,7 @@ function HistoryView({
   chats: ChatRecord[];
   onSelectScope: (scope: ReaderScope, id?: number) => void;
   onSourceClick: (source: SourceResponse) => void;
+  onFeedback: (chat: ChatRecord, score: 1 | -1) => void;
 }) {
   return (
     <section className="panel history-layout">
@@ -1133,6 +1158,7 @@ function HistoryView({
               <h3>{chat.question}</h3>
               <MarkdownContent content={chat.answer} />
               <SourceCards sources={chat.sources} onSourceClick={onSourceClick} />
+              <FeedbackBar chat={chat} onFeedback={onFeedback} />
               {chat.sources.length > 0 && <span>来源：{formatSources(chat.sources)}</span>}
             </article>
           ))
@@ -1180,6 +1206,7 @@ function AdminView({
         <AdminStat icon={Database} label="知识片段" value={overview?.totalChunks ?? 0} detail={`${overview?.embeddedChunks ?? 0} 已向量化 · ${embeddedRatio}%`} />
         <AdminStat icon={HardDrive} label="PDF 存储" value={formatBytes(overview?.storageBytes ?? 0)} detail={`${overview?.totalFiles ?? 0} 个文件`} />
         <AdminStat icon={MessageSquareText} label="问答" value={overview?.totalChats ?? 0} detail={`${overview?.libraryChats ?? 0} 次全库问答`} />
+        <AdminStat icon={ThumbsUp} label="反馈" value={overview?.totalFeedbacks ?? 0} detail={`${overview?.positiveFeedbacks ?? 0} 有用 / ${overview?.negativeFeedbacks ?? 0} 无用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
       </div>
 
@@ -1687,7 +1714,15 @@ function PaperCard({
   );
 }
 
-function ChatBubble({ chat, onSourceClick }: { chat: ChatRecord; onSourceClick?: (source: SourceResponse) => void }) {
+function ChatBubble({
+  chat,
+  onSourceClick,
+  onFeedback
+}: {
+  chat: ChatRecord;
+  onSourceClick?: (source: SourceResponse) => void;
+  onFeedback?: (chat: ChatRecord, score: 1 | -1) => void;
+}) {
   return (
     <>
       <div className="chat user">
@@ -1698,8 +1733,41 @@ function ChatBubble({ chat, onSourceClick }: { chat: ChatRecord; onSourceClick?:
         <span>Agent · {chat.modelName || 'fallback'}</span>
         <MarkdownContent content={chat.answer} />
         <SourceCards sources={chat.sources} onSourceClick={onSourceClick} />
+        <FeedbackBar chat={chat} onFeedback={onFeedback} />
       </div>
     </>
+  );
+}
+
+function FeedbackBar({
+  chat,
+  onFeedback
+}: {
+  chat: ChatRecord;
+  onFeedback?: (chat: ChatRecord, score: 1 | -1) => void;
+}) {
+  return (
+    <div className="feedback-bar">
+      <button
+        className={chat.feedbackScore === 1 ? 'is-positive' : ''}
+        type="button"
+        title="标记有用"
+        onClick={() => onFeedback?.(chat, 1)}
+      >
+        <ThumbsUp size={14} />
+        <span>有用</span>
+      </button>
+      <button
+        className={chat.feedbackScore === -1 ? 'is-negative' : ''}
+        type="button"
+        title="标记无用"
+        onClick={() => onFeedback?.(chat, -1)}
+      >
+        <ThumbsDown size={14} />
+        <span>无用</span>
+      </button>
+      {chat.feedbackAt && <em>已反馈 · {formatTime(chat.feedbackAt)}</em>}
+    </div>
   );
 }
 

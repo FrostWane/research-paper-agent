@@ -1,6 +1,8 @@
 package com.frostwane.paperagent.agent.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
@@ -42,7 +44,16 @@ public final class AgentDtos {
         List<SourceResponse> sources,
         String modelName,
         Integer latencyMs,
+        Integer feedbackScore,
+        String feedbackComment,
+        OffsetDateTime feedbackAt,
         OffsetDateTime createdAt
+    ) {
+    }
+
+    public record ChatFeedbackRequest(
+        @Min(-1) @Max(1) Integer score,
+        @Size(max = 500) String comment
     ) {
     }
 }
