@@ -36,7 +36,7 @@ public class AnswerPromptTemplateService {
         String answerStrategy,
         String answerContract
     ) {
-        return render(paper, question, sources, conversationHistory, "", answerStrategy, answerContract);
+        return render(paper, question, sources, conversationHistory, "", "", answerStrategy, answerContract);
     }
 
     @Transactional(readOnly = true)
@@ -49,6 +49,20 @@ public class AnswerPromptTemplateService {
         String answerStrategy,
         String answerContract
     ) {
+        return render(paper, question, sources, conversationHistory, toolContext, "", answerStrategy, answerContract);
+    }
+
+    @Transactional(readOnly = true)
+    public RenderedAnswerPrompt render(
+        Paper paper,
+        String question,
+        List<SourceResponse> sources,
+        String conversationHistory,
+        String toolContext,
+        String guidanceContext,
+        String answerStrategy,
+        String answerContract
+    ) {
         AnswerPromptTemplate template = currentTemplate();
         Map<String, String> slots = new LinkedHashMap<>();
         slots.put("scope", paper == null ? "当前用户的整个文献库。" : "单篇论文精读。");
@@ -57,6 +71,7 @@ public class AnswerPromptTemplateService {
         slots.put("answer_contract", defaultText(answerContract, "按证据回答，材料不足时明确边界。"));
         slots.put("conversation_history", defaultText(conversationHistory, "无历史对话。"));
         slots.put("tool_context", defaultText(toolContext, "无业务工具结果。"));
+        slots.put("guidance_context", defaultText(guidanceContext, "无引导需求。"));
         slots.put("question", defaultText(question, ""));
         slots.put("sources", sourceText(sources));
         return new RenderedAnswerPrompt(
@@ -205,6 +220,7 @@ public class AnswerPromptTemplateService {
             必须基于给定范围、文献题录和检索片段回答。
             如果提供了业务工具结果，可以用它回答文献库统计、解析状态和系统运营类问题。
             必须遵守用户消息中的“回答策略”和“输出契约”。
+            如果用户消息包含“意图引导”，优先按引导说明收窄问题或给出澄清选项。
             不要在最终答案中复述“回答策略”“输出契约”等内部字段名。
             如果材料不足，明确说明“材料不足”，不要编造实验结果。
             用结构化中文 Markdown 输出，并尽量附上论文标题和来源页码。
@@ -222,6 +238,8 @@ public class AnswerPromptTemplateService {
             {{conversation_history}}
             业务工具结果：
             {{tool_context}}
+            意图引导：
+            {{guidance_context}}
             用户问题：{{question}}
             检索片段：
             {{sources}}

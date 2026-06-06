@@ -40,6 +40,11 @@ public class AgentPipelineContext {
     private List<String> querySubQuestions = List.of();
     private String queryRewriteModelName;
     private boolean comparisonRequested;
+    private boolean guidanceRequired;
+    private String guidanceType = "NONE";
+    private String guidanceMessage;
+    private String guidanceReason;
+    private List<String> guidanceSuggestions = List.of();
     private String answerStrategy = "EVIDENCE_GROUNDED_QA";
     private String answerContract = "";
     private String generatedAnswer;
@@ -241,6 +246,71 @@ public class AgentPipelineContext {
 
     public void comparisonRequested(boolean comparisonRequested) {
         this.comparisonRequested = comparisonRequested;
+    }
+
+    public boolean guidanceRequired() {
+        return guidanceRequired;
+    }
+
+    public String guidanceType() {
+        return guidanceType;
+    }
+
+    public String guidanceMessage() {
+        return guidanceMessage;
+    }
+
+    public String guidanceReason() {
+        return guidanceReason;
+    }
+
+    public List<String> guidanceSuggestions() {
+        return guidanceSuggestions;
+    }
+
+    public void guidance(String type, String message, String reason, List<String> suggestions) {
+        this.guidanceRequired = true;
+        this.guidanceType = type == null || type.isBlank() ? "GUIDANCE_REQUIRED" : type.trim();
+        this.guidanceMessage = message == null || message.isBlank() ? "当前问题需要进一步收窄。" : message.trim();
+        this.guidanceReason = reason == null || reason.isBlank() ? null : reason.trim();
+        if (suggestions == null) {
+            this.guidanceSuggestions = List.of();
+            return;
+        }
+        this.guidanceSuggestions = suggestions.stream()
+            .filter(item -> item != null && !item.isBlank())
+            .map(String::trim)
+            .distinct()
+            .limit(5)
+            .toList();
+    }
+
+    public String guidanceContext() {
+        if (!guidanceRequired) {
+            return "无引导需求。";
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append("需要引导澄清：").append(guidanceMessage);
+        if (guidanceReason != null && !guidanceReason.isBlank()) {
+            builder.append("\n判定原因：").append(guidanceReason);
+        }
+        if (!guidanceSuggestions.isEmpty()) {
+            builder.append("\n建议追问：");
+            for (int i = 0; i < guidanceSuggestions.size(); i++) {
+                builder.append("\n").append(i + 1).append(". ").append(guidanceSuggestions.get(i));
+            }
+        }
+        return builder.toString().trim();
+    }
+
+    public IntentGuidanceTrace guidanceTrace() {
+        return new IntentGuidanceTrace(
+            guidanceRequired,
+            guidanceType,
+            guidanceMessage,
+            guidanceReason,
+            guidanceSuggestions
+        );
     }
 
     public String answerStrategy() {
@@ -450,6 +520,15 @@ public class AgentPipelineContext {
         String status,
         int durationMs,
         String errorMessage
+    ) {
+    }
+
+    public record IntentGuidanceTrace(
+        boolean required,
+        String type,
+        String message,
+        String reason,
+        List<String> suggestions
     ) {
     }
 }

@@ -38,6 +38,9 @@ public class AnswerPlanningNode implements AgentNode {
 
     private String resolveStrategy(AgentPipelineContext context, IntentRouteMatch route) {
         boolean hasSuccessfulTool = context.toolExecutions().stream().anyMatch(item -> "SUCCESS".equals(item.status()));
+        if (context.guidanceRequired() && !hasSuccessfulTool) {
+            return "GUIDED_CLARIFICATION";
+        }
         if (context.sourceCount() == 0 && hasSuccessfulTool) {
             return "TOOL_AUGMENTED_QA";
         }
@@ -80,6 +83,9 @@ public class AnswerPlanningNode implements AgentNode {
                 """;
             case "EVIDENCE_GAP" -> """
                 输出结构：先说明材料不足；列出缺失的证据类型；给出下一步解析、补充文献或重新提问建议。
+                """;
+            case "GUIDED_CLARIFICATION" -> """
+                输出结构：先说明为什么需要澄清；再列出 2-4 个可直接复制的追问方向；不要编造论文结论或实验结果。
                 """;
             case "TOOL_AUGMENTED_QA" -> """
                 输出结构：直接回答工具能够证明的统计或状态；必要时列出关键计数；不要声称工具结果之外的论文内容结论。

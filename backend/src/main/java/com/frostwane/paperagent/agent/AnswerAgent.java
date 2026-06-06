@@ -23,7 +23,7 @@ public class AnswerAgent {
     }
 
     public GeneratedAnswer answer(Paper paper, String question, List<SourceResponse> sources) {
-        return answer(paper, question, sources, "", "", "EVIDENCE_GROUNDED_QA", "");
+        return answer(paper, question, sources, "", "", "", "EVIDENCE_GROUNDED_QA", "");
     }
 
     public GeneratedAnswer answer(
@@ -34,7 +34,7 @@ public class AnswerAgent {
         String answerStrategy,
         String answerContract
     ) {
-        return answer(paper, question, sources, conversationHistory, "", answerStrategy, answerContract);
+        return answer(paper, question, sources, conversationHistory, "", "", answerStrategy, answerContract);
     }
 
     public GeneratedAnswer answer(
@@ -46,17 +46,30 @@ public class AnswerAgent {
         String answerStrategy,
         String answerContract
     ) {
-        RenderedAnswerPrompt prompt = answerPromptTemplateService.render(paper, question, sources, conversationHistory, toolContext, answerStrategy, answerContract);
+        return answer(paper, question, sources, conversationHistory, toolContext, "", answerStrategy, answerContract);
+    }
+
+    public GeneratedAnswer answer(
+        Paper paper,
+        String question,
+        List<SourceResponse> sources,
+        String conversationHistory,
+        String toolContext,
+        String guidanceContext,
+        String answerStrategy,
+        String answerContract
+    ) {
+        RenderedAnswerPrompt prompt = answerPromptTemplateService.render(paper, question, sources, conversationHistory, toolContext, guidanceContext, answerStrategy, answerContract);
         RoutedAnswer answer = modelRoutingService.generate(
             ModelTaskType.ANSWER_GENERATION,
             prompt.systemPrompt(),
             prompt.userPrompt(),
-                    () -> fallbackAnswer(paper, question, sources, toolContext, answerStrategy)
+                    () -> fallbackAnswer(paper, question, sources, toolContext, guidanceContext, answerStrategy)
         );
         return new GeneratedAnswer(answer.content(), answer.modelName());
     }
 
-    private String fallbackAnswer(Paper paper, String question, List<SourceResponse> sources, String toolContext, String answerStrategy) {
+    private String fallbackAnswer(Paper paper, String question, List<SourceResponse> sources, String toolContext, String guidanceContext, String answerStrategy) {
         String strategy = defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA");
         String lowerQuestion = question.toLowerCase();
         StringBuilder builder = new StringBuilder();
@@ -71,6 +84,10 @@ public class AnswerAgent {
             builder.append("1. **工具结论**：").append(defaultText(toolContext, "当前没有可用业务工具结果。")).append("\n");
             builder.append("2. **使用边界**：以上统计来自当前用户业务数据；论文内容观点仍需要检索片段支撑。\n");
             builder.append("3. **下一步**：如果要分析研究主题、方法或实验，请继续基于已解析 PDF 片段追问。\n");
+        } else if ("GUIDED_CLARIFICATION".equals(strategy)) {
+            builder.append("1. **需要澄清**：当前问题还缺少足够具体的阅读维度，我不适合直接生成论文结论。\n");
+            builder.append("2. **可选追问**：\n").append(guidanceSuggestions(guidanceContext, paper == null)).append("\n");
+            builder.append("3. **回答边界**：等你选定主题、方法、实验、贡献或局限等方向后，我会再基于检索片段给出证据化回答。\n");
         } else if ("EVIDENCE_GAP".equals(strategy)) {
             builder.append("1. **材料状态**：当前没有命中的 PDF 正文片段，材料不足，不能给出可靠结论。\n");
             builder.append("2. **需要补充**：建议先解析 PDF、扩大检索范围，或补充摘要/关键词后再提问。\n");
@@ -125,6 +142,24 @@ public class AnswerAgent {
 
     private String defaultText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String guidanceSuggestions(String guidanceContext, boolean libraryScope) {
+        if (guidanceContext != null && !guidanceContext.isBlank() && !"无引导需求。".equals(guidanceContext.trim())) {
+            return guidanceContext.trim();
+        }
+        if (libraryScope) {
+            return """
+                - 请围绕一个具体主题或关键词，梳理当前文献库的方法家族和证据分布。
+                - 请比较当前文献库中某一主题的代表论文，维度包括研究对象、方法、数据和局限。
+                - 请统计当前文献库的解析状态和可用知识片段，再给出下一步阅读建议。
+                """.trim();
+        }
+        return """
+            - 请按研究问题、核心方法、实验设置和主要结论总结这篇论文。
+            - 请提炼这篇论文的 2-4 个贡献点，并标注证据页码。
+            - 请整理这篇论文的实验数据集、baseline、评价指标和关键结果。
+            """.trim();
     }
 
     public record GeneratedAnswer(String content, String modelName) {

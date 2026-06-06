@@ -33,6 +33,7 @@ public class RagTraceService {
         String retrievalProcessorsJson,
         String queryExpansionsJson,
         String toolExecutionsJson,
+        String guidanceJson,
         String queryIntent,
         String searchQuery,
         boolean queryRewriteEnabled,
@@ -79,6 +80,7 @@ public class RagTraceService {
             retrievalProcessorsJson,
             queryExpansionsJson,
             toolExecutionsJson,
+            guidanceJson,
             queryIntent,
             searchQuery,
             queryRewriteEnabled,
@@ -127,6 +129,7 @@ public class RagTraceService {
         String retrievalProcessorsJson,
         String queryExpansionsJson,
         String toolExecutionsJson,
+        String guidanceJson,
         String queryIntent,
         String searchQuery,
         boolean queryRewriteEnabled,
@@ -174,6 +177,7 @@ public class RagTraceService {
             retrievalProcessorsJson,
             queryExpansionsJson,
             toolExecutionsJson,
+            guidanceJson,
             queryIntent,
             searchQuery,
             queryRewriteEnabled,
@@ -223,6 +227,7 @@ public class RagTraceService {
         String retrievalProcessorsJson,
         String queryExpansionsJson,
         String toolExecutionsJson,
+        String guidanceJson,
         String queryIntent,
         String searchQuery,
         boolean queryRewriteEnabled,
@@ -270,6 +275,7 @@ public class RagTraceService {
         trace.setRetrievalProcessorsJson(defaultText(retrievalProcessorsJson, "[]"));
         trace.setQueryExpansionsJson(defaultText(queryExpansionsJson, "[]"));
         trace.setToolExecutionsJson(defaultText(toolExecutionsJson, "[]"));
+        trace.setGuidanceJson(defaultText(guidanceJson, "{}"));
         trace.setQueryIntent(defaultText(queryIntent, "GENERAL_QA"));
         trace.setSearchQuery(searchQuery);
         trace.setQueryRewriteEnabled(queryRewriteEnabled);

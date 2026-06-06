@@ -2348,6 +2348,7 @@ function AdminView({
                     {trace.answerContract && (
                       <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 96)}</small>
                     )}
+                    <TraceGuidance trace={trace} />
                     {(trace.toolExecutions ?? []).length > 0 && (
                       <div className="admin-tool-executions">
                         {trace.toolExecutions.map((tool) => (
@@ -2646,6 +2647,7 @@ function TraceExplorerPanel({
                   {trace.answerContract && (
                     <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 180)}</small>
                   )}
+                  <TraceGuidance trace={trace} />
                   {(trace.toolExecutions ?? []).length > 0 && (
                     <div className="admin-tool-executions">
                       {trace.toolExecutions.map((tool) => (
@@ -2717,6 +2719,25 @@ function TraceExplorerPanel({
           下一页
         </button>
       </div>
+    </div>
+  );
+}
+
+function TraceGuidance({ trace }: { trace: AdminTrace }) {
+  const guidance = trace.guidance;
+  if (!guidance?.required) {
+    return null;
+  }
+  const suggestions = guidance.suggestions ?? [];
+  return (
+    <div className="admin-guidance" title={guidance.reason || guidance.message || guidance.type}>
+      <span>
+        <i>引导</i>
+        <b>{compactText(guidance.message || guidance.type, 96)}</b>
+      </span>
+      {suggestions.slice(0, 3).map((item, index) => (
+        <em key={`${trace.id}-guidance-${index}`}>{compactText(item, 54)}</em>
+      ))}
     </div>
   );
 }
@@ -3298,7 +3319,7 @@ function AnswerPromptTemplatePanel({
             value={userPromptTemplate}
             maxLength={12000}
             rows={7}
-            placeholder="回答范围：{{scope}}\n{{paper_metadata}}\n回答策略：{{answer_strategy}}\n输出契约：{{answer_contract}}\n用户问题：{{question}}\n检索片段：{{sources}}"
+            placeholder="回答范围：{{scope}}\n{{paper_metadata}}\n回答策略：{{answer_strategy}}\n输出契约：{{answer_contract}}\n历史对话：\n{{conversation_history}}\n业务工具结果：\n{{tool_context}}\n意图引导：\n{{guidance_context}}\n用户问题：{{question}}\n检索片段：{{sources}}"
             onChange={(event) => setUserPromptTemplate(event.target.value)}
           />
         </label>
@@ -4130,6 +4151,7 @@ function nodeSpanLabel(name: string) {
     'query-planning': '规划',
     'tool-execution': '工具',
     retrieval: '检索',
+    'intent-guidance': '引导',
     'answer-planning': '策略',
     'answer-generation': '生成',
     'citation-verification': '校验',
@@ -4173,7 +4195,8 @@ function strategyLabel(strategy = 'EVIDENCE_GROUNDED_QA') {
     EXPERIMENT_READING: '实验解读',
     LIMITATION_REVIEW: '局限审查',
     STRUCTURED_SUMMARY: '结构摘要',
-    EVIDENCE_GAP: '证据不足'
+    EVIDENCE_GAP: '证据不足',
+    GUIDED_CLARIFICATION: '引导澄清'
   };
   return labels[strategy] || strategy;
 }

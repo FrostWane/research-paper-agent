@@ -131,6 +131,7 @@ public final class AdminDtos {
         String answerStrategy,
         String answerContract,
         List<ToolExecutionResponse> toolExecutions,
+        GuidanceResponse guidance,
         int sourceCount,
         int memoryTurnCount,
         int memoryChars,
@@ -185,6 +186,15 @@ public final class AdminDtos {
         String details,
         int latencyMs,
         String errorMessage
+    ) {
+    }
+
+    public record GuidanceResponse(
+        boolean required,
+        String type,
+        String message,
+        String reason,
+        List<String> suggestions
     ) {
     }
 

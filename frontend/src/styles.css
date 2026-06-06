@@ -2597,6 +2597,51 @@ select,
   font-weight: 600;
 }
 
+.admin-guidance {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-guidance span,
+.admin-guidance em {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 260px;
+  min-height: 22px;
+  padding: 0 7px;
+  color: #4338ca;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  font-size: 11px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.admin-guidance em {
+  max-width: 220px;
+  color: #334155;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.admin-guidance i,
+.admin-guidance b,
+.admin-guidance em {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.admin-guidance b {
+  font-weight: 600;
+}
+
 .admin-retrieval-processor {
   display: inline-flex;
   align-items: center;

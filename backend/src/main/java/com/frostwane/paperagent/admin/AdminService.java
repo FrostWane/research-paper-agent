@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ChatRateLimitResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.GuidanceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelHealthResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobNodeSpanResponse;
@@ -389,6 +390,7 @@ public class AdminService {
               t.query_rewrite_model_name,
               t.query_expansions_json::text as query_expansions_json,
               t.tool_executions_json::text as tool_executions_json,
+              t.guidance_json::text as guidance_json,
               t.comparison_requested,
               t.answer_strategy,
               t.answer_contract,
@@ -457,13 +459,14 @@ public class AdminService {
                    or lower(coalesce(t.query_intent, '')) like ?
                    or lower(coalesce(t.model_name, 'fallback')) like ?
                    or lower(coalesce(t.tool_executions_json::text, '[]')) like ?
+                   or lower(coalesce(t.guidance_json::text, '{}')) like ?
                    or lower(coalesce(t.error_message, '')) like ?
                    or lower(coalesce(s.title, '')) like ?
                    or lower(coalesce(p.title, '')) like ?
                    or lower(u.username) like ?
                  )
                 """);
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 11; i++) {
                 params.add(pattern);
             }
         }
@@ -499,6 +502,7 @@ public class AdminService {
             rs.getString("answer_strategy"),
             rs.getString("answer_contract"),
             toolExecutions(rs.getString("tool_executions_json")),
+            guidance(rs.getString("guidance_json")),
             rs.getInt("source_count"),
             rs.getInt("memory_turn_count"),
             rs.getInt("memory_chars"),
@@ -638,6 +642,21 @@ public class AdminService {
         }
     }
 
+    private GuidanceResponse guidance(String json) {
+        try {
+            GuidanceResponse parsed = objectMapper.readValue(json == null ? "{}" : json, GuidanceResponse.class);
+            return new GuidanceResponse(
+                parsed.required(),
+                defaultText(parsed.type(), "NONE"),
+                parsed.message(),
+                parsed.reason(),
+                parsed.suggestions() == null ? List.of() : parsed.suggestions()
+            );
+        } catch (Exception ex) {
+            return new GuidanceResponse(false, "NONE", null, null, List.of());
+        }
+    }
+
     private List<String> stringList(String json) {
         try {
             return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
@@ -673,5 +692,9 @@ public class AdminService {
         }
         String trimmed = value.trim();
         return trimmed.length() <= maxLength ? trimmed : trimmed.substring(0, maxLength);
+    }
+
+    private String defaultText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 }

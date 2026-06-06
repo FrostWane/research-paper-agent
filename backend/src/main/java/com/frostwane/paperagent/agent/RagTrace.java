@@ -76,6 +76,10 @@ public class RagTrace {
     @JdbcTypeCode(SqlTypes.JSON)
     private String toolExecutionsJson = "[]";
 
+    @Column(name = "guidance_json", nullable = false, columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String guidanceJson = "{}";
+
     @Column(name = "query_intent", nullable = false, length = 64)
     private String queryIntent = "GENERAL_QA";
 
@@ -292,6 +296,14 @@ public class RagTrace {
 
     public void setToolExecutionsJson(String toolExecutionsJson) {
         this.toolExecutionsJson = toolExecutionsJson;
+    }
+
+    public String getGuidanceJson() {
+        return guidanceJson;
+    }
+
+    public void setGuidanceJson(String guidanceJson) {
+        this.guidanceJson = guidanceJson;
     }
 
     public String getQueryIntent() {

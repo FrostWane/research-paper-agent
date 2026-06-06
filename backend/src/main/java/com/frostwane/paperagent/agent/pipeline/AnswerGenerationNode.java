@@ -36,6 +36,7 @@ public class AnswerGenerationNode implements AgentNode {
             context.sources(),
             context.conversationHistory(),
             context.toolContext(),
+            context.guidanceContext(),
             context.answerStrategy(),
             context.answerContract()
         );

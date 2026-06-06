@@ -189,6 +189,7 @@ export interface AdminTrace {
   answerStrategy?: string;
   answerContract?: string;
   toolExecutions: AdminToolExecution[];
+  guidance?: AdminGuidance;
   sourceCount: number;
   memoryTurnCount: number;
   memoryChars: number;
@@ -231,6 +232,14 @@ export interface AdminToolExecution {
   details?: string;
   latencyMs: number;
   errorMessage?: string;
+}
+
+export interface AdminGuidance {
+  required: boolean;
+  type: string;
+  message?: string;
+  reason?: string;
+  suggestions: string[];
 }
 
 export interface AdminRetrievalChannel {
