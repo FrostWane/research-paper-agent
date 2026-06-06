@@ -3,6 +3,7 @@ package com.frostwane.paperagent.admin;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ChatRateLimitResponse;
@@ -23,6 +24,9 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ToolExecutionResponse;
 import com.frostwane.paperagent.agent.limit.AgentRateLimitStatus;
 import com.frostwane.paperagent.agent.limit.AgentRateLimiterService;
+import com.frostwane.paperagent.agent.pipeline.AgentNode;
+import com.frostwane.paperagent.agent.pipeline.AgentNodeType;
+import com.frostwane.paperagent.agent.pipeline.AgentPipeline;
 import com.frostwane.paperagent.agent.term.QueryTermMapping;
 import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
 import com.frostwane.paperagent.agent.tool.AgentTool;
@@ -57,6 +61,7 @@ public class AdminService {
     private final QueryTermMappingRepository queryTermMappingRepository;
     private final AgentRateLimiterService agentRateLimiterService;
     private final AgentToolRegistry agentToolRegistry;
+    private final AgentPipeline agentPipeline;
     private final ObjectMapper objectMapper;
 
     public AdminService(
@@ -65,6 +70,7 @@ public class AdminService {
         QueryTermMappingRepository queryTermMappingRepository,
         AgentRateLimiterService agentRateLimiterService,
         AgentToolRegistry agentToolRegistry,
+        AgentPipeline agentPipeline,
         ObjectMapper objectMapper
     ) {
         this.jdbcTemplate = jdbcTemplate;
@@ -72,6 +78,7 @@ public class AdminService {
         this.queryTermMappingRepository = queryTermMappingRepository;
         this.agentRateLimiterService = agentRateLimiterService;
         this.agentToolRegistry = agentToolRegistry;
+        this.agentPipeline = agentPipeline;
         this.objectMapper = objectMapper;
     }
 
@@ -186,6 +193,101 @@ public class AdminService {
         return stats;
     }
 
+    private AgentPipelineNodeResponse agentPipelineNodeResponse(AgentNode node, AgentNodeStats stats) {
+        AgentNodeStats safeStats = stats == null ? AgentNodeStats.empty() : stats;
+        return new AgentPipelineNodeResponse(
+            agentPipeline.name(),
+            node.type().name(),
+            node.name(),
+            nodeLabel(node.type()),
+            nodeDescription(node.type()),
+            node.order(),
+            true,
+            safeStats.totalRuns(),
+            safeStats.successRuns(),
+            safeStats.failedRuns(),
+            safeStats.averageLatencyMs(),
+            safeStats.lastSeenAt()
+        );
+    }
+
+    private Map<String, AgentNodeStats> agentNodeStats() {
+        Map<String, AgentNodeStats> stats = new HashMap<>();
+        jdbcTemplate.query("""
+            select
+              coalesce(node.item->>'type', '') as type,
+              coalesce(node.item->>'name', '') as name,
+              count(*) as total_runs,
+              sum(case when node.item->>'status' = 'SUCCESS' then 1 else 0 end) as success_runs,
+              sum(case when node.item->>'status' = 'FAILED' then 1 else 0 end) as failed_runs,
+              coalesce(round(avg(
+                case
+                  when jsonb_typeof(node.item->'durationMs') = 'number'
+                  then (node.item->>'durationMs')::numeric
+                  else null
+                end
+              )), 0) as average_latency_ms,
+              max(t.created_at) as last_seen_at
+            from rag_traces t
+            cross join lateral jsonb_array_elements(coalesce(t.node_spans_json, '[]'::jsonb)) as node(item)
+            where coalesce(node.item->>'type', '') <> ''
+            group by coalesce(node.item->>'type', ''), coalesce(node.item->>'name', '')
+            """, rs -> {
+            while (rs.next()) {
+                stats.put(agentNodeKey(rs.getString("type"), rs.getString("name")), new AgentNodeStats(
+                    rs.getLong("total_runs"),
+                    rs.getLong("success_runs"),
+                    rs.getLong("failed_runs"),
+                    rs.getInt("average_latency_ms"),
+                    offsetDateTime(rs, "last_seen_at")
+                ));
+            }
+        });
+        return stats;
+    }
+
+    private String agentNodeKey(AgentNode node) {
+        return agentNodeKey(node.type().name(), node.name());
+    }
+
+    private String agentNodeKey(String type, String name) {
+        return defaultText(type, "") + "::" + defaultText(name, "");
+    }
+
+    private String nodeLabel(AgentNodeType type) {
+        return switch (type) {
+            case SCOPE_RESOLUTION -> "范围解析";
+            case MEMORY -> "会话记忆";
+            case QUERY_REWRITE -> "问题改写";
+            case QUERY_PLANNING -> "查询规划";
+            case TOOL_EXECUTION -> "工具执行";
+            case RETRIEVAL -> "知识检索";
+            case INTENT_GUIDANCE -> "意图引导";
+            case ANSWER_PLANNING -> "回答规划";
+            case GENERATION -> "回答生成";
+            case VERIFICATION -> "引用校验";
+            case EVALUATION -> "质量评估";
+            case FORMATTING -> "格式整理";
+        };
+    }
+
+    private String nodeDescription(AgentNodeType type) {
+        return switch (type) {
+            case SCOPE_RESOLUTION -> "解析单篇或全库问答范围，并校验文献归属。";
+            case MEMORY -> "读取近期会话和长期摘要，压缩成可注入 Prompt 的上下文。";
+            case QUERY_REWRITE -> "按配置改写问题并拆分子问题，提升检索召回。";
+            case QUERY_PLANNING -> "识别问题意图、生成检索式，并标记跨文献比较需求。";
+            case TOOL_EXECUTION -> "匹配内部业务工具，把统计或运营类结果注入回答上下文。";
+            case RETRIEVAL -> "执行多通道检索和后处理，产出最终证据片段。";
+            case INTENT_GUIDANCE -> "在问题过泛或证据不足时生成澄清说明和建议追问。";
+            case ANSWER_PLANNING -> "根据意图、工具、证据和引导状态选择回答策略与输出契约。";
+            case GENERATION -> "调用回答 Agent，基于证据、记忆和模板生成 Markdown 回答。";
+            case VERIFICATION -> "检查引用页码和材料不足提示，降低无依据回答风险。";
+            case EVALUATION -> "生成启发式或模型评审质量信号，写入 Trace。";
+            case FORMATTING -> "统一最终回答格式，补齐可读性和结构。";
+        };
+    }
+
     @Transactional(readOnly = true)
     public List<AdminUserResponse> users(User currentUser) {
         requireAdmin(currentUser);
@@ -228,6 +330,15 @@ public class AdminService {
         Map<String, AgentToolStats> stats = agentToolStats();
         return agentToolRegistry.tools().stream()
             .map(tool -> agentToolResponse(tool, stats.get(tool.name())))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgentPipelineNodeResponse> agentPipelineNodes(User currentUser) {
+        requireAdmin(currentUser);
+        Map<String, AgentNodeStats> stats = agentNodeStats();
+        return agentPipeline.nodes().stream()
+            .map(node -> agentPipelineNodeResponse(node, stats.get(agentNodeKey(node))))
             .toList();
     }
 
@@ -775,6 +886,18 @@ public class AdminService {
     ) {
         static AgentToolStats empty() {
             return new AgentToolStats(0, 0, 0, 0, null);
+        }
+    }
+
+    private record AgentNodeStats(
+        long totalRuns,
+        long successRuns,
+        long failedRuns,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
+    ) {
+        static AgentNodeStats empty() {
+            return new AgentNodeStats(0, 0, 0, 0, null);
         }
     }
 }

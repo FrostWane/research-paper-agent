@@ -48,6 +48,10 @@ public class AgentPipeline {
         return NAME;
     }
 
+    public List<AgentNode> nodes() {
+        return nodes;
+    }
+
     private int elapsedMs(Instant started) {
         return Math.toIntExact(Math.min(Duration.between(started, Instant.now()).toMillis(), Integer.MAX_VALUE));
     }

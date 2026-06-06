@@ -103,6 +103,22 @@ public final class AdminDtos {
     ) {
     }
 
+    public record AgentPipelineNodeResponse(
+        String pipelineName,
+        String type,
+        String name,
+        String label,
+        String description,
+        int sortOrder,
+        boolean enabled,
+        long totalRuns,
+        long successRuns,
+        long failedRuns,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
+    ) {
+    }
+
     public record ChatRateLimitResponse(
         boolean enabled,
         int activeGlobal,

@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminAgentTool, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -27,6 +27,10 @@ export function fetchAdminUsers() {
 
 export function fetchAgentTools() {
   return unwrap<AdminAgentTool[]>(api.get('/api/admin/agent-tools'));
+}
+
+export function fetchAgentPipelineNodes() {
+  return unwrap<AdminAgentPipelineNode[]>(api.get('/api/admin/agent-pipeline/nodes'));
 }
 
 export function updateAdminUserStatus(id: number, status: 'NORMAL' | 'DISABLED') {
