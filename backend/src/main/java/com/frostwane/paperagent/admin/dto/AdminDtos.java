@@ -38,6 +38,8 @@ public final class AdminDtos {
         long enabledIntentRoutes,
         long totalAnswerPromptTemplates,
         long enabledAnswerPromptTemplates,
+        long totalModelTargets,
+        long enabledModelTargets,
         long totalSamplePrompts,
         long enabledSamplePrompts,
         int averageLatencyMs,
@@ -287,6 +289,35 @@ public final class AdminDtos {
         Boolean enabled,
         Boolean defaultTemplate,
         @Min(0) @Max(1000) Integer sortOrder
+    ) {
+    }
+
+    public record ModelTargetResponse(
+        Long id,
+        String code,
+        String provider,
+        String modelName,
+        String description,
+        String baseUrl,
+        boolean apiKeyConfigured,
+        boolean enabled,
+        int priority,
+        int timeoutSeconds,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record ModelTargetRequest(
+        @NotBlank @Size(max = 64) String code,
+        @NotBlank @Size(max = 64) String provider,
+        @NotBlank @Size(max = 160) String modelName,
+        @Size(max = 500) String description,
+        @Size(max = 500) String baseUrl,
+        @Size(max = 2000) String apiKey,
+        Boolean enabled,
+        @Min(0) @Max(1000) Integer priority,
+        @Min(1) @Max(120) Integer timeoutSeconds
     ) {
     }
 

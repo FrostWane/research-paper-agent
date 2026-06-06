@@ -6,6 +6,8 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagSettingsRequest;
@@ -14,6 +16,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.UserStatusUpdateRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.intent.IntentRouteService;
+import com.frostwane.paperagent.agent.model.ModelTargetService;
 import com.frostwane.paperagent.agent.prompt.AnswerPromptTemplateService;
 import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.agent.settings.RagSettingsService;
@@ -40,6 +43,7 @@ public class AdminController {
     private final RagSettingsService ragSettingsService;
     private final IntentRouteService intentRouteService;
     private final AnswerPromptTemplateService answerPromptTemplateService;
+    private final ModelTargetService modelTargetService;
     private final CurrentUserService currentUserService;
 
     public AdminController(
@@ -48,6 +52,7 @@ public class AdminController {
         RagSettingsService ragSettingsService,
         IntentRouteService intentRouteService,
         AnswerPromptTemplateService answerPromptTemplateService,
+        ModelTargetService modelTargetService,
         CurrentUserService currentUserService
     ) {
         this.adminService = adminService;
@@ -55,6 +60,7 @@ public class AdminController {
         this.ragSettingsService = ragSettingsService;
         this.intentRouteService = intentRouteService;
         this.answerPromptTemplateService = answerPromptTemplateService;
+        this.modelTargetService = modelTargetService;
         this.currentUserService = currentUserService;
     }
 
@@ -127,6 +133,27 @@ public class AdminController {
     @DeleteMapping("/answer-prompt-templates/{id}")
     public ApiResponse<Void> deleteAnswerPromptTemplate(@PathVariable Long id) {
         answerPromptTemplateService.delete(id, currentUserService.getRequiredUser());
+        return ApiResponse.empty();
+    }
+
+    @GetMapping("/model-targets")
+    public ApiResponse<List<ModelTargetResponse>> modelTargets() {
+        return ApiResponse.ok(modelTargetService.list(currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/model-targets")
+    public ApiResponse<ModelTargetResponse> createModelTarget(@Valid @RequestBody ModelTargetRequest request) {
+        return ApiResponse.ok(modelTargetService.create(request, currentUserService.getRequiredUser()));
+    }
+
+    @PatchMapping("/model-targets/{id}")
+    public ApiResponse<ModelTargetResponse> updateModelTarget(@PathVariable Long id, @Valid @RequestBody ModelTargetRequest request) {
+        return ApiResponse.ok(modelTargetService.update(id, request, currentUserService.getRequiredUser()));
+    }
+
+    @DeleteMapping("/model-targets/{id}")
+    public ApiResponse<Void> deleteModelTarget(@PathVariable Long id) {
+        modelTargetService.delete(id, currentUserService.getRequiredUser());
         return ApiResponse.empty();
     }
 

@@ -249,6 +249,8 @@ export interface AdminOverview {
   enabledIntentRoutes: number;
   totalAnswerPromptTemplates: number;
   enabledAnswerPromptTemplates: number;
+  totalModelTargets: number;
+  enabledModelTargets: number;
   totalSamplePrompts: number;
   enabledSamplePrompts: number;
   averageLatencyMs: number;
@@ -302,6 +304,21 @@ export interface AnswerPromptTemplate {
   enabled: boolean;
   defaultTemplate: boolean;
   sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelTarget {
+  id: number;
+  code: string;
+  provider: string;
+  modelName: string;
+  description?: string;
+  baseUrl?: string;
+  apiKeyConfigured: boolean;
+  enabled: boolean;
+  priority: number;
+  timeoutSeconds: number;
   createdAt: string;
   updatedAt: string;
 }

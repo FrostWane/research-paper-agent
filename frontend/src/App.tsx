@@ -43,21 +43,25 @@ import type { LucideIcon } from 'lucide-react';
 import {
   createAnswerPromptTemplate,
   createIntentRoute,
+  createModelTarget,
   createSamplePrompt,
   createQueryTermMapping,
   deleteAnswerPromptTemplate,
   deleteIntentRoute,
+  deleteModelTarget,
   deleteSamplePrompt,
   deleteQueryTermMapping,
   fetchAdminOverview,
   fetchAnswerPromptTemplates,
   fetchIntentRoutes,
+  fetchModelTargets,
   fetchRagSettings,
   fetchSamplePrompts,
   fetchAdminUsers,
   fetchQueryTermMappings,
   updateAnswerPromptTemplate,
   updateIntentRoute,
+  updateModelTarget,
   updateSamplePrompt,
   updateAdminUserStatus,
   updateRagSettings,
@@ -68,7 +72,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminUser, AnswerPromptTemplate, ChatRecord, IntentRoute, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminOverview, AdminUser, AnswerPromptTemplate, ChatRecord, IntentRoute, ModelTarget, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -152,6 +156,16 @@ type AnswerPromptTemplateInput = {
   defaultTemplate: boolean;
   sortOrder: number;
 };
+type ModelTargetInput = {
+  code: string;
+  provider: string;
+  modelName: string;
+  description: string;
+  baseUrl: string;
+  apiKey: string;
+  priority: number;
+  timeoutSeconds: number;
+};
 type RagSettingsInput = {
   candidateLimit: number;
   resultLimit: number;
@@ -190,6 +204,7 @@ export default function App() {
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
   const [intentRoutes, setIntentRoutes] = useState<IntentRoute[]>([]);
   const [answerPromptTemplates, setAnswerPromptTemplates] = useState<AnswerPromptTemplate[]>([]);
+  const [modelTargets, setModelTargets] = useState<ModelTarget[]>([]);
   const [samplePrompts, setSamplePrompts] = useState<SamplePrompt[]>([]);
   const [ragSettings, setRagSettings] = useState<RagSettings | null>(null);
   const [paperPrompts, setPaperPrompts] = useState<string[]>(quickPrompts);
@@ -325,6 +340,7 @@ export default function App() {
     setQueryMappings([]);
     setIntentRoutes([]);
     setAnswerPromptTemplates([]);
+    setModelTargets([]);
     setSamplePrompts([]);
     setRagSettings(null);
     setPaperPrompts(quickPrompts);
@@ -499,12 +515,13 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, users, mappings, routes, templates, prompts, settings] = await Promise.all([
+      const [overview, users, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminUsers(),
         fetchQueryTermMappings(),
         fetchIntentRoutes(),
         fetchAnswerPromptTemplates(),
+        fetchModelTargets(),
         fetchSamplePrompts(),
         fetchRagSettings()
       ]);
@@ -513,6 +530,7 @@ export default function App() {
       setQueryMappings(mappings);
       setIntentRoutes(routes);
       setAnswerPromptTemplates(templates);
+      setModelTargets(targets);
       setSamplePrompts(prompts);
       setRagSettings(settings);
     } catch (err) {
@@ -691,6 +709,62 @@ export default function App() {
       setAnswerPromptTemplates((current) => current.filter((item) => item.id !== template.id));
       setAdminOverview(await fetchAdminOverview());
       showNotice('回答模板已删除。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleCreateModelTarget(input: ModelTargetInput) {
+    try {
+      setBusyText('正在保存模型目标...');
+      const created = await createModelTarget({ ...input, enabled: true });
+      setModelTargets((current) => [...current, created].sort(compareModelTargets));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('模型目标已添加。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleUpdateModelTarget(target: ModelTarget, patch: Partial<ModelTargetInput & { enabled: boolean }>) {
+    try {
+      setBusyText('正在更新模型目标...');
+      const updated = await updateModelTarget(target.id, {
+        code: patch.code ?? target.code,
+        provider: patch.provider ?? target.provider,
+        modelName: patch.modelName ?? target.modelName,
+        description: patch.description ?? target.description ?? '',
+        baseUrl: patch.baseUrl ?? target.baseUrl ?? '',
+        apiKey: patch.apiKey ?? '',
+        enabled: patch.enabled ?? target.enabled,
+        priority: patch.priority ?? target.priority,
+        timeoutSeconds: patch.timeoutSeconds ?? target.timeoutSeconds
+      });
+      setModelTargets((current) => current.map((item) => (item.id === updated.id ? updated : item)).sort(compareModelTargets));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('模型目标已更新。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleDeleteModelTarget(target: ModelTarget) {
+    const confirmed = window.confirm(`删除模型目标「${target.code}」？`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setBusyText('正在删除模型目标...');
+      await deleteModelTarget(target.id);
+      setModelTargets((current) => current.filter((item) => item.id !== target.id));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('模型目标已删除。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -1004,6 +1078,7 @@ export default function App() {
             queryMappings={queryMappings}
             intentRoutes={intentRoutes}
             answerPromptTemplates={answerPromptTemplates}
+            modelTargets={modelTargets}
             samplePrompts={samplePrompts}
             ragSettings={ragSettings}
             loading={adminLoading}
@@ -1019,6 +1094,9 @@ export default function App() {
             onCreateAnswerPromptTemplate={(input) => void handleCreateAnswerPromptTemplate(input)}
             onUpdateAnswerPromptTemplate={(template, patch) => void handleUpdateAnswerPromptTemplate(template, patch)}
             onDeleteAnswerPromptTemplate={(template) => void handleDeleteAnswerPromptTemplate(template)}
+            onCreateModelTarget={(input) => void handleCreateModelTarget(input)}
+            onUpdateModelTarget={(target, patch) => void handleUpdateModelTarget(target, patch)}
+            onDeleteModelTarget={(target) => void handleDeleteModelTarget(target)}
             onCreateSamplePrompt={(input) => void handleCreateSamplePrompt(input)}
             onUpdateSamplePrompt={(prompt, patch) => void handleUpdateSamplePrompt(prompt, patch)}
             onDeleteSamplePrompt={(prompt) => void handleDeleteSamplePrompt(prompt)}
@@ -1534,6 +1612,7 @@ function AdminView({
   queryMappings,
   intentRoutes,
   answerPromptTemplates,
+  modelTargets,
   samplePrompts,
   ragSettings,
   loading,
@@ -1549,6 +1628,9 @@ function AdminView({
   onCreateAnswerPromptTemplate,
   onUpdateAnswerPromptTemplate,
   onDeleteAnswerPromptTemplate,
+  onCreateModelTarget,
+  onUpdateModelTarget,
+  onDeleteModelTarget,
   onCreateSamplePrompt,
   onUpdateSamplePrompt,
   onDeleteSamplePrompt,
@@ -1559,6 +1641,7 @@ function AdminView({
   queryMappings: QueryTermMapping[];
   intentRoutes: IntentRoute[];
   answerPromptTemplates: AnswerPromptTemplate[];
+  modelTargets: ModelTarget[];
   samplePrompts: SamplePrompt[];
   ragSettings: RagSettings | null;
   loading: boolean;
@@ -1574,6 +1657,9 @@ function AdminView({
   onCreateAnswerPromptTemplate: (input: AnswerPromptTemplateInput) => void;
   onUpdateAnswerPromptTemplate: (template: AnswerPromptTemplate, patch: Partial<AnswerPromptTemplateInput & { enabled: boolean }>) => void;
   onDeleteAnswerPromptTemplate: (template: AnswerPromptTemplate) => void;
+  onCreateModelTarget: (input: ModelTargetInput) => void;
+  onUpdateModelTarget: (target: ModelTarget, patch: Partial<ModelTargetInput & { enabled: boolean }>) => void;
+  onDeleteModelTarget: (target: ModelTarget) => void;
   onCreateSamplePrompt: (input: SamplePromptInput) => void;
   onUpdateSamplePrompt: (prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) => void;
   onDeleteSamplePrompt: (prompt: SamplePrompt) => void;
@@ -1606,6 +1692,7 @@ function AdminView({
         <AdminStat icon={Search} label="术语映射" value={overview?.totalQueryMappings ?? 0} detail={`${overview?.enabledQueryMappings ?? 0} 条启用`} />
         <AdminStat icon={Layers} label="意图路由" value={overview?.totalIntentRoutes ?? 0} detail={`${overview?.enabledIntentRoutes ?? 0} 条启用`} />
         <AdminStat icon={Bot} label="回答模板" value={overview?.totalAnswerPromptTemplates ?? 0} detail={`${overview?.enabledAnswerPromptTemplates ?? 0} 条启用`} />
+        <AdminStat icon={ServerCog} label="模型目标" value={overview?.totalModelTargets ?? 0} detail={`${overview?.enabledModelTargets ?? 0} 条启用`} />
         <AdminStat icon={Brain} label="示例问题" value={overview?.totalSamplePrompts ?? 0} detail={`${overview?.enabledSamplePrompts ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
         <AdminStat icon={CheckCircle2} label="质量均分" value={overview?.averageAnswerQualityScore ?? 0} detail="成功 Trace 的启发式评分" />
@@ -1692,6 +1779,13 @@ function AdminView({
           )}
         </div>
       </div>
+
+      <ModelTargetPanel
+        targets={modelTargets}
+        onCreate={onCreateModelTarget}
+        onUpdate={onUpdateModelTarget}
+        onDelete={onDeleteModelTarget}
+      />
 
       <RagSettingsPanel settings={ragSettings} onUpdate={onUpdateRagSettings} />
 
@@ -1969,6 +2063,162 @@ function AdminView({
         </div>
       </div>
     </section>
+  );
+}
+
+function ModelTargetPanel({
+  targets,
+  onCreate,
+  onUpdate,
+  onDelete
+}: {
+  targets: ModelTarget[];
+  onCreate: (input: ModelTargetInput) => void;
+  onUpdate: (target: ModelTarget, patch: Partial<ModelTargetInput & { enabled: boolean }>) => void;
+  onDelete: (target: ModelTarget) => void;
+}) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [code, setCode] = useState('');
+  const [provider, setProvider] = useState('OPENAI_COMPATIBLE');
+  const [modelName, setModelName] = useState('');
+  const [description, setDescription] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [priority, setPriority] = useState('100');
+  const [timeoutSeconds, setTimeoutSeconds] = useState('45');
+  const editingTarget = targets.find((item) => item.id === editingId) ?? null;
+  const providerRequiresUrl = provider === 'OPENAI_COMPATIBLE';
+
+  function reset() {
+    setEditingId(null);
+    setCode('');
+    setProvider('OPENAI_COMPATIBLE');
+    setModelName('');
+    setDescription('');
+    setBaseUrl('');
+    setApiKey('');
+    setPriority('100');
+    setTimeoutSeconds('45');
+  }
+
+  function startEdit(target: ModelTarget) {
+    setEditingId(target.id);
+    setCode(target.code);
+    setProvider(target.provider);
+    setModelName(target.modelName);
+    setDescription(target.description ?? '');
+    setBaseUrl(target.baseUrl ?? '');
+    setApiKey('');
+    setPriority(String(target.priority ?? 100));
+    setTimeoutSeconds(String(target.timeoutSeconds ?? 45));
+  }
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const input = {
+      code: code.trim(),
+      provider,
+      modelName: modelName.trim(),
+      description: description.trim(),
+      baseUrl: baseUrl.trim(),
+      apiKey: apiKey.trim(),
+      priority: Number.parseInt(priority, 10) || 100,
+      timeoutSeconds: Number.parseInt(timeoutSeconds, 10) || 45
+    };
+    if (!input.code || !input.provider || !input.modelName || (providerRequiresUrl && !input.baseUrl)) {
+      return;
+    }
+    if (editingTarget) {
+      onUpdate(editingTarget, input);
+    } else {
+      onCreate(input);
+    }
+    reset();
+  }
+
+  return (
+    <div className="admin-panel admin-model-target-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>模型目标</h3>
+          <p>按优先级配置模型路由目标，失败后自动尝试下一个。</p>
+        </div>
+        <ServerCog size={18} />
+      </div>
+      <form className="model-target-form" onSubmit={submit}>
+        <label>
+          <span>标识</span>
+          <input value={code} maxLength={64} placeholder="DEEPSEEK_PRIMARY" onChange={(event) => setCode(event.target.value)} />
+        </label>
+        <label>
+          <span>供应商</span>
+          <select value={provider} onChange={(event) => setProvider(event.target.value)}>
+            <option value="OPENAI_COMPATIBLE">OPENAI_COMPATIBLE</option>
+            <option value="ENV">ENV</option>
+          </select>
+        </label>
+        <label>
+          <span>模型</span>
+          <input value={modelName} maxLength={160} placeholder={provider === 'ENV' ? 'ENV_CONFIGURED_CHAT_MODEL' : 'deepseek-v4-flash'} onChange={(event) => setModelName(event.target.value)} />
+        </label>
+        <label>
+          <span>优先级</span>
+          <input value={priority} inputMode="numeric" onChange={(event) => setPriority(event.target.value)} />
+        </label>
+        <label>
+          <span>超时秒</span>
+          <input value={timeoutSeconds} inputMode="numeric" onChange={(event) => setTimeoutSeconds(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>Base URL</span>
+          <input value={baseUrl} maxLength={500} placeholder="https://api.openai.com" disabled={provider === 'ENV'} onChange={(event) => setBaseUrl(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>API Key</span>
+          <input value={apiKey} maxLength={2000} placeholder={editingTarget?.apiKeyConfigured ? '留空表示保留原密钥' : '可选，本地兼容服务可留空'} disabled={provider === 'ENV'} onChange={(event) => setApiKey(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>说明</span>
+          <input value={description} maxLength={500} placeholder="主模型、备用模型或本地兼容网关" onChange={(event) => setDescription(event.target.value)} />
+        </label>
+        <div className="model-target-actions">
+          {editingTarget && (
+            <button className="secondary-button" type="button" onClick={reset}>
+              取消
+            </button>
+          )}
+          <button className="primary-button" type="submit" disabled={!code.trim() || !modelName.trim() || (providerRequiresUrl && !baseUrl.trim())}>
+            <Plus size={17} />
+            {editingTarget ? '更新' : '添加'}
+          </button>
+        </div>
+      </form>
+      <div className="model-target-list">
+        {targets.length === 0 ? (
+          <EmptyState compact title="暂无模型目标" detail="至少保留一个启用目标，模型路由才会尝试真实模型。" />
+        ) : (
+          [...targets].sort(compareModelTargets).map((target) => (
+            <div className={`model-target-row ${target.enabled ? '' : 'is-disabled'}`} key={target.id}>
+              <strong>{target.priority}</strong>
+              <span>
+                <b>{target.code}</b>
+                <small>{target.provider} · {target.modelName} · {target.apiKeyConfigured ? '已配置密钥' : '无密钥'} · {target.timeoutSeconds}s</small>
+              </span>
+              <em>{target.baseUrl || target.description || '环境配置'}</em>
+              <button className="secondary-button compact-action" type="button" onClick={() => startEdit(target)}>
+                编辑
+              </button>
+              <button className="secondary-button compact-action" type="button" onClick={() => onUpdate(target, { enabled: !target.enabled })}>
+                {target.enabled ? '停用' : '启用'}
+              </button>
+              <button className="icon-button small danger" type="button" title="删除模型目标" disabled={target.code === 'ENV_DEFAULT'} onClick={() => onDelete(target)}>
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -3265,6 +3515,13 @@ function compareAnswerPromptTemplates(a: AnswerPromptTemplate, b: AnswerPromptTe
   }
   if ((a.sortOrder ?? 100) !== (b.sortOrder ?? 100)) {
     return (a.sortOrder ?? 100) - (b.sortOrder ?? 100);
+  }
+  return a.id - b.id;
+}
+
+function compareModelTargets(a: ModelTarget, b: ModelTarget) {
+  if ((a.priority ?? 100) !== (b.priority ?? 100)) {
+    return (a.priority ?? 100) - (b.priority ?? 100);
   }
   return a.id - b.id;
 }

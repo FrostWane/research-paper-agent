@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminOverview, AdminUser, AnswerPromptTemplate, IntentRoute, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminOverview, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -105,6 +105,45 @@ export function updateAnswerPromptTemplate(
 
 export function deleteAnswerPromptTemplate(id: number) {
   return unwrap<void>(api.delete(`/api/admin/answer-prompt-templates/${id}`));
+}
+
+export function fetchModelTargets() {
+  return unwrap<ModelTarget[]>(api.get('/api/admin/model-targets'));
+}
+
+export function createModelTarget(input: {
+  code: string;
+  provider: string;
+  modelName: string;
+  description?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  enabled?: boolean;
+  priority?: number;
+  timeoutSeconds?: number;
+}) {
+  return unwrap<ModelTarget>(api.post('/api/admin/model-targets', input));
+}
+
+export function updateModelTarget(
+  id: number,
+  input: {
+    code: string;
+    provider: string;
+    modelName: string;
+    description?: string;
+    baseUrl?: string;
+    apiKey?: string;
+    enabled?: boolean;
+    priority?: number;
+    timeoutSeconds?: number;
+  }
+) {
+  return unwrap<ModelTarget>(api.patch(`/api/admin/model-targets/${id}`, input));
+}
+
+export function deleteModelTarget(id: number) {
+  return unwrap<void>(api.delete(`/api/admin/model-targets/${id}`));
 }
 
 export function fetchRagSettings() {
