@@ -148,6 +148,16 @@ export interface AdminModelHealth {
   lastSeenAt?: string;
 }
 
+export interface AdminChatRateLimit {
+  enabled: boolean;
+  activeGlobal: number;
+  activeUsers: number;
+  recentRequests: number;
+  globalConcurrencyLimit: number;
+  userConcurrencyLimit: number;
+  userPerMinuteLimit: number;
+}
+
 export interface AdminRecentPaper {
   id: number;
   title: string;
@@ -306,6 +316,7 @@ export interface AdminOverview {
   enabledSamplePrompts: number;
   averageLatencyMs: number;
   failedTraces: number;
+  chatRateLimit: AdminChatRateLimit;
   averageRetrievalMs: number;
   averageGenerationMs: number;
   averageAnswerQualityScore: number;
@@ -403,6 +414,10 @@ export interface RagSettings {
   answerQualityJudgeEnabled: boolean;
   rerankModelEnabled: boolean;
   rerankModelMaxCandidates: number;
+  chatRateLimitEnabled: boolean;
+  chatRateLimitGlobalConcurrency: number;
+  chatRateLimitUserConcurrency: number;
+  chatRateLimitUserPerMinute: number;
   updatedAt?: string;
 }
 

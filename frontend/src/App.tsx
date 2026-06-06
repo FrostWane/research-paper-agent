@@ -85,7 +85,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminChatRateLimit, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -196,12 +196,17 @@ type RagSettingsInput = {
   answerQualityJudgeEnabled: boolean;
   rerankModelEnabled: boolean;
   rerankModelMaxCandidates: number;
+  chatRateLimitEnabled: boolean;
+  chatRateLimitGlobalConcurrency: number;
+  chatRateLimitUserConcurrency: number;
+  chatRateLimitUserPerMinute: number;
 };
-type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'memorySummaryEnabled' | 'queryRewriteEnabled' | 'answerQualityJudgeEnabled' | 'rerankModelEnabled'> & {
+type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'memorySummaryEnabled' | 'queryRewriteEnabled' | 'answerQualityJudgeEnabled' | 'rerankModelEnabled' | 'chatRateLimitEnabled'> & {
   memorySummaryEnabled: boolean;
   queryRewriteEnabled: boolean;
   answerQualityJudgeEnabled: boolean;
   rerankModelEnabled: boolean;
+  chatRateLimitEnabled: boolean;
 };
 type AdminTraceFilters = {
   status: string;
@@ -225,7 +230,11 @@ const defaultRagSettingsInput: RagSettingsInput = {
   queryRewriteMaxSubQuestions: 3,
   answerQualityJudgeEnabled: true,
   rerankModelEnabled: false,
-  rerankModelMaxCandidates: 8
+  rerankModelMaxCandidates: 8,
+  chatRateLimitEnabled: true,
+  chatRateLimitGlobalConcurrency: 12,
+  chatRateLimitUserConcurrency: 2,
+  chatRateLimitUserPerMinute: 20
 };
 const defaultTraceFilters: AdminTraceFilters = {
   status: '',
@@ -1072,10 +1081,11 @@ export default function App() {
 
   async function handleUpdateRagSettings(input: RagSettingsInput) {
     try {
-      setBusyText('正在保存 RAG 参数...');
+      setBusyText('正在保存 RAG 与限流参数...');
       const updated = await updateRagSettings(input);
       setRagSettings(updated);
-      showNotice('RAG 检索参数已更新。');
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('RAG 与限流参数已更新。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -2103,6 +2113,7 @@ function AdminView({
         <AdminStat icon={ServerCog} label="模型目标" value={overview?.totalModelTargets ?? 0} detail={`${overview?.enabledModelTargets ?? 0} 条启用`} />
         <AdminStat icon={Brain} label="示例问题" value={overview?.totalSamplePrompts ?? 0} detail={`${overview?.enabledSamplePrompts ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
+        <AdminStat icon={ShieldCheck} label="限流" value={overview?.chatRateLimit?.activeGlobal ?? 0} detail={overview?.chatRateLimit ? `${overview.chatRateLimit.enabled ? '已启用' : '已关闭'} · ${overview.chatRateLimit.recentRequests}/${overview.chatRateLimit.userPerMinuteLimit} 每分钟` : '等待加载'} />
         <AdminStat icon={CheckCircle2} label="质量均分" value={overview?.averageAnswerQualityScore ?? 0} detail="成功 Trace 的评估分" />
       </div>
 
@@ -2195,7 +2206,7 @@ function AdminView({
         onDelete={onDeleteModelTarget}
       />
 
-      <RagSettingsPanel settings={ragSettings} onUpdate={onUpdateRagSettings} />
+      <RagSettingsPanel settings={ragSettings} rateLimit={overview?.chatRateLimit} onUpdate={onUpdateRagSettings} />
 
       <IntentRoutePanel
         routes={intentRoutes}
@@ -2878,7 +2889,7 @@ function ModelTargetPanel({
   );
 }
 
-function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null; onUpdate: (input: RagSettingsInput) => void }) {
+function RagSettingsPanel({ settings, rateLimit, onUpdate }: { settings: RagSettings | null; rateLimit?: AdminChatRateLimit; onUpdate: (input: RagSettingsInput) => void }) {
   const [form, setForm] = useState<RagSettingsFormState>(toRagSettingsForm(settings));
 
   useEffect(() => {
@@ -2906,7 +2917,11 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       queryRewriteMaxSubQuestions: boundedInt(form.queryRewriteMaxSubQuestions, 1, 6, defaultRagSettingsInput.queryRewriteMaxSubQuestions),
       answerQualityJudgeEnabled: form.answerQualityJudgeEnabled,
       rerankModelEnabled: form.rerankModelEnabled,
-      rerankModelMaxCandidates: boundedInt(form.rerankModelMaxCandidates, 2, 20, defaultRagSettingsInput.rerankModelMaxCandidates)
+      rerankModelMaxCandidates: boundedInt(form.rerankModelMaxCandidates, 2, 20, defaultRagSettingsInput.rerankModelMaxCandidates),
+      chatRateLimitEnabled: form.chatRateLimitEnabled,
+      chatRateLimitGlobalConcurrency: boundedInt(form.chatRateLimitGlobalConcurrency, 1, 100, defaultRagSettingsInput.chatRateLimitGlobalConcurrency),
+      chatRateLimitUserConcurrency: boundedInt(form.chatRateLimitUserConcurrency, 1, 20, defaultRagSettingsInput.chatRateLimitUserConcurrency),
+      chatRateLimitUserPerMinute: boundedInt(form.chatRateLimitUserPerMinute, 1, 600, defaultRagSettingsInput.chatRateLimitUserPerMinute)
     });
   }
 
@@ -2915,9 +2930,14 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       <div className="admin-panel-head">
         <div>
           <h3>RAG 检索参数</h3>
-          <p>控制查询改写、候选召回、来源摘录、会话记忆、模型重排、模型评审和多通道融合权重。</p>
+          <p>控制查询改写、候选召回、会话记忆、模型重排、模型评审、多通道融合权重和聊天入口限流。</p>
         </div>
         <SlidersHorizontal size={18} />
+      </div>
+      <div className="rate-limit-status">
+        <span>{rateLimit ? (rateLimit.enabled ? '限流已启用' : '限流已关闭') : '等待加载'}</span>
+        <strong>{rateLimit?.activeGlobal ?? 0} / {rateLimit?.globalConcurrencyLimit ?? defaultRagSettingsInput.chatRateLimitGlobalConcurrency}</strong>
+        <em>当前运行中 · {rateLimit?.activeUsers ?? 0} 个活跃用户 · 最近一分钟 {rateLimit?.recentRequests ?? 0} 次</em>
       </div>
       <form className="rag-settings-form" onSubmit={submit}>
         <label>
@@ -2964,6 +2984,18 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
           <span>重排候选</span>
           <input type="number" min={2} max={20} value={form.rerankModelMaxCandidates} onChange={(event) => updateField('rerankModelMaxCandidates', event.target.value)} />
         </label>
+        <label>
+          <span>全局并发</span>
+          <input type="number" min={1} max={100} value={form.chatRateLimitGlobalConcurrency} onChange={(event) => updateField('chatRateLimitGlobalConcurrency', event.target.value)} />
+        </label>
+        <label>
+          <span>用户并发</span>
+          <input type="number" min={1} max={20} value={form.chatRateLimitUserConcurrency} onChange={(event) => updateField('chatRateLimitUserConcurrency', event.target.value)} />
+        </label>
+        <label>
+          <span>每分钟次数</span>
+          <input type="number" min={1} max={600} value={form.chatRateLimitUserPerMinute} onChange={(event) => updateField('chatRateLimitUserPerMinute', event.target.value)} />
+        </label>
         <label className="rag-settings-check">
           <span>会话摘要</span>
           <input type="checkbox" checked={form.memorySummaryEnabled} onChange={(event) => setForm((current) => ({ ...current, memorySummaryEnabled: event.target.checked }))} />
@@ -2979,6 +3011,10 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
         <label className="rag-settings-check">
           <span>模型重排</span>
           <input type="checkbox" checked={form.rerankModelEnabled} onChange={(event) => setForm((current) => ({ ...current, rerankModelEnabled: event.target.checked }))} />
+        </label>
+        <label className="rag-settings-check">
+          <span>聊天限流</span>
+          <input type="checkbox" checked={form.chatRateLimitEnabled} onChange={(event) => setForm((current) => ({ ...current, chatRateLimitEnabled: event.target.checked }))} />
         </label>
         <div className="rag-settings-actions">
           <em>{settings?.updatedAt ? `更新于 ${formatTime(settings.updatedAt)}` : '使用默认参数'}</em>
@@ -4213,7 +4249,11 @@ function toRagSettingsForm(settings: RagSettings | null): RagSettingsFormState {
     queryRewriteMaxSubQuestions: String(source.queryRewriteMaxSubQuestions),
     answerQualityJudgeEnabled: source.answerQualityJudgeEnabled ?? true,
     rerankModelEnabled: source.rerankModelEnabled ?? false,
-    rerankModelMaxCandidates: String(source.rerankModelMaxCandidates ?? defaultRagSettingsInput.rerankModelMaxCandidates)
+    rerankModelMaxCandidates: String(source.rerankModelMaxCandidates ?? defaultRagSettingsInput.rerankModelMaxCandidates),
+    chatRateLimitEnabled: source.chatRateLimitEnabled ?? true,
+    chatRateLimitGlobalConcurrency: String(source.chatRateLimitGlobalConcurrency ?? defaultRagSettingsInput.chatRateLimitGlobalConcurrency),
+    chatRateLimitUserConcurrency: String(source.chatRateLimitUserConcurrency ?? defaultRagSettingsInput.chatRateLimitUserConcurrency),
+    chatRateLimitUserPerMinute: String(source.chatRateLimitUserPerMinute ?? defaultRagSettingsInput.chatRateLimitUserPerMinute)
   };
 }
 

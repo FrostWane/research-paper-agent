@@ -1609,6 +1609,43 @@ select,
   padding: 14px;
 }
 
+.rate-limit-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 14px 6px;
+  padding: 10px 12px;
+  color: #0f172a;
+  background: #f7fbff;
+  border: 1px solid #dce9f7;
+  border-radius: 8px;
+}
+
+.rate-limit-status span,
+.rate-limit-status strong,
+.rate-limit-status em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rate-limit-status span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rate-limit-status strong {
+  font-size: 14px;
+}
+
+.rate-limit-status em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
 .rag-settings-form label {
   display: grid;
   gap: 6px;
@@ -2824,6 +2861,11 @@ select,
     display: none;
   }
 
+  .rate-limit-status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .rag-settings-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2959,6 +3001,12 @@ select,
   .model-target-row em,
   .model-target-row .secondary-button:first-of-type {
     display: none;
+  }
+
+  .rate-limit-status span,
+  .rate-limit-status strong,
+  .rate-limit-status em {
+    white-space: normal;
   }
 
   .query-mapping-row {

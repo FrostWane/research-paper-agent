@@ -168,7 +168,7 @@ export function fetchRagSettings() {
   return unwrap<RagSettings>(api.get('/api/admin/rag-settings'));
 }
 
-export function updateRagSettings(input: Partial<Pick<RagSettings, 'candidateLimit' | 'resultLimit' | 'sourceExcerptChars' | 'vectorWeight' | 'keywordWeight' | 'memoryHistoryTurns' | 'memoryMaxChars' | 'memorySummaryEnabled' | 'memorySummaryStartTurns' | 'memorySummaryMaxChars' | 'queryRewriteEnabled' | 'queryRewriteMaxSubQuestions' | 'answerQualityJudgeEnabled' | 'rerankModelEnabled' | 'rerankModelMaxCandidates'>>) {
+export function updateRagSettings(input: Partial<Pick<RagSettings, 'candidateLimit' | 'resultLimit' | 'sourceExcerptChars' | 'vectorWeight' | 'keywordWeight' | 'memoryHistoryTurns' | 'memoryMaxChars' | 'memorySummaryEnabled' | 'memorySummaryStartTurns' | 'memorySummaryMaxChars' | 'queryRewriteEnabled' | 'queryRewriteMaxSubQuestions' | 'answerQualityJudgeEnabled' | 'rerankModelEnabled' | 'rerankModelMaxCandidates' | 'chatRateLimitEnabled' | 'chatRateLimitGlobalConcurrency' | 'chatRateLimitUserConcurrency' | 'chatRateLimitUserPerMinute'>>) {
   return unwrap<RagSettings>(api.patch('/api/admin/rag-settings', input));
 }
 

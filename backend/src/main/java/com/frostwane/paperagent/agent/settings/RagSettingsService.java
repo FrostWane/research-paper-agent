@@ -49,6 +49,10 @@ public class RagSettingsService {
         settings.setAnswerQualityJudgeEnabled(request.answerQualityJudgeEnabled() == null || request.answerQualityJudgeEnabled());
         settings.setRerankModelEnabled(Boolean.TRUE.equals(request.rerankModelEnabled()));
         settings.setRerankModelMaxCandidates(clamp(request.rerankModelMaxCandidates(), 2, 20, 8));
+        settings.setChatRateLimitEnabled(request.chatRateLimitEnabled() == null || request.chatRateLimitEnabled());
+        settings.setChatRateLimitGlobalConcurrency(clamp(request.chatRateLimitGlobalConcurrency(), 1, 100, 12));
+        settings.setChatRateLimitUserConcurrency(clamp(request.chatRateLimitUserConcurrency(), 1, 20, 2));
+        settings.setChatRateLimitUserPerMinute(clamp(request.chatRateLimitUserPerMinute(), 1, 600, 20));
         settings.touch();
         return response(repository.save(settings));
     }
@@ -79,7 +83,11 @@ public class RagSettingsService {
             clamp(settings.getQueryRewriteMaxSubQuestions(), 1, 6, 3),
             Boolean.TRUE.equals(settings.getAnswerQualityJudgeEnabled()),
             Boolean.TRUE.equals(settings.getRerankModelEnabled()),
-            clamp(settings.getRerankModelMaxCandidates(), 2, 20, 8)
+            clamp(settings.getRerankModelMaxCandidates(), 2, 20, 8),
+            Boolean.TRUE.equals(settings.getChatRateLimitEnabled()),
+            clamp(settings.getChatRateLimitGlobalConcurrency(), 1, 100, 12),
+            clamp(settings.getChatRateLimitUserConcurrency(), 1, 20, 2),
+            clamp(settings.getChatRateLimitUserPerMinute(), 1, 600, 20)
         );
     }
 
@@ -101,6 +109,10 @@ public class RagSettingsService {
             snapshot.answerQualityJudgeEnabled(),
             snapshot.rerankModelEnabled(),
             snapshot.rerankModelMaxCandidates(),
+            snapshot.chatRateLimitEnabled(),
+            snapshot.chatRateLimitGlobalConcurrency(),
+            snapshot.chatRateLimitUserConcurrency(),
+            snapshot.chatRateLimitUserPerMinute(),
             settings.getUpdatedAt()
         );
     }

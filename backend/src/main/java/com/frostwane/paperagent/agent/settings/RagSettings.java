@@ -60,6 +60,18 @@ public class RagSettings {
     @Column(name = "rerank_model_max_candidates", nullable = false)
     private Integer rerankModelMaxCandidates = 8;
 
+    @Column(name = "chat_rate_limit_enabled", nullable = false)
+    private Boolean chatRateLimitEnabled = true;
+
+    @Column(name = "chat_rate_limit_global_concurrency", nullable = false)
+    private Integer chatRateLimitGlobalConcurrency = 12;
+
+    @Column(name = "chat_rate_limit_user_concurrency", nullable = false)
+    private Integer chatRateLimitUserConcurrency = 2;
+
+    @Column(name = "chat_rate_limit_user_per_minute", nullable = false)
+    private Integer chatRateLimitUserPerMinute = 20;
+
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
@@ -198,6 +210,38 @@ public class RagSettings {
 
     public void setRerankModelMaxCandidates(Integer rerankModelMaxCandidates) {
         this.rerankModelMaxCandidates = rerankModelMaxCandidates;
+    }
+
+    public Boolean getChatRateLimitEnabled() {
+        return chatRateLimitEnabled;
+    }
+
+    public void setChatRateLimitEnabled(Boolean chatRateLimitEnabled) {
+        this.chatRateLimitEnabled = chatRateLimitEnabled;
+    }
+
+    public Integer getChatRateLimitGlobalConcurrency() {
+        return chatRateLimitGlobalConcurrency;
+    }
+
+    public void setChatRateLimitGlobalConcurrency(Integer chatRateLimitGlobalConcurrency) {
+        this.chatRateLimitGlobalConcurrency = chatRateLimitGlobalConcurrency;
+    }
+
+    public Integer getChatRateLimitUserConcurrency() {
+        return chatRateLimitUserConcurrency;
+    }
+
+    public void setChatRateLimitUserConcurrency(Integer chatRateLimitUserConcurrency) {
+        this.chatRateLimitUserConcurrency = chatRateLimitUserConcurrency;
+    }
+
+    public Integer getChatRateLimitUserPerMinute() {
+        return chatRateLimitUserPerMinute;
+    }
+
+    public void setChatRateLimitUserPerMinute(Integer chatRateLimitUserPerMinute) {
+        this.chatRateLimitUserPerMinute = chatRateLimitUserPerMinute;
     }
 
     public OffsetDateTime getUpdatedAt() {

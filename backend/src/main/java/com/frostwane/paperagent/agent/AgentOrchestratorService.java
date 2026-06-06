@@ -11,6 +11,8 @@ import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionCreateRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionUpdateRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
+import com.frostwane.paperagent.agent.limit.AgentRateLimitPermit;
+import com.frostwane.paperagent.agent.limit.AgentRateLimiterService;
 import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.agent.pipeline.AgentNodeType;
 import com.frostwane.paperagent.agent.pipeline.AgentPipeline;
@@ -36,6 +38,7 @@ public class AgentOrchestratorService {
     private final ChatRecordRepository chatRecordRepository;
     private final ChatSessionRepository chatSessionRepository;
     private final ConversationSummaryService conversationSummaryService;
+    private final AgentRateLimiterService agentRateLimiterService;
     private final RagTraceService ragTraceService;
     private final ObjectMapper objectMapper;
 
@@ -45,6 +48,7 @@ public class AgentOrchestratorService {
         ChatRecordRepository chatRecordRepository,
         ChatSessionRepository chatSessionRepository,
         ConversationSummaryService conversationSummaryService,
+        AgentRateLimiterService agentRateLimiterService,
         RagTraceService ragTraceService,
         ObjectMapper objectMapper
     ) {
@@ -53,6 +57,7 @@ public class AgentOrchestratorService {
         this.chatRecordRepository = chatRecordRepository;
         this.chatSessionRepository = chatSessionRepository;
         this.conversationSummaryService = conversationSummaryService;
+        this.agentRateLimiterService = agentRateLimiterService;
         this.ragTraceService = ragTraceService;
         this.objectMapper = objectMapper;
     }
@@ -62,7 +67,7 @@ public class AgentOrchestratorService {
         Instant started = Instant.now();
         AgentPipelineContext context = new AgentPipelineContext(request, owner);
 
-        try {
+        try (AgentRateLimitPermit ignored = agentRateLimiterService.acquire(owner)) {
             ChatSession session = resolveSession(request, owner);
             context.chatSession(session);
             agentPipeline.execute(context);

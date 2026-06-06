@@ -44,6 +44,7 @@ public final class AdminDtos {
         long enabledSamplePrompts,
         int averageLatencyMs,
         long failedTraces,
+        ChatRateLimitResponse chatRateLimit,
         int averageRetrievalMs,
         int averageGenerationMs,
         int averageAnswerQualityScore,
@@ -84,6 +85,17 @@ public final class AdminDtos {
         long fallbackCalls,
         int averageLatencyMs,
         OffsetDateTime lastSeenAt
+    ) {
+    }
+
+    public record ChatRateLimitResponse(
+        boolean enabled,
+        int activeGlobal,
+        int activeUsers,
+        int recentRequests,
+        int globalConcurrencyLimit,
+        int userConcurrencyLimit,
+        int userPerMinuteLimit
     ) {
     }
 
@@ -369,6 +381,10 @@ public final class AdminDtos {
         boolean answerQualityJudgeEnabled,
         boolean rerankModelEnabled,
         int rerankModelMaxCandidates,
+        boolean chatRateLimitEnabled,
+        int chatRateLimitGlobalConcurrency,
+        int chatRateLimitUserConcurrency,
+        int chatRateLimitUserPerMinute,
         OffsetDateTime updatedAt
     ) {
     }
@@ -388,7 +404,11 @@ public final class AdminDtos {
         @Min(1) @Max(6) Integer queryRewriteMaxSubQuestions,
         Boolean answerQualityJudgeEnabled,
         Boolean rerankModelEnabled,
-        @Min(2) @Max(20) Integer rerankModelMaxCandidates
+        @Min(2) @Max(20) Integer rerankModelMaxCandidates,
+        Boolean chatRateLimitEnabled,
+        @Min(1) @Max(100) Integer chatRateLimitGlobalConcurrency,
+        @Min(1) @Max(20) Integer chatRateLimitUserConcurrency,
+        @Min(1) @Max(600) Integer chatRateLimitUserPerMinute
     ) {
     }
 }

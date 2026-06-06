@@ -72,7 +72,7 @@ PATCH /api/agent/chats/{id}/feedback
 
 `sessionId` 可为空；为空时后端会为当前单篇或全库范围复用最近的未归档会话，没有会话时自动创建。响应会返回 `recordId`、`sessionId`、`sessionTitle`、`modelName`、`latencyMs` 和 `sources`，其中 `sources` 包含命中的论文 ID、标题、来源页码和片段。`GET /api/agent/chats` 返回全库问答历史，`GET /api/papers/{paperId}/chats` 返回单篇问答历史，`GET /api/agent/sessions/{id}/chats` 返回某个会话内的消息。
 
-`POST /api/agent/chat/stream` 使用同一份请求体和鉴权规则，返回 `text/event-stream`。前端使用 `fetch` 读取流式响应，并在请求头携带 `Authorization: Bearer <token>`；不直接用 `EventSource`，因为浏览器原生 `EventSource` 不方便附带 JWT。事件名包含 `started`、`running`、`final`、`done` 和 `error`：`started` / `running` 用于展示运行阶段，`final` 的 `response` 字段包含完整 `ChatResponse`，并且后端已经保存问答记录和来源片段；`done` 表示流结束；`error` 会返回 `errorMessage`。
+`POST /api/agent/chat/stream` 使用同一份请求体和鉴权规则，返回 `text/event-stream`。前端使用 `fetch` 读取流式响应，并在请求头携带 `Authorization: Bearer <token>`；不直接用 `EventSource`，因为浏览器原生 `EventSource` 不方便附带 JWT。事件名包含 `started`、`running`、`final`、`done` 和 `error`：`started` / `running` 用于展示运行阶段，`final` 的 `response` 字段包含完整 `ChatResponse`，并且后端已经保存问答记录和来源片段；`done` 表示流结束；`error` 会返回 `errorMessage`。同步和流式问答都会经过聊天入口限流；超过全局并发、单用户并发或单用户每分钟次数时，非流式接口返回 HTTP 429，流式接口返回 `error` 事件。
 
 会话创建请求：
 
@@ -147,9 +147,9 @@ PATCH /api/admin/sample-prompts/{id}
 DELETE /api/admin/sample-prompts/{id}
 ```
 
-`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；回答模板指标包含 `totalAnswerPromptTemplates`、`enabledAnswerPromptTemplates`，用于观察 AnswerAgent Prompt 运营规模；模型目标指标包含 `totalModelTargets`、`enabledModelTargets`，用于观察模型路由候选规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；`averageAnswerQualityScore` 表示成功 Trace 的平均质量分；模型健康字段包含 `taskType`、`provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于按查询改写、回答生成、质量评估、会话摘要、检索重排等任务观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `sessionId`、`sessionTitle`、`scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`rewrittenQuery`、`querySubQuestions`、`queryRewriteEnabled`、`queryRewriteModelName`、`queryExpansions`、`toolExecutions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`memoryTurnCount`、`memoryChars`、`memorySummaryUsed`、`memorySummaryTurnCount`、`memorySummaryChars`、`memorySummaryMethod`、`memorySummaryModelName`、`answerQualityScore`、`answerQualityLabel`、`answerQualityNotes`、`answerQualityMethod`、`answerQualityJudgeEnabled`、`answerQualityJudgeModelName`、`answerQualityConfidence`、`retrievalMs`、`generationMs`、`verificationMs`、`evaluationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的改写、规划、术语扩展、工具执行、策略、会话记忆、长期摘要、检索通道、后处理器、质量评估、节点链路、检索和生成耗时。
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康、聊天限流状态和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；回答模板指标包含 `totalAnswerPromptTemplates`、`enabledAnswerPromptTemplates`，用于观察 AnswerAgent Prompt 运营规模；模型目标指标包含 `totalModelTargets`、`enabledModelTargets`，用于观察模型路由候选规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；`chatRateLimit` 包含 `enabled`、`activeGlobal`、`activeUsers`、`recentRequests`、`globalConcurrencyLimit`、`userConcurrencyLimit` 和 `userPerMinuteLimit`，用于观察聊天入口限流状态；`averageAnswerQualityScore` 表示成功 Trace 的平均质量分；模型健康字段包含 `taskType`、`provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于按查询改写、回答生成、质量评估、会话摘要、检索重排等任务观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `sessionId`、`sessionTitle`、`scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`rewrittenQuery`、`querySubQuestions`、`queryRewriteEnabled`、`queryRewriteModelName`、`queryExpansions`、`toolExecutions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`memoryTurnCount`、`memoryChars`、`memorySummaryUsed`、`memorySummaryTurnCount`、`memorySummaryChars`、`memorySummaryMethod`、`memorySummaryModelName`、`answerQualityScore`、`answerQualityLabel`、`answerQualityNotes`、`answerQualityMethod`、`answerQualityJudgeEnabled`、`answerQualityJudgeModelName`、`answerQualityConfidence`、`retrievalMs`、`generationMs`、`verificationMs`、`evaluationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的改写、规划、术语扩展、工具执行、策略、会话记忆、长期摘要、检索通道、后处理器、质量评估、节点链路、检索和生成耗时。
 
-`GET /api/admin/rag-traces` 返回分页 Trace Explorer 数据，支持按 `status`、`scope`、`sessionId` 和 `keyword` 过滤；`keyword` 会匹配问题、检索式、改写问题、意图、模型名、工具执行结果、会话标题、论文标题和用户名。`GET /api/admin/rag-traces/{id}` 返回单条 Trace 的完整诊断字段，便于从后台打开历史链路详情。
+`GET /api/admin/rag-traces` 返回分页 Trace Explorer 数据，支持按 `status`、`scope`、`sessionId` 和 `keyword` 过滤；`keyword` 会匹配问题、检索式、改写问题、意图、模型名、工具执行结果、错误信息、会话标题、论文标题和用户名。`GET /api/admin/rag-traces/{id}` 返回单条 Trace 的完整诊断字段，便于从后台打开历史链路详情。
 
 查询术语映射请求：
 
@@ -236,11 +236,15 @@ RAG 检索参数请求：
   "queryRewriteMaxSubQuestions": 3,
   "answerQualityJudgeEnabled": true,
   "rerankModelEnabled": false,
-  "rerankModelMaxCandidates": 8
+  "rerankModelMaxCandidates": 8,
+  "chatRateLimitEnabled": true,
+  "chatRateLimitGlobalConcurrency": 12,
+  "chatRateLimitUserConcurrency": 2,
+  "chatRateLimitUserPerMinute": 20
 }
 ```
 
-`candidateLimit` 控制每个检索通道的候选召回上限，`resultLimit` 控制最终返回来源数，`sourceExcerptChars` 控制来源卡片摘录长度，`vectorWeight` 和 `keywordWeight` 控制通道融合权重，`memoryHistoryTurns` 和 `memoryMaxChars` 控制近期历史问答注入 Prompt 的轮数和字符上限，`memorySummaryEnabled`、`memorySummaryStartTurns` 和 `memorySummaryMaxChars` 控制是否把超出近期窗口的旧会话压缩成长期摘要，`queryRewriteEnabled` 和 `queryRewriteMaxSubQuestions` 控制查询改写与子问题拆分，`answerQualityJudgeEnabled` 控制是否在启发式评估后调用 `QUALITY_EVALUATION` 模型做 LLM-as-judge 质量评审，`rerankModelEnabled` 和 `rerankModelMaxCandidates` 控制是否在检索式感知精排后调用 `RETRIEVAL_RERANK` 模型重排前 N 个候选；该开关默认关闭，模型不可用或返回格式异常时会回退原顺序并继续回答。
+`candidateLimit` 控制每个检索通道的候选召回上限，`resultLimit` 控制最终返回来源数，`sourceExcerptChars` 控制来源卡片摘录长度，`vectorWeight` 和 `keywordWeight` 控制通道融合权重，`memoryHistoryTurns` 和 `memoryMaxChars` 控制近期历史问答注入 Prompt 的轮数和字符上限，`memorySummaryEnabled`、`memorySummaryStartTurns` 和 `memorySummaryMaxChars` 控制是否把超出近期窗口的旧会话压缩成长期摘要，`queryRewriteEnabled` 和 `queryRewriteMaxSubQuestions` 控制查询改写与子问题拆分，`answerQualityJudgeEnabled` 控制是否在启发式评估后调用 `QUALITY_EVALUATION` 模型做 LLM-as-judge 质量评审，`rerankModelEnabled` 和 `rerankModelMaxCandidates` 控制是否在检索式感知精排后调用 `RETRIEVAL_RERANK` 模型重排前 N 个候选；该开关默认关闭，模型不可用或返回格式异常时会回退原顺序并继续回答。`chatRateLimitEnabled`、`chatRateLimitGlobalConcurrency`、`chatRateLimitUserConcurrency` 和 `chatRateLimitUserPerMinute` 控制聊天入口限流，默认保护全局 12 路并发、单用户 2 路并发和每分钟 20 次请求。
 
 示例问题管理请求：
 

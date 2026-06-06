@@ -15,6 +15,10 @@ public record RagSettingsSnapshot(
     int queryRewriteMaxSubQuestions,
     boolean answerQualityJudgeEnabled,
     boolean rerankModelEnabled,
-    int rerankModelMaxCandidates
+    int rerankModelMaxCandidates,
+    boolean chatRateLimitEnabled,
+    int chatRateLimitGlobalConcurrency,
+    int chatRateLimitUserConcurrency,
+    int chatRateLimitUserPerMinute
 ) {
 }

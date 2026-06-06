@@ -50,11 +50,11 @@ AgentOrchestratorService
 
 示例问题作为轻量运营配置保存在 `sample_prompts`，按 `PAPER` / `LIBRARY` 范围分发给阅读页和全库问答页。前端保留默认提示作为兜底，但登录后会优先使用后端启用的推荐问法，让管理员可以持续调整用户入口问题，而无需重新发布前端。
 
-流式问答采用轻量 HTTP SSE 包装：`AgentStreamService` 在独立 `agentStreamExecutor` 中调用现有 `AgentOrchestratorService.chat`，向前端发送 `started`、`running`、`final`、`done` 和 `error` 事件。`final` 事件携带完整 `ChatResponse`，表示问答记录、来源片段、Trace 和会话摘要等现有事务链路已经完成；前端在读取流期间展示临时回答和停止等待按钮，完成后再刷新会话列表。这个设计先提供 ragent 式流式交互体验，但不改变当前 Pipeline 的事务边界，也不引入独立工作流引擎。
+流式问答采用轻量 HTTP SSE 包装：`AgentStreamService` 在独立 `agentStreamExecutor` 中调用现有 `AgentOrchestratorService.chat`，向前端发送 `started`、`running`、`final`、`done` 和 `error` 事件。`final` 事件携带完整 `ChatResponse`，表示问答记录、来源片段、Trace 和会话摘要等现有事务链路已经完成；前端在读取流期间展示临时回答和停止等待按钮，完成后再刷新会话列表。同步和流式入口都会经过 `AgentRateLimiterService`，该服务从 `rag_settings` 读取限流开关、全局并发、单用户并发和单用户每分钟请求上限，使用进程内计数器保护模型调用入口；被拒绝的请求返回 HTTP 429，并通过 `AgentOrchestratorService` 写入失败 Trace。这个设计先提供 ragent 式流式交互体验和基础并发护栏，但不改变当前 Pipeline 的事务边界，也不引入独立工作流引擎。
 
 ## Runtime Observability
 
-RAG Trace 采用“概览快照 + 分页检索 + 单条详情”的轻量可观测设计。`AgentPipeline` 和各检索后处理器在运行时把节点 span、检索通道、后处理器、查询改写、术语扩展、工具执行、长期摘要、答案质量和耗时写入 `rag_traces`；`AdminService` 统一解析 JSONB 字段，既向 `/api/admin/overview` 提供最近 Trace，也向 `/api/admin/rag-traces` 提供按状态、范围、会话 ID 和关键词过滤的分页查询。管理台的 Trace Explorer 可以展开单条链路，查看检索式、改写、工具、记忆、质量评估、通道、后处理器和节点耗时，用于排查召回不足、生成过慢、质量风险、工具异常和模型路由异常。
+RAG Trace 采用“概览快照 + 分页检索 + 单条详情”的轻量可观测设计。`AgentPipeline` 和各检索后处理器在运行时把节点 span、检索通道、后处理器、查询改写、术语扩展、工具执行、长期摘要、答案质量和耗时写入 `rag_traces`；限流拒绝也会落入失败 Trace，便于把 429 与具体用户、会话范围和问题关联起来。`AdminService` 统一解析 JSONB 字段，既向 `/api/admin/overview` 提供最近 Trace 和聊天限流状态，也向 `/api/admin/rag-traces` 提供按状态、范围、会话 ID 和关键词过滤的分页查询。管理台的 Trace Explorer 可以展开单条链路，查看检索式、改写、工具、记忆、质量评估、通道、后处理器和节点耗时，用于排查召回不足、生成过慢、质量风险、工具异常、限流拒绝和模型路由异常。
 
 ## Ingestion Observability
 

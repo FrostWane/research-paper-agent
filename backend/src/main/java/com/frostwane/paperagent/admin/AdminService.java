@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ChatRateLimitResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelHealthResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobNodeSpanResponse;
@@ -18,6 +19,8 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RecentPaperResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ToolExecutionResponse;
+import com.frostwane.paperagent.agent.limit.AgentRateLimitStatus;
+import com.frostwane.paperagent.agent.limit.AgentRateLimiterService;
 import com.frostwane.paperagent.agent.term.QueryTermMapping;
 import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
 import com.frostwane.paperagent.common.BusinessException;
@@ -46,17 +49,20 @@ public class AdminService {
     private final JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
     private final QueryTermMappingRepository queryTermMappingRepository;
+    private final AgentRateLimiterService agentRateLimiterService;
     private final ObjectMapper objectMapper;
 
     public AdminService(
         JdbcTemplate jdbcTemplate,
         UserRepository userRepository,
         QueryTermMappingRepository queryTermMappingRepository,
+        AgentRateLimiterService agentRateLimiterService,
         ObjectMapper objectMapper
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.userRepository = userRepository;
         this.queryTermMappingRepository = queryTermMappingRepository;
+        this.agentRateLimiterService = agentRateLimiterService;
         this.objectMapper = objectMapper;
     }
 
@@ -91,6 +97,7 @@ public class AdminService {
             count("select count(*) from sample_prompts where enabled = true"),
             intValue("select coalesce(round(avg(latency_ms)), 0) from chat_records where latency_ms is not null"),
             count("select count(*) from rag_traces where status = 'FAILED'"),
+            chatRateLimit(),
             intValue("select coalesce(round(avg(retrieval_ms)), 0) from rag_traces"),
             intValue("select coalesce(round(avg(generation_ms)), 0) from rag_traces"),
             intValue("select coalesce(round(avg(answer_quality_score)), 0) from rag_traces where status = 'SUCCESS' and answer_quality_label <> 'UNASSESSED'"),
@@ -103,6 +110,19 @@ public class AdminService {
             recentPapers(),
             recentParseJobs(),
             recentTraces()
+        );
+    }
+
+    private ChatRateLimitResponse chatRateLimit() {
+        AgentRateLimitStatus status = agentRateLimiterService.status();
+        return new ChatRateLimitResponse(
+            status.enabled(),
+            status.activeGlobal(),
+            status.activeUsers(),
+            status.recentRequests(),
+            status.globalConcurrencyLimit(),
+            status.userConcurrencyLimit(),
+            status.userPerMinuteLimit()
         );
     }
 
@@ -437,12 +457,13 @@ public class AdminService {
                    or lower(coalesce(t.query_intent, '')) like ?
                    or lower(coalesce(t.model_name, 'fallback')) like ?
                    or lower(coalesce(t.tool_executions_json::text, '[]')) like ?
+                   or lower(coalesce(t.error_message, '')) like ?
                    or lower(coalesce(s.title, '')) like ?
                    or lower(coalesce(p.title, '')) like ?
                    or lower(u.username) like ?
                  )
                 """);
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < 10; i++) {
                 params.add(pattern);
             }
         }
