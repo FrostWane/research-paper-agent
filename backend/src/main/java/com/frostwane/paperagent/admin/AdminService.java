@@ -20,6 +20,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
 import com.frostwane.paperagent.agent.term.QueryTermMapping;
 import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
 import com.frostwane.paperagent.common.BusinessException;
+import com.frostwane.paperagent.common.PageResponse;
 import com.frostwane.paperagent.user.User;
 import com.frostwane.paperagent.user.UserRepository;
 import com.frostwane.paperagent.user.UserRole;
@@ -34,7 +35,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class AdminService {
@@ -136,6 +139,48 @@ public class AdminService {
             rs.getInt("average_latency_ms"),
             offsetDateTime(rs, "created_at")
         ));
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<RagTraceResponse> ragTraces(
+        User currentUser,
+        String status,
+        String scope,
+        Long sessionId,
+        String keyword,
+        int page,
+        int pageSize
+    ) {
+        requireAdmin(currentUser);
+        int safePage = Math.max(1, page);
+        int safePageSize = Math.max(5, Math.min(80, pageSize));
+        int offset = (safePage - 1) * safePageSize;
+        List<Object> params = new ArrayList<>();
+        String where = traceWhere(status, scope, sessionId, keyword, params);
+        long total = numberValue("select count(*) " + traceFromSql() + where, params);
+        List<Object> rowParams = new ArrayList<>(params);
+        rowParams.add(safePageSize);
+        rowParams.add(offset);
+        List<RagTraceResponse> items = jdbcTemplate.query(
+            traceSelectSql() + where + " order by t.created_at desc limit ? offset ?",
+            this::mapTrace,
+            rowParams.toArray()
+        );
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
+        return new PageResponse<>(items, total, safePage, safePageSize, totalPages);
+    }
+
+    @Transactional(readOnly = true)
+    public RagTraceResponse ragTrace(Long id, User currentUser) {
+        requireAdmin(currentUser);
+        return jdbcTemplate.query(
+                traceSelectSql() + " where t.id = ?",
+                this::mapTrace,
+                id
+            )
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new BusinessException("Trace 不存在"));
     }
 
     @Transactional
@@ -298,7 +343,11 @@ public class AdminService {
     }
 
     private List<RagTraceResponse> recentTraces() {
-        return jdbcTemplate.query("""
+        return jdbcTemplate.query(traceSelectSql() + " order by t.created_at desc limit 8", this::mapTrace);
+    }
+
+    private String traceSelectSql() {
+        return """
             select
               t.id,
               u.username,
@@ -347,13 +396,63 @@ public class AdminService {
               t.retrieval_processors_json::text as retrieval_processors_json,
               t.node_spans_json::text as node_spans_json,
               t.created_at
+            """ + traceFromSql();
+    }
+
+    private String traceFromSql() {
+        return """
             from rag_traces t
             join users u on u.id = t.owner_id
             left join papers p on p.id = t.paper_id
             left join chat_sessions s on s.id = t.session_id
-            order by t.created_at desc
-            limit 8
-            """, (rs, rowNum) -> new RagTraceResponse(
+            """;
+    }
+
+    private String traceWhere(String status, String scope, Long sessionId, String keyword, List<Object> params) {
+        StringBuilder where = new StringBuilder(" where 1 = 1");
+        String normalizedStatus = compact(status, 32);
+        if (normalizedStatus != null) {
+            where.append(" and upper(t.status) = ?");
+            params.add(normalizedStatus.toUpperCase(Locale.ROOT));
+        }
+        String normalizedScope = compact(scope, 32);
+        if (normalizedScope != null) {
+            where.append(" and upper(t.scope) = ?");
+            params.add(normalizedScope.toUpperCase(Locale.ROOT));
+        }
+        if (sessionId != null && sessionId > 0) {
+            where.append(" and t.session_id = ?");
+            params.add(sessionId);
+        }
+        String normalizedKeyword = compact(keyword, 160);
+        if (normalizedKeyword != null) {
+            String pattern = "%" + normalizedKeyword.toLowerCase(Locale.ROOT) + "%";
+            where.append("""
+                 and (
+                   lower(t.question) like ?
+                   or lower(coalesce(t.search_query, '')) like ?
+                   or lower(coalesce(t.rewritten_query, '')) like ?
+                   or lower(coalesce(t.query_intent, '')) like ?
+                   or lower(coalesce(t.model_name, 'fallback')) like ?
+                   or lower(coalesce(s.title, '')) like ?
+                   or lower(coalesce(p.title, '')) like ?
+                   or lower(u.username) like ?
+                 )
+                """);
+            for (int i = 0; i < 8; i++) {
+                params.add(pattern);
+            }
+        }
+        return where.toString();
+    }
+
+    private long numberValue(String sql, List<Object> params) {
+        Number value = jdbcTemplate.queryForObject(sql, Number.class, params.toArray());
+        return value == null ? 0L : value.longValue();
+    }
+
+    private RagTraceResponse mapTrace(ResultSet rs, int rowNum) throws SQLException {
+        return new RagTraceResponse(
             rs.getLong("id"),
             rs.getString("username"),
             nullableLong(rs, "paper_id"),
@@ -401,7 +500,7 @@ public class AdminService {
             retrievalProcessors(rs.getString("retrieval_processors_json")),
             nodeSpans(rs.getString("node_spans_json")),
             offsetDateTime(rs, "created_at")
-        ));
+        );
     }
 
     private List<ParseJobResponse> recentParseJobs() {

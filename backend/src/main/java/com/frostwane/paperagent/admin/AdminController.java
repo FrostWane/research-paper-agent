@@ -10,6 +10,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagSettingsRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagSettingsResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.UserStatusUpdateRequest;
@@ -22,6 +23,7 @@ import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.agent.settings.RagSettingsService;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
+import com.frostwane.paperagent.common.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -67,6 +70,31 @@ public class AdminController {
     @GetMapping("/overview")
     public ApiResponse<AdminOverviewResponse> overview() {
         return ApiResponse.ok(adminService.overview(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/rag-traces")
+    public ApiResponse<PageResponse<RagTraceResponse>> ragTraces(
+        @RequestParam(defaultValue = "") String status,
+        @RequestParam(defaultValue = "") String scope,
+        @RequestParam(required = false) Long sessionId,
+        @RequestParam(defaultValue = "") String keyword,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(adminService.ragTraces(
+            currentUserService.getRequiredUser(),
+            status,
+            scope,
+            sessionId,
+            keyword,
+            page,
+            pageSize
+        ));
+    }
+
+    @GetMapping("/rag-traces/{id}")
+    public ApiResponse<RagTraceResponse> ragTrace(@PathVariable Long id) {
+        return ApiResponse.ok(adminService.ragTrace(id, currentUserService.getRequiredUser()));
     }
 
     @GetMapping("/users")

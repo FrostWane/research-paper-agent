@@ -1,8 +1,24 @@
 import { api, unwrap } from './request';
-import type { AdminOverview, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
+}
+
+export function fetchAdminTraces(query: {
+  status?: string;
+  scope?: string;
+  sessionId?: string;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const params = {
+    ...query,
+    sessionId: query.sessionId?.trim() || undefined,
+    keyword: query.keyword?.trim() || undefined
+  };
+  return unwrap<PageResponse<AdminTrace>>(api.get('/api/admin/rag-traces', { params }));
 }
 
 export function fetchAdminUsers() {

@@ -2146,6 +2146,50 @@ select,
   overflow-x: auto;
 }
 
+.admin-trace-explorer-panel {
+  overflow-x: auto;
+}
+
+.admin-trace-filter {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.6fr) minmax(110px, 0.6fr) minmax(110px, 0.6fr) minmax(220px, 1.6fr) auto auto;
+  align-items: end;
+  gap: 10px;
+  min-width: 920px;
+  margin-bottom: 12px;
+}
+
+.admin-trace-filter label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-trace-filter input,
+.admin-trace-filter select {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.admin-trace-explorer-meta {
+  display: flex;
+  justify-content: space-between;
+  min-width: 920px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .admin-trace-list {
   min-width: 1040px;
 }
@@ -2173,6 +2217,10 @@ select,
 .admin-trace-row.is-failed {
   border-color: #ffd5dd;
   background: #fff8fa;
+}
+
+.admin-trace-row.explorer {
+  align-items: start;
 }
 
 .admin-trace-row em,
@@ -2254,6 +2302,51 @@ select,
 
 .admin-trace-question .admin-trace-memory {
   color: #0f766e;
+}
+
+.admin-trace-detail {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.admin-trace-detail summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-trace-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.admin-trace-detail-grid span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.admin-trace-detail-grid b {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.admin-trace-detail .admin-trace-search-query,
+.admin-trace-detail .admin-trace-quality-note,
+.admin-trace-detail-grid small {
+  display: block;
+  overflow: visible;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .admin-trace-row > .admin-quality-badge {
@@ -2471,6 +2564,14 @@ select,
 .admin-node-span b {
   color: var(--muted);
   font-weight: 600;
+}
+
+.admin-trace-pagination {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 920px;
+  margin-top: 12px;
 }
 
 .admin-user-table {

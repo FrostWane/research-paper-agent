@@ -49,6 +49,10 @@ AgentOrchestratorService
 
 示例问题作为轻量运营配置保存在 `sample_prompts`，按 `PAPER` / `LIBRARY` 范围分发给阅读页和全库问答页。前端保留默认提示作为兜底，但登录后会优先使用后端启用的推荐问法，让管理员可以持续调整用户入口问题，而无需重新发布前端。
 
+## Runtime Observability
+
+RAG Trace 采用“概览快照 + 分页检索 + 单条详情”的轻量可观测设计。`AgentPipeline` 和各检索后处理器在运行时把节点 span、检索通道、后处理器、查询改写、术语扩展、长期摘要、答案质量和耗时写入 `rag_traces`；`AdminService` 统一解析 JSONB 字段，既向 `/api/admin/overview` 提供最近 Trace，也向 `/api/admin/rag-traces` 提供按状态、范围、会话 ID 和关键词过滤的分页查询。管理台的 Trace Explorer 可以展开单条链路，查看检索式、改写、记忆、质量评估、通道、后处理器和节点耗时，用于排查召回不足、生成过慢、质量风险和模型路由异常。
+
 ## Ingestion Observability
 
 PDF 入库保留同步执行方式，但解析任务会记录 ragent 风格的轻量节点链路：`prepare -> fetch-pdf -> parse-pdf -> persist-chunks -> index-embeddings -> finalize`。每个节点记录名称、状态、耗时和错误摘要，并保存到 `parse_jobs.node_spans_json`。管理员后台的解析任务面板会显示这些节点标签，用于定位是文件读取、PDF 文本抽取、切块写库还是 embedding 索引慢或失败。

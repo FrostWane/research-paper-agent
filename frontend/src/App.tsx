@@ -53,6 +53,7 @@ import {
   deleteSamplePrompt,
   deleteQueryTermMapping,
   fetchAdminOverview,
+  fetchAdminTraces,
   fetchAnswerPromptTemplates,
   fetchIntentRoutes,
   fetchModelTargets,
@@ -83,7 +84,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminUser, AnswerPromptTemplate, ChatRecord, ChatSession, IntentRoute, ModelTarget, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -198,6 +199,12 @@ type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'memory
   queryRewriteEnabled: boolean;
   answerQualityJudgeEnabled: boolean;
 };
+type AdminTraceFilters = {
+  status: string;
+  scope: string;
+  sessionId: string;
+  keyword: string;
+};
 
 const defaultRagSettingsInput: RagSettingsInput = {
   candidateLimit: 10,
@@ -213,6 +220,12 @@ const defaultRagSettingsInput: RagSettingsInput = {
   queryRewriteEnabled: true,
   queryRewriteMaxSubQuestions: 3,
   answerQualityJudgeEnabled: true
+};
+const defaultTraceFilters: AdminTraceFilters = {
+  status: '',
+  scope: '',
+  sessionId: '',
+  keyword: ''
 };
 
 export default function App() {
@@ -234,6 +247,8 @@ export default function App() {
   const [question, setQuestion] = useState('');
   const [pdfJump, setPdfJump] = useState<PdfJump | null>(null);
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
+  const [adminTracePage, setAdminTracePage] = useState<PageResponse<AdminTrace> | null>(null);
+  const [adminTraceFilters, setAdminTraceFilters] = useState<AdminTraceFilters>(defaultTraceFilters);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
   const [intentRoutes, setIntentRoutes] = useState<IntentRoute[]>([]);
@@ -406,6 +421,8 @@ export default function App() {
     setSelectedSessionId(null);
     setChats([]);
     setAdminOverview(null);
+    setAdminTracePage(null);
+    setAdminTraceFilters(defaultTraceFilters);
     setAdminUsers([]);
     setQueryMappings([]);
     setIntentRoutes([]);
@@ -644,8 +661,9 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, users, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, users, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
+        fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
         fetchAdminUsers(),
         fetchQueryTermMappings(),
         fetchIntentRoutes(),
@@ -655,6 +673,7 @@ export default function App() {
         fetchRagSettings()
       ]);
       setAdminOverview(overview);
+      setAdminTracePage(traces);
       setAdminUsers(users);
       setQueryMappings(mappings);
       setIntentRoutes(routes);
@@ -667,6 +686,25 @@ export default function App() {
     } finally {
       setAdminLoading(false);
     }
+  }
+
+  async function loadAdminTracePage(nextFilters = adminTraceFilters, page = adminTracePage?.page ?? 1) {
+    try {
+      setAdminLoading(true);
+      setError('');
+      const traces = await fetchAdminTraces({ ...nextFilters, page, pageSize: adminTracePage?.pageSize ?? 12 });
+      setAdminTracePage(traces);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleAdminTraceFilterChange(patch: Partial<AdminTraceFilters>) {
+    const nextFilters = { ...adminTraceFilters, ...patch };
+    setAdminTraceFilters(nextFilters);
+    await loadAdminTracePage(nextFilters, 1);
   }
 
   async function handleAdminUserStatus(userItem: AdminUser, status: 'NORMAL' | 'DISABLED') {
@@ -1216,6 +1254,8 @@ export default function App() {
         {activeView === 'admin' && user.role === 'ADMIN' && (
           <AdminView
             overview={adminOverview}
+            tracePage={adminTracePage}
+            traceFilters={adminTraceFilters}
             users={adminUsers}
             queryMappings={queryMappings}
             intentRoutes={intentRoutes}
@@ -1226,6 +1266,8 @@ export default function App() {
             loading={adminLoading}
             currentUserId={user.id}
             onRefresh={() => void loadAdminData()}
+            onTraceFilterChange={(patch) => void handleAdminTraceFilterChange(patch)}
+            onTracePageChange={(page) => void loadAdminTracePage(adminTraceFilters, page)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
             onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
@@ -1850,6 +1892,8 @@ function ChatSessionBar({
 
 function AdminView({
   overview,
+  tracePage,
+  traceFilters,
   users,
   queryMappings,
   intentRoutes,
@@ -1860,6 +1904,8 @@ function AdminView({
   loading,
   currentUserId,
   onRefresh,
+  onTraceFilterChange,
+  onTracePageChange,
   onUserStatusChange,
   onCreateQueryMapping,
   onUpdateQueryMapping,
@@ -1879,6 +1925,8 @@ function AdminView({
   onUpdateRagSettings
 }: {
   overview: AdminOverview | null;
+  tracePage: PageResponse<AdminTrace> | null;
+  traceFilters: AdminTraceFilters;
   users: AdminUser[];
   queryMappings: QueryTermMapping[];
   intentRoutes: IntentRoute[];
@@ -1889,6 +1937,8 @@ function AdminView({
   loading: boolean;
   currentUserId: number;
   onRefresh: () => void;
+  onTraceFilterChange: (patch: Partial<AdminTraceFilters>) => void;
+  onTracePageChange: (page: number) => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
   onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
@@ -2248,6 +2298,14 @@ function AdminView({
         </div>
       </div>
 
+      <TraceExplorerPanel
+        page={tracePage}
+        filters={traceFilters}
+        loading={loading}
+        onFilterChange={onTraceFilterChange}
+        onPageChange={onTracePageChange}
+      />
+
       <div className="admin-grid wide">
         <div className="admin-panel">
           <div className="admin-panel-head">
@@ -2322,6 +2380,191 @@ function AdminView({
         </div>
       </div>
     </section>
+  );
+}
+
+function TraceExplorerPanel({
+  page,
+  filters,
+  loading,
+  onFilterChange,
+  onPageChange
+}: {
+  page: PageResponse<AdminTrace> | null;
+  filters: AdminTraceFilters;
+  loading: boolean;
+  onFilterChange: (patch: Partial<AdminTraceFilters>) => void;
+  onPageChange: (page: number) => void;
+}) {
+  const [draft, setDraft] = useState<AdminTraceFilters>(filters);
+  const traces = page?.items ?? [];
+  const currentPage = page?.page ?? 1;
+  const totalPages = page?.totalPages ?? 0;
+  const total = page?.total ?? 0;
+
+  useEffect(() => {
+    setDraft(filters);
+  }, [filters.status, filters.scope, filters.sessionId, filters.keyword]);
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onFilterChange(draft);
+  }
+
+  return (
+    <div className="admin-panel admin-trace-explorer-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>Trace Explorer</h3>
+          <p>按状态、范围、会话或关键词检索历史链路，展开查看节点诊断。</p>
+        </div>
+        <Search size={18} />
+      </div>
+      <form className="admin-trace-filter" onSubmit={submit}>
+        <label>
+          <span>状态</span>
+          <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}>
+            <option value="">全部</option>
+            <option value="SUCCESS">成功</option>
+            <option value="FAILED">失败</option>
+          </select>
+        </label>
+        <label>
+          <span>范围</span>
+          <select value={draft.scope} onChange={(event) => setDraft((current) => ({ ...current, scope: event.target.value }))}>
+            <option value="">全部</option>
+            <option value="LIBRARY">全库</option>
+            <option value="PAPER">单篇</option>
+          </select>
+        </label>
+        <label>
+          <span>会话 ID</span>
+          <input type="number" min={1} value={draft.sessionId} onChange={(event) => setDraft((current) => ({ ...current, sessionId: event.target.value }))} />
+        </label>
+        <label className="trace-filter-keyword">
+          <span>关键词</span>
+          <input value={draft.keyword} placeholder="问题、检索式、模型、会话标题" onChange={(event) => setDraft((current) => ({ ...current, keyword: event.target.value }))} />
+        </label>
+        <button className="secondary-button compact-action" type="submit" disabled={loading}>
+          查询
+        </button>
+        <button
+          className="secondary-button compact-action"
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            setDraft(defaultTraceFilters);
+            onFilterChange(defaultTraceFilters);
+          }}
+        >
+          重置
+        </button>
+      </form>
+      <div className="admin-trace-explorer-meta">
+        <span>{total} 条 Trace</span>
+        <span>第 {totalPages === 0 ? 0 : currentPage} / {totalPages} 页</span>
+      </div>
+      <div className="admin-trace-list">
+        {traces.length === 0 ? (
+          <EmptyState compact title="暂无匹配 Trace" detail="调整过滤条件后再试。" />
+        ) : (
+          traces.map((trace) => (
+            <div className={`admin-trace-row explorer ${trace.status === 'FAILED' ? 'is-failed' : ''}`} key={trace.id}>
+              <strong className={`admin-trace-status ${trace.status === 'SUCCESS' ? 'is-success' : 'is-failed'}`}>
+                {traceStatusLabel(trace.status)}
+              </strong>
+              <span className="admin-trace-question">
+                <strong>#{trace.id} · {trace.question}</strong>
+                <small>
+                  {trace.username} · {scopeLabel(trace.scope)} · {intentLabel(trace.queryIntent)} · {strategyLabel(trace.answerStrategy)} · {trace.sessionTitle ? `会话：${trace.sessionTitle} · ` : ''}{trace.paperTitle || '全库知识库'} · {formatTime(trace.createdAt)}
+                </small>
+                <details className="admin-trace-detail">
+                  <summary>诊断详情</summary>
+                  <div className="admin-trace-detail-grid">
+                    <span>
+                      <b>检索式</b>
+                      <small>{trace.searchQuery || '-'}</small>
+                    </span>
+                    <span>
+                      <b>改写</b>
+                      <small>{trace.rewrittenQuery || '-'}{trace.queryRewriteModelName ? ` · ${trace.queryRewriteModelName}` : ''}</small>
+                    </span>
+                    <span>
+                      <b>会话记忆</b>
+                      <small>{trace.memoryTurnCount} 轮 / {trace.memoryChars} 字{trace.memorySummaryUsed ? ` · 摘要 ${trace.memorySummaryTurnCount} 轮 / ${trace.memorySummaryChars} 字` : ''}</small>
+                    </span>
+                    <span>
+                      <b>质量评估</b>
+                      <small>{trace.answerQualityScore} · {qualityLabel(trace.answerQualityLabel)} · {qualityMethodLabel(trace.answerQualityMethod)}{trace.answerQualityConfidence ? ` · 置信 ${trace.answerQualityConfidence}%` : ''}</small>
+                    </span>
+                  </div>
+                  {trace.querySubQuestions.length > 0 && (
+                    <small className="admin-trace-search-query">子问题：{trace.querySubQuestions.map((item) => compactText(item, 56)).join(' / ')}</small>
+                  )}
+                  {trace.answerContract && (
+                    <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 180)}</small>
+                  )}
+                  {trace.answerQualityNotes && (
+                    <small className="admin-trace-quality-note">质量说明：{trace.answerQualityNotes}</small>
+                  )}
+                  {(trace.retrievalChannels ?? []).length > 0 && (
+                    <div className="admin-retrieval-channels">
+                      {trace.retrievalChannels.map((channel) => (
+                        <span className={`admin-retrieval-channel ${channel.status === 'FAILED' ? 'is-failed' : ''}`} key={`${trace.id}-explorer-channel-${channel.name}`} title={channel.errorMessage || channel.label || channel.name}>
+                          <i>{channel.label || channel.name}</i>
+                          <b>{channel.candidateCount}</b>
+                          <em>{formatLatency(channel.latencyMs)}</em>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {(trace.retrievalProcessors ?? []).length > 0 && (
+                    <div className="admin-retrieval-processors">
+                      {trace.retrievalProcessors.map((processor) => (
+                        <span className={`admin-retrieval-processor ${processor.status === 'FAILED' ? 'is-failed' : ''}`} key={`${trace.id}-explorer-processor-${processor.name}`} title={processor.errorMessage || processor.label || processor.name}>
+                          <i>{processor.label || processor.name}</i>
+                          <b>{`${processor.inputCount}->${processor.outputCount}`}</b>
+                          <em>{formatLatency(processor.latencyMs)}</em>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {(trace.nodeSpans ?? []).length > 0 && (
+                    <div className="admin-node-spans">
+                      {trace.nodeSpans.map((span) => (
+                        <span className={`admin-node-span ${span.status === 'FAILED' ? 'is-failed' : ''}`} key={`${trace.id}-explorer-span-${span.order}-${span.name}`} title={span.errorMessage || span.name}>
+                          <i>{nodeSpanLabel(span.name)}</i>
+                          <b>{formatLatency(span.durationMs)}</b>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {trace.errorMessage && <small className="admin-trace-error">{trace.errorMessage}</small>}
+                </details>
+              </span>
+              <span className={`admin-quality-badge ${qualityBadgeClass(trace.answerQualityLabel)}`}>
+                <b>{trace.answerQualityScore}</b>
+                <small>{qualityLabel(trace.answerQualityLabel)}</small>
+              </span>
+              <em>{trace.modelName || 'fallback'}</em>
+              <span>{trace.sourceCount}</span>
+              <span>{formatLatency(trace.retrievalMs)}</span>
+              <span>{formatLatency(trace.generationMs)}</span>
+              <span>{formatLatency(trace.evaluationMs)}</span>
+              <strong>{formatLatency(trace.totalMs)}</strong>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="admin-trace-pagination">
+        <button className="secondary-button compact-action" type="button" disabled={loading || currentPage <= 1} onClick={() => onPageChange(Math.max(1, currentPage - 1))}>
+          上一页
+        </button>
+        <button className="secondary-button compact-action" type="button" disabled={loading || totalPages === 0 || currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          下一页
+        </button>
+      </div>
+    </div>
   );
 }
 

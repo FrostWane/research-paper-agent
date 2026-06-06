@@ -116,6 +116,8 @@ GET /api/agent/sample-prompts?scope=LIBRARY
 
 ```http
 GET   /api/admin/overview
+GET   /api/admin/rag-traces?status=&scope=&sessionId=&keyword=&page=1&pageSize=20
+GET   /api/admin/rag-traces/{id}
 GET   /api/admin/users
 PATCH /api/admin/users/{id}/status
 GET   /api/admin/query-term-mappings
@@ -143,6 +145,8 @@ DELETE /api/admin/sample-prompts/{id}
 ```
 
 `GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；回答模板指标包含 `totalAnswerPromptTemplates`、`enabledAnswerPromptTemplates`，用于观察 AnswerAgent Prompt 运营规模；模型目标指标包含 `totalModelTargets`、`enabledModelTargets`，用于观察模型路由候选规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；`averageAnswerQualityScore` 表示成功 Trace 的平均质量分；模型健康字段包含 `taskType`、`provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于按查询改写、回答生成、质量评估、会话摘要等任务观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `sessionId`、`sessionTitle`、`scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`rewrittenQuery`、`querySubQuestions`、`queryRewriteEnabled`、`queryRewriteModelName`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`memoryTurnCount`、`memoryChars`、`memorySummaryUsed`、`memorySummaryTurnCount`、`memorySummaryChars`、`memorySummaryMethod`、`memorySummaryModelName`、`answerQualityScore`、`answerQualityLabel`、`answerQualityNotes`、`answerQualityMethod`、`answerQualityJudgeEnabled`、`answerQualityJudgeModelName`、`answerQualityConfidence`、`retrievalMs`、`generationMs`、`verificationMs`、`evaluationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的改写、规划、术语扩展、策略、会话记忆、长期摘要、检索通道、后处理器、质量评估、节点链路、检索和生成耗时。
+
+`GET /api/admin/rag-traces` 返回分页 Trace Explorer 数据，支持按 `status`、`scope`、`sessionId` 和 `keyword` 过滤；`keyword` 会匹配问题、检索式、改写问题、意图、模型名、会话标题、论文标题和用户名。`GET /api/admin/rag-traces/{id}` 返回单条 Trace 的完整诊断字段，便于从后台打开历史链路详情。
 
 查询术语映射请求：
 
