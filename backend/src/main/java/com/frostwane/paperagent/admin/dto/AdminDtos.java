@@ -355,6 +355,8 @@ public final class AdminDtos {
         boolean queryRewriteEnabled,
         int queryRewriteMaxSubQuestions,
         boolean answerQualityJudgeEnabled,
+        boolean rerankModelEnabled,
+        int rerankModelMaxCandidates,
         OffsetDateTime updatedAt
     ) {
     }
@@ -372,7 +374,9 @@ public final class AdminDtos {
         @Min(300) @Max(6000) Integer memorySummaryMaxChars,
         Boolean queryRewriteEnabled,
         @Min(1) @Max(6) Integer queryRewriteMaxSubQuestions,
-        Boolean answerQualityJudgeEnabled
+        Boolean answerQualityJudgeEnabled,
+        Boolean rerankModelEnabled,
+        @Min(2) @Max(20) Integer rerankModelMaxCandidates
     ) {
     }
 }

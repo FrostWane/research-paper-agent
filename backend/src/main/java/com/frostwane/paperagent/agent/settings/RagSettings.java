@@ -54,6 +54,12 @@ public class RagSettings {
     @Column(name = "answer_quality_judge_enabled", nullable = false)
     private Boolean answerQualityJudgeEnabled = true;
 
+    @Column(name = "rerank_model_enabled", nullable = false)
+    private Boolean rerankModelEnabled = false;
+
+    @Column(name = "rerank_model_max_candidates", nullable = false)
+    private Integer rerankModelMaxCandidates = 8;
+
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
@@ -176,6 +182,22 @@ public class RagSettings {
 
     public void setAnswerQualityJudgeEnabled(Boolean answerQualityJudgeEnabled) {
         this.answerQualityJudgeEnabled = answerQualityJudgeEnabled;
+    }
+
+    public Boolean getRerankModelEnabled() {
+        return rerankModelEnabled;
+    }
+
+    public void setRerankModelEnabled(Boolean rerankModelEnabled) {
+        this.rerankModelEnabled = rerankModelEnabled;
+    }
+
+    public Integer getRerankModelMaxCandidates() {
+        return rerankModelMaxCandidates;
+    }
+
+    public void setRerankModelMaxCandidates(Integer rerankModelMaxCandidates) {
+        this.rerankModelMaxCandidates = rerankModelMaxCandidates;
     }
 
     public OffsetDateTime getUpdatedAt() {

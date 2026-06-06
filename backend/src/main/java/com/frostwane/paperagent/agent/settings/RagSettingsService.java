@@ -47,6 +47,8 @@ public class RagSettingsService {
         settings.setQueryRewriteEnabled(request.queryRewriteEnabled() == null || request.queryRewriteEnabled());
         settings.setQueryRewriteMaxSubQuestions(clamp(request.queryRewriteMaxSubQuestions(), 1, 6, 3));
         settings.setAnswerQualityJudgeEnabled(request.answerQualityJudgeEnabled() == null || request.answerQualityJudgeEnabled());
+        settings.setRerankModelEnabled(Boolean.TRUE.equals(request.rerankModelEnabled()));
+        settings.setRerankModelMaxCandidates(clamp(request.rerankModelMaxCandidates(), 2, 20, 8));
         settings.touch();
         return response(repository.save(settings));
     }
@@ -75,7 +77,9 @@ public class RagSettingsService {
             clamp(settings.getMemorySummaryMaxChars(), 300, 6000, 1800),
             Boolean.TRUE.equals(settings.getQueryRewriteEnabled()),
             clamp(settings.getQueryRewriteMaxSubQuestions(), 1, 6, 3),
-            Boolean.TRUE.equals(settings.getAnswerQualityJudgeEnabled())
+            Boolean.TRUE.equals(settings.getAnswerQualityJudgeEnabled()),
+            Boolean.TRUE.equals(settings.getRerankModelEnabled()),
+            clamp(settings.getRerankModelMaxCandidates(), 2, 20, 8)
         );
     }
 
@@ -95,6 +99,8 @@ public class RagSettingsService {
             snapshot.queryRewriteEnabled(),
             snapshot.queryRewriteMaxSubQuestions(),
             snapshot.answerQualityJudgeEnabled(),
+            snapshot.rerankModelEnabled(),
+            snapshot.rerankModelMaxCandidates(),
             settings.getUpdatedAt()
         );
     }

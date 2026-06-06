@@ -7,7 +7,8 @@ public enum ModelTaskType {
     ANSWER_GENERATION,
     QUERY_REWRITE,
     QUALITY_EVALUATION,
-    CONVERSATION_SUMMARY;
+    CONVERSATION_SUMMARY,
+    RETRIEVAL_RERANK;
 
     public String code() {
         return name();

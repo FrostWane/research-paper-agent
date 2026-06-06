@@ -144,7 +144,7 @@ PATCH /api/admin/sample-prompts/{id}
 DELETE /api/admin/sample-prompts/{id}
 ```
 
-`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；回答模板指标包含 `totalAnswerPromptTemplates`、`enabledAnswerPromptTemplates`，用于观察 AnswerAgent Prompt 运营规模；模型目标指标包含 `totalModelTargets`、`enabledModelTargets`，用于观察模型路由候选规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；`averageAnswerQualityScore` 表示成功 Trace 的平均质量分；模型健康字段包含 `taskType`、`provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于按查询改写、回答生成、质量评估、会话摘要等任务观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `sessionId`、`sessionTitle`、`scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`rewrittenQuery`、`querySubQuestions`、`queryRewriteEnabled`、`queryRewriteModelName`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`memoryTurnCount`、`memoryChars`、`memorySummaryUsed`、`memorySummaryTurnCount`、`memorySummaryChars`、`memorySummaryMethod`、`memorySummaryModelName`、`answerQualityScore`、`answerQualityLabel`、`answerQualityNotes`、`answerQualityMethod`、`answerQualityJudgeEnabled`、`answerQualityJudgeModelName`、`answerQualityConfidence`、`retrievalMs`、`generationMs`、`verificationMs`、`evaluationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的改写、规划、术语扩展、策略、会话记忆、长期摘要、检索通道、后处理器、质量评估、节点链路、检索和生成耗时。
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；回答模板指标包含 `totalAnswerPromptTemplates`、`enabledAnswerPromptTemplates`，用于观察 AnswerAgent Prompt 运营规模；模型目标指标包含 `totalModelTargets`、`enabledModelTargets`，用于观察模型路由候选规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；`averageAnswerQualityScore` 表示成功 Trace 的平均质量分；模型健康字段包含 `taskType`、`provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于按查询改写、回答生成、质量评估、会话摘要、检索重排等任务观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `sessionId`、`sessionTitle`、`scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`rewrittenQuery`、`querySubQuestions`、`queryRewriteEnabled`、`queryRewriteModelName`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`memoryTurnCount`、`memoryChars`、`memorySummaryUsed`、`memorySummaryTurnCount`、`memorySummaryChars`、`memorySummaryMethod`、`memorySummaryModelName`、`answerQualityScore`、`answerQualityLabel`、`answerQualityNotes`、`answerQualityMethod`、`answerQualityJudgeEnabled`、`answerQualityJudgeModelName`、`answerQualityConfidence`、`retrievalMs`、`generationMs`、`verificationMs`、`evaluationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的改写、规划、术语扩展、策略、会话记忆、长期摘要、检索通道、后处理器、质量评估、节点链路、检索和生成耗时。
 
 `GET /api/admin/rag-traces` 返回分页 Trace Explorer 数据，支持按 `status`、`scope`、`sessionId` 和 `keyword` 过滤；`keyword` 会匹配问题、检索式、改写问题、意图、模型名、会话标题、论文标题和用户名。`GET /api/admin/rag-traces/{id}` 返回单条 Trace 的完整诊断字段，便于从后台打开历史链路详情。
 
@@ -213,7 +213,7 @@ DELETE /api/admin/sample-prompts/{id}
 }
 ```
 
-`provider` 支持 `ENV` 和 `OPENAI_COMPATIBLE`。`ENV` 表示使用当前环境变量和 Spring AI 配置；`OPENAI_COMPATIBLE` 会按 `baseUrl + /v1/chat/completions` 调用兼容接口。`taskType` 支持 `GENERAL`、`ANSWER_GENERATION`、`QUERY_REWRITE`、`QUALITY_EVALUATION` 和 `CONVERSATION_SUMMARY`，用于让回答生成、查询改写、质量评估、会话摘要等节点选择不同模型；路由时会先按任务类型尝试启用目标，再尝试 `GENERAL` 通用目标。模型路由会按启用目标的 `priority` 升序逐个尝试，失败会记录到 `model_invocations` 并继续尝试下一个目标，全部失败后才走 fallback。更新时 `apiKey` 留空表示保留原密钥。
+`provider` 支持 `ENV` 和 `OPENAI_COMPATIBLE`。`ENV` 表示使用当前环境变量和 Spring AI 配置；`OPENAI_COMPATIBLE` 会按 `baseUrl + /v1/chat/completions` 调用兼容接口。`taskType` 支持 `GENERAL`、`ANSWER_GENERATION`、`QUERY_REWRITE`、`QUALITY_EVALUATION`、`CONVERSATION_SUMMARY` 和 `RETRIEVAL_RERANK`，用于让回答生成、查询改写、质量评估、会话摘要、检索重排等节点选择不同模型；路由时会先按任务类型尝试启用目标，再尝试 `GENERAL` 通用目标。模型路由会按启用目标的 `priority` 升序逐个尝试，失败会记录到 `model_invocations` 并继续尝试下一个目标，全部失败后才走 fallback。更新时 `apiKey` 留空表示保留原密钥。
 
 RAG 检索参数请求：
 
@@ -231,11 +231,13 @@ RAG 检索参数请求：
   "memorySummaryMaxChars": 1800,
   "queryRewriteEnabled": true,
   "queryRewriteMaxSubQuestions": 3,
-  "answerQualityJudgeEnabled": true
+  "answerQualityJudgeEnabled": true,
+  "rerankModelEnabled": false,
+  "rerankModelMaxCandidates": 8
 }
 ```
 
-`candidateLimit` 控制每个检索通道的候选召回上限，`resultLimit` 控制最终返回来源数，`sourceExcerptChars` 控制来源卡片摘录长度，`vectorWeight` 和 `keywordWeight` 控制通道融合权重，`memoryHistoryTurns` 和 `memoryMaxChars` 控制近期历史问答注入 Prompt 的轮数和字符上限，`memorySummaryEnabled`、`memorySummaryStartTurns` 和 `memorySummaryMaxChars` 控制是否把超出近期窗口的旧会话压缩成长期摘要，`queryRewriteEnabled` 和 `queryRewriteMaxSubQuestions` 控制查询改写与子问题拆分，`answerQualityJudgeEnabled` 控制是否在启发式评估后调用 `QUALITY_EVALUATION` 模型做 LLM-as-judge 质量评审。
+`candidateLimit` 控制每个检索通道的候选召回上限，`resultLimit` 控制最终返回来源数，`sourceExcerptChars` 控制来源卡片摘录长度，`vectorWeight` 和 `keywordWeight` 控制通道融合权重，`memoryHistoryTurns` 和 `memoryMaxChars` 控制近期历史问答注入 Prompt 的轮数和字符上限，`memorySummaryEnabled`、`memorySummaryStartTurns` 和 `memorySummaryMaxChars` 控制是否把超出近期窗口的旧会话压缩成长期摘要，`queryRewriteEnabled` 和 `queryRewriteMaxSubQuestions` 控制查询改写与子问题拆分，`answerQualityJudgeEnabled` 控制是否在启发式评估后调用 `QUALITY_EVALUATION` 模型做 LLM-as-judge 质量评审，`rerankModelEnabled` 和 `rerankModelMaxCandidates` 控制是否在检索式感知精排后调用 `RETRIEVAL_RERANK` 模型重排前 N 个候选；该开关默认关闭，模型不可用或返回格式异常时会回退原顺序并继续回答。
 
 示例问题管理请求：
 

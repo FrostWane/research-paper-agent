@@ -210,7 +210,7 @@ public class ModelTargetService {
             ModelTaskType fallbackTask = ModelTaskType.fromCode(fallback, ModelTaskType.GENERAL);
             return ModelTaskType.fromCode(value, fallbackTask).code();
         } catch (IllegalArgumentException ex) {
-            throw new BusinessException("任务类型仅支持 GENERAL、ANSWER_GENERATION、QUERY_REWRITE、QUALITY_EVALUATION 或 CONVERSATION_SUMMARY");
+            throw new BusinessException("任务类型仅支持 GENERAL、ANSWER_GENERATION、QUERY_REWRITE、QUALITY_EVALUATION、CONVERSATION_SUMMARY 或 RETRIEVAL_RERANK");
         }
     }
 

@@ -383,6 +383,8 @@ export interface RagSettings {
   queryRewriteEnabled: boolean;
   queryRewriteMaxSubQuestions: number;
   answerQualityJudgeEnabled: boolean;
+  rerankModelEnabled: boolean;
+  rerankModelMaxCandidates: number;
   updatedAt?: string;
 }
 

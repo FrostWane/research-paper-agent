@@ -13,6 +13,8 @@ public record RagSettingsSnapshot(
     int memorySummaryMaxChars,
     boolean queryRewriteEnabled,
     int queryRewriteMaxSubQuestions,
-    boolean answerQualityJudgeEnabled
+    boolean answerQualityJudgeEnabled,
+    boolean rerankModelEnabled,
+    int rerankModelMaxCandidates
 ) {
 }

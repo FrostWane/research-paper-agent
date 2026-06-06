@@ -193,11 +193,14 @@ type RagSettingsInput = {
   queryRewriteEnabled: boolean;
   queryRewriteMaxSubQuestions: number;
   answerQualityJudgeEnabled: boolean;
+  rerankModelEnabled: boolean;
+  rerankModelMaxCandidates: number;
 };
-type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'memorySummaryEnabled' | 'queryRewriteEnabled' | 'answerQualityJudgeEnabled'> & {
+type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'memorySummaryEnabled' | 'queryRewriteEnabled' | 'answerQualityJudgeEnabled' | 'rerankModelEnabled'> & {
   memorySummaryEnabled: boolean;
   queryRewriteEnabled: boolean;
   answerQualityJudgeEnabled: boolean;
+  rerankModelEnabled: boolean;
 };
 type AdminTraceFilters = {
   status: string;
@@ -219,7 +222,9 @@ const defaultRagSettingsInput: RagSettingsInput = {
   memorySummaryMaxChars: 1800,
   queryRewriteEnabled: true,
   queryRewriteMaxSubQuestions: 3,
-  answerQualityJudgeEnabled: true
+  answerQualityJudgeEnabled: true,
+  rerankModelEnabled: false,
+  rerankModelMaxCandidates: 8
 };
 const defaultTraceFilters: AdminTraceFilters = {
   status: '',
@@ -2762,7 +2767,9 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       memorySummaryMaxChars: boundedInt(form.memorySummaryMaxChars, 300, 6000, defaultRagSettingsInput.memorySummaryMaxChars),
       queryRewriteEnabled: form.queryRewriteEnabled,
       queryRewriteMaxSubQuestions: boundedInt(form.queryRewriteMaxSubQuestions, 1, 6, defaultRagSettingsInput.queryRewriteMaxSubQuestions),
-      answerQualityJudgeEnabled: form.answerQualityJudgeEnabled
+      answerQualityJudgeEnabled: form.answerQualityJudgeEnabled,
+      rerankModelEnabled: form.rerankModelEnabled,
+      rerankModelMaxCandidates: boundedInt(form.rerankModelMaxCandidates, 2, 20, defaultRagSettingsInput.rerankModelMaxCandidates)
     });
   }
 
@@ -2771,7 +2778,7 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       <div className="admin-panel-head">
         <div>
           <h3>RAG 检索参数</h3>
-          <p>控制查询改写、候选召回、来源摘录、会话记忆、模型评审和多通道融合权重。</p>
+          <p>控制查询改写、候选召回、来源摘录、会话记忆、模型重排、模型评审和多通道融合权重。</p>
         </div>
         <SlidersHorizontal size={18} />
       </div>
@@ -2816,6 +2823,10 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
           <span>改写子问</span>
           <input type="number" min={1} max={6} value={form.queryRewriteMaxSubQuestions} onChange={(event) => updateField('queryRewriteMaxSubQuestions', event.target.value)} />
         </label>
+        <label>
+          <span>重排候选</span>
+          <input type="number" min={2} max={20} value={form.rerankModelMaxCandidates} onChange={(event) => updateField('rerankModelMaxCandidates', event.target.value)} />
+        </label>
         <label className="rag-settings-check">
           <span>会话摘要</span>
           <input type="checkbox" checked={form.memorySummaryEnabled} onChange={(event) => setForm((current) => ({ ...current, memorySummaryEnabled: event.target.checked }))} />
@@ -2827,6 +2838,10 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
         <label className="rag-settings-check">
           <span>模型评审</span>
           <input type="checkbox" checked={form.answerQualityJudgeEnabled} onChange={(event) => setForm((current) => ({ ...current, answerQualityJudgeEnabled: event.target.checked }))} />
+        </label>
+        <label className="rag-settings-check">
+          <span>模型重排</span>
+          <input type="checkbox" checked={form.rerankModelEnabled} onChange={(event) => setForm((current) => ({ ...current, rerankModelEnabled: event.target.checked }))} />
         </label>
         <div className="rag-settings-actions">
           <em>{settings?.updatedAt ? `更新于 ${formatTime(settings.updatedAt)}` : '使用默认参数'}</em>
@@ -4057,7 +4072,9 @@ function toRagSettingsForm(settings: RagSettings | null): RagSettingsFormState {
     memorySummaryMaxChars: String(source.memorySummaryMaxChars ?? defaultRagSettingsInput.memorySummaryMaxChars),
     queryRewriteEnabled: source.queryRewriteEnabled,
     queryRewriteMaxSubQuestions: String(source.queryRewriteMaxSubQuestions),
-    answerQualityJudgeEnabled: source.answerQualityJudgeEnabled ?? true
+    answerQualityJudgeEnabled: source.answerQualityJudgeEnabled ?? true,
+    rerankModelEnabled: source.rerankModelEnabled ?? false,
+    rerankModelMaxCandidates: String(source.rerankModelMaxCandidates ?? defaultRagSettingsInput.rerankModelMaxCandidates)
   };
 }
 
@@ -4117,7 +4134,8 @@ const modelTaskOptions = [
   { value: 'ANSWER_GENERATION', label: '回答生成' },
   { value: 'QUERY_REWRITE', label: '查询改写' },
   { value: 'QUALITY_EVALUATION', label: '质量评估' },
-  { value: 'CONVERSATION_SUMMARY', label: '会话摘要' }
+  { value: 'CONVERSATION_SUMMARY', label: '会话摘要' },
+  { value: 'RETRIEVAL_RERANK', label: '检索重排' }
 ];
 
 function modelTaskLabel(taskType = 'GENERAL') {
