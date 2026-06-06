@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminOverview, AdminUser, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminOverview, AdminUser, IntentRoute, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -27,6 +27,47 @@ export function updateQueryTermMapping(id: number, input: { term: string; expans
 
 export function deleteQueryTermMapping(id: number) {
   return unwrap<void>(api.delete(`/api/admin/query-term-mappings/${id}`));
+}
+
+export function fetchIntentRoutes() {
+  return unwrap<IntentRoute[]>(api.get('/api/admin/intent-routes'));
+}
+
+export function createIntentRoute(input: {
+  intentCode: string;
+  label: string;
+  description?: string;
+  keywords: string;
+  searchHint?: string;
+  answerStrategy: string;
+  answerContract?: string;
+  comparisonEnabled?: boolean;
+  enabled?: boolean;
+  sortOrder?: number;
+}) {
+  return unwrap<IntentRoute>(api.post('/api/admin/intent-routes', input));
+}
+
+export function updateIntentRoute(
+  id: number,
+  input: {
+    intentCode: string;
+    label: string;
+    description?: string;
+    keywords: string;
+    searchHint?: string;
+    answerStrategy: string;
+    answerContract?: string;
+    comparisonEnabled?: boolean;
+    enabled?: boolean;
+    sortOrder?: number;
+  }
+) {
+  return unwrap<IntentRoute>(api.patch(`/api/admin/intent-routes/${id}`, input));
+}
+
+export function deleteIntentRoute(id: number) {
+  return unwrap<void>(api.delete(`/api/admin/intent-routes/${id}`));
 }
 
 export function fetchRagSettings() {

@@ -96,6 +96,10 @@ GET   /api/admin/query-term-mappings
 POST  /api/admin/query-term-mappings
 PATCH /api/admin/query-term-mappings/{id}
 DELETE /api/admin/query-term-mappings/{id}
+GET   /api/admin/intent-routes
+POST  /api/admin/intent-routes
+PATCH /api/admin/intent-routes/{id}
+DELETE /api/admin/intent-routes/{id}
 GET   /api/admin/rag-settings
 PATCH /api/admin/rag-settings
 GET   /api/admin/sample-prompts
@@ -104,7 +108,7 @@ PATCH /api/admin/sample-prompts/{id}
 DELETE /api/admin/sample-prompts/{id}
 ```
 
-`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；模型健康字段包含 `provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、术语扩展、策略、检索通道、后处理器、节点链路、检索和生成耗时。
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；模型健康字段包含 `provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、术语扩展、策略、检索通道、后处理器、节点链路、检索和生成耗时。
 
 查询术语映射请求：
 
@@ -117,6 +121,25 @@ DELETE /api/admin/sample-prompts/{id}
 ```
 
 启用后的映射会在 `QueryPlanningNode` 命中问题或初始检索式时自动扩展 `searchQuery`，并写入 Trace 的 `queryExpansions`。
+
+意图路由请求：
+
+```json
+{
+  "intentCode": "METHOD_ANALYSIS",
+  "label": "方法分析",
+  "description": "识别论文方法结构和架构细节类问题。",
+  "keywords": "方法,架构,模块,method,architecture",
+  "searchHint": "method architecture module",
+  "answerStrategy": "EVIDENCE_GROUNDED_QA",
+  "answerContract": "输出结构：按方法目标、模块组成、关键步骤和证据页码组织。",
+  "comparisonEnabled": false,
+  "enabled": true,
+  "sortOrder": 80
+}
+```
+
+启用后的意图路由会被 `QueryPlanningNode` 用于识别 `queryIntent`、扩展检索提示和标记比较类问题；`AnswerPlanningNode` 会读取对应的 `answerStrategy` 和 `answerContract`。
 
 RAG 检索参数请求：
 

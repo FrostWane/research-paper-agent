@@ -241,6 +241,8 @@ export interface AdminOverview {
   negativeFeedbacks: number;
   totalQueryMappings: number;
   enabledQueryMappings: number;
+  totalIntentRoutes: number;
+  enabledIntentRoutes: number;
   totalSamplePrompts: number;
   enabledSamplePrompts: number;
   averageLatencyMs: number;
@@ -263,6 +265,22 @@ export interface QueryTermMapping {
   term: string;
   expansions: string;
   enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IntentRoute {
+  id: number;
+  intentCode: string;
+  label: string;
+  description?: string;
+  keywords: string;
+  searchHint?: string;
+  answerStrategy: string;
+  answerContract?: string;
+  comparisonEnabled: boolean;
+  enabled: boolean;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

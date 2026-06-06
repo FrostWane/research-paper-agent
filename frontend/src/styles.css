@@ -1214,6 +1214,7 @@ select,
 .admin-user-table,
 .admin-job-list,
 .admin-trace-list,
+.intent-route-list,
 .query-mapping-list,
 .sample-prompt-list {
   display: grid;
@@ -1370,6 +1371,10 @@ select,
   overflow: hidden;
 }
 
+.admin-intent-route-panel {
+  overflow: hidden;
+}
+
 .rag-settings-form {
   display: grid;
   grid-template-columns: repeat(5, minmax(112px, 1fr)) auto;
@@ -1410,6 +1415,110 @@ select,
   font-size: 12px;
   font-style: normal;
   white-space: nowrap;
+}
+
+.intent-route-form {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.36fr) minmax(150px, 0.42fr) minmax(260px, 1fr) minmax(180px, 0.56fr) minmax(180px, 0.56fr) 82px;
+  align-items: end;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.intent-route-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.intent-route-form label.wide {
+  grid-column: span 2;
+}
+
+.intent-route-form span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.intent-route-form input {
+  min-height: 38px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #f8fafc;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+}
+
+.intent-route-check {
+  align-self: center;
+  grid-template-columns: 18px auto;
+  align-items: center;
+  padding-top: 20px;
+}
+
+.intent-route-check input {
+  min-height: 18px;
+  padding: 0;
+}
+
+.intent-route-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.intent-route-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) minmax(160px, 0.48fr) 150px 62px 62px 34px;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.intent-route-row.is-disabled {
+  background: #ffffff;
+  opacity: 0.7;
+}
+
+.intent-route-row > strong {
+  overflow: hidden;
+  color: #1d4ed8;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intent-route-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.intent-route-row b,
+.intent-route-row small,
+.intent-route-row em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intent-route-row b {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.intent-route-row small,
+.intent-route-row em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
 }
 
 .query-mapping-form {
@@ -2148,6 +2257,23 @@ select,
     justify-content: flex-end;
   }
 
+  .intent-route-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .intent-route-form label.wide,
+  .intent-route-actions {
+    grid-column: 1 / -1;
+  }
+
+  .intent-route-row {
+    grid-template-columns: 104px minmax(0, 1fr) 118px 62px 62px 34px;
+  }
+
+  .intent-route-row em:first-of-type {
+    display: none;
+  }
+
   .query-mapping-form {
     grid-template-columns: 1fr;
   }
@@ -2245,6 +2371,24 @@ select,
 
   .rag-settings-actions em {
     white-space: normal;
+  }
+
+  .intent-route-form {
+    grid-template-columns: 1fr;
+  }
+
+  .intent-route-check {
+    padding-top: 0;
+  }
+
+  .intent-route-row {
+    grid-template-columns: minmax(0, 1fr) 62px 34px;
+  }
+
+  .intent-route-row > strong,
+  .intent-route-row em,
+  .intent-route-row .secondary-button:first-of-type {
+    display: none;
   }
 
   .sample-prompt-form {

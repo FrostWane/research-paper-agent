@@ -41,15 +41,19 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  createIntentRoute,
   createSamplePrompt,
   createQueryTermMapping,
+  deleteIntentRoute,
   deleteSamplePrompt,
   deleteQueryTermMapping,
   fetchAdminOverview,
+  fetchIntentRoutes,
   fetchRagSettings,
   fetchSamplePrompts,
   fetchAdminUsers,
   fetchQueryTermMappings,
+  updateIntentRoute,
   updateSamplePrompt,
   updateAdminUserStatus,
   updateRagSettings,
@@ -60,7 +64,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminUser, ChatRecord, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminOverview, AdminUser, ChatRecord, IntentRoute, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -124,6 +128,17 @@ type SamplePromptInput = {
   description: string;
   sortOrder: number;
 };
+type IntentRouteInput = {
+  intentCode: string;
+  label: string;
+  description: string;
+  keywords: string;
+  searchHint: string;
+  answerStrategy: string;
+  answerContract: string;
+  comparisonEnabled: boolean;
+  sortOrder: number;
+};
 type RagSettingsInput = {
   candidateLimit: number;
   resultLimit: number;
@@ -160,6 +175,7 @@ export default function App() {
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
+  const [intentRoutes, setIntentRoutes] = useState<IntentRoute[]>([]);
   const [samplePrompts, setSamplePrompts] = useState<SamplePrompt[]>([]);
   const [ragSettings, setRagSettings] = useState<RagSettings | null>(null);
   const [paperPrompts, setPaperPrompts] = useState<string[]>(quickPrompts);
@@ -293,6 +309,7 @@ export default function App() {
     setAdminOverview(null);
     setAdminUsers([]);
     setQueryMappings([]);
+    setIntentRoutes([]);
     setSamplePrompts([]);
     setRagSettings(null);
     setPaperPrompts(quickPrompts);
@@ -467,16 +484,18 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, users, mappings, prompts, settings] = await Promise.all([
+      const [overview, users, mappings, routes, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminUsers(),
         fetchQueryTermMappings(),
+        fetchIntentRoutes(),
         fetchSamplePrompts(),
         fetchRagSettings()
       ]);
       setAdminOverview(overview);
       setAdminUsers(users);
       setQueryMappings(mappings);
+      setIntentRoutes(routes);
       setSamplePrompts(prompts);
       setRagSettings(settings);
     } catch (err) {
@@ -543,6 +562,63 @@ export default function App() {
       setQueryMappings((current) => current.filter((item) => item.id !== mapping.id));
       setAdminOverview(await fetchAdminOverview());
       showNotice('术语映射已删除。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleCreateIntentRoute(input: IntentRouteInput) {
+    try {
+      setBusyText('正在保存意图路由...');
+      const created = await createIntentRoute({ ...input, enabled: true });
+      setIntentRoutes((current) => [...current, created].sort(compareIntentRoutes));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('意图路由已添加。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleUpdateIntentRoute(route: IntentRoute, patch: Partial<IntentRouteInput & { enabled: boolean }>) {
+    try {
+      setBusyText('正在更新意图路由...');
+      const updated = await updateIntentRoute(route.id, {
+        intentCode: patch.intentCode ?? route.intentCode,
+        label: patch.label ?? route.label,
+        description: patch.description ?? route.description ?? '',
+        keywords: patch.keywords ?? route.keywords,
+        searchHint: patch.searchHint ?? route.searchHint ?? '',
+        answerStrategy: patch.answerStrategy ?? route.answerStrategy,
+        answerContract: patch.answerContract ?? route.answerContract ?? '',
+        comparisonEnabled: patch.comparisonEnabled ?? route.comparisonEnabled,
+        enabled: patch.enabled ?? route.enabled,
+        sortOrder: patch.sortOrder ?? route.sortOrder
+      });
+      setIntentRoutes((current) => current.map((item) => (item.id === updated.id ? updated : item)).sort(compareIntentRoutes));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('意图路由已更新。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleDeleteIntentRoute(route: IntentRoute) {
+    const confirmed = window.confirm(`删除意图路由「${route.label}」？`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setBusyText('正在删除意图路由...');
+      await deleteIntentRoute(route.id);
+      setIntentRoutes((current) => current.filter((item) => item.id !== route.id));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('意图路由已删除。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -854,6 +930,7 @@ export default function App() {
             overview={adminOverview}
             users={adminUsers}
             queryMappings={queryMappings}
+            intentRoutes={intentRoutes}
             samplePrompts={samplePrompts}
             ragSettings={ragSettings}
             loading={adminLoading}
@@ -863,6 +940,9 @@ export default function App() {
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
             onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
             onDeleteQueryMapping={(mapping) => void handleDeleteQueryMapping(mapping)}
+            onCreateIntentRoute={(input) => void handleCreateIntentRoute(input)}
+            onUpdateIntentRoute={(route, patch) => void handleUpdateIntentRoute(route, patch)}
+            onDeleteIntentRoute={(route) => void handleDeleteIntentRoute(route)}
             onCreateSamplePrompt={(input) => void handleCreateSamplePrompt(input)}
             onUpdateSamplePrompt={(prompt, patch) => void handleUpdateSamplePrompt(prompt, patch)}
             onDeleteSamplePrompt={(prompt) => void handleDeleteSamplePrompt(prompt)}
@@ -1376,6 +1456,7 @@ function AdminView({
   overview,
   users,
   queryMappings,
+  intentRoutes,
   samplePrompts,
   ragSettings,
   loading,
@@ -1385,6 +1466,9 @@ function AdminView({
   onCreateQueryMapping,
   onUpdateQueryMapping,
   onDeleteQueryMapping,
+  onCreateIntentRoute,
+  onUpdateIntentRoute,
+  onDeleteIntentRoute,
   onCreateSamplePrompt,
   onUpdateSamplePrompt,
   onDeleteSamplePrompt,
@@ -1393,6 +1477,7 @@ function AdminView({
   overview: AdminOverview | null;
   users: AdminUser[];
   queryMappings: QueryTermMapping[];
+  intentRoutes: IntentRoute[];
   samplePrompts: SamplePrompt[];
   ragSettings: RagSettings | null;
   loading: boolean;
@@ -1402,6 +1487,9 @@ function AdminView({
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
   onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
   onDeleteQueryMapping: (mapping: QueryTermMapping) => void;
+  onCreateIntentRoute: (input: IntentRouteInput) => void;
+  onUpdateIntentRoute: (route: IntentRoute, patch: Partial<IntentRouteInput & { enabled: boolean }>) => void;
+  onDeleteIntentRoute: (route: IntentRoute) => void;
   onCreateSamplePrompt: (input: SamplePromptInput) => void;
   onUpdateSamplePrompt: (prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) => void;
   onDeleteSamplePrompt: (prompt: SamplePrompt) => void;
@@ -1432,6 +1520,7 @@ function AdminView({
         <AdminStat icon={MessageSquareText} label="问答" value={overview?.totalChats ?? 0} detail={`${overview?.libraryChats ?? 0} 次全库问答`} />
         <AdminStat icon={ThumbsUp} label="反馈" value={overview?.totalFeedbacks ?? 0} detail={`${overview?.positiveFeedbacks ?? 0} 有用 / ${overview?.negativeFeedbacks ?? 0} 无用`} />
         <AdminStat icon={Search} label="术语映射" value={overview?.totalQueryMappings ?? 0} detail={`${overview?.enabledQueryMappings ?? 0} 条启用`} />
+        <AdminStat icon={Layers} label="意图路由" value={overview?.totalIntentRoutes ?? 0} detail={`${overview?.enabledIntentRoutes ?? 0} 条启用`} />
         <AdminStat icon={Brain} label="示例问题" value={overview?.totalSamplePrompts ?? 0} detail={`${overview?.enabledSamplePrompts ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
       </div>
@@ -1519,6 +1608,13 @@ function AdminView({
       </div>
 
       <RagSettingsPanel settings={ragSettings} onUpdate={onUpdateRagSettings} />
+
+      <IntentRoutePanel
+        routes={intentRoutes}
+        onCreate={onCreateIntentRoute}
+        onUpdate={onUpdateIntentRoute}
+        onDelete={onDeleteIntentRoute}
+      />
 
       <QueryTermMappingPanel
         mappings={queryMappings}
@@ -1833,6 +1929,171 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function IntentRoutePanel({
+  routes,
+  onCreate,
+  onUpdate,
+  onDelete
+}: {
+  routes: IntentRoute[];
+  onCreate: (input: IntentRouteInput) => void;
+  onUpdate: (route: IntentRoute, patch: Partial<IntentRouteInput & { enabled: boolean }>) => void;
+  onDelete: (route: IntentRoute) => void;
+}) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [intentCode, setIntentCode] = useState('');
+  const [label, setLabel] = useState('');
+  const [description, setDescription] = useState('');
+  const [keywords, setKeywords] = useState('');
+  const [searchHint, setSearchHint] = useState('');
+  const [answerStrategy, setAnswerStrategy] = useState('EVIDENCE_GROUNDED_QA');
+  const [answerContract, setAnswerContract] = useState('');
+  const [comparisonEnabled, setComparisonEnabled] = useState(false);
+  const [sortOrder, setSortOrder] = useState('100');
+  const editingRoute = routes.find((item) => item.id === editingId) ?? null;
+
+  function reset() {
+    setEditingId(null);
+    setIntentCode('');
+    setLabel('');
+    setDescription('');
+    setKeywords('');
+    setSearchHint('');
+    setAnswerStrategy('EVIDENCE_GROUNDED_QA');
+    setAnswerContract('');
+    setComparisonEnabled(false);
+    setSortOrder('100');
+  }
+
+  function startEdit(route: IntentRoute) {
+    setEditingId(route.id);
+    setIntentCode(route.intentCode);
+    setLabel(route.label);
+    setDescription(route.description ?? '');
+    setKeywords(route.keywords);
+    setSearchHint(route.searchHint ?? '');
+    setAnswerStrategy(route.answerStrategy);
+    setAnswerContract(route.answerContract ?? '');
+    setComparisonEnabled(route.comparisonEnabled);
+    setSortOrder(String(route.sortOrder ?? 100));
+  }
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const input = {
+      intentCode: intentCode.trim(),
+      label: label.trim(),
+      description: description.trim(),
+      keywords: keywords.trim(),
+      searchHint: searchHint.trim(),
+      answerStrategy: answerStrategy.trim(),
+      answerContract: answerContract.trim(),
+      comparisonEnabled,
+      sortOrder: Number.parseInt(sortOrder, 10) || 100
+    };
+    if (!input.intentCode || !input.label || !input.keywords || !input.answerStrategy) {
+      return;
+    }
+    if (editingRoute) {
+      onUpdate(editingRoute, input);
+    } else {
+      onCreate(input);
+    }
+    reset();
+  }
+
+  return (
+    <div className="admin-panel admin-intent-route-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>意图路由</h3>
+          <p>把问题意图、检索提示和回答策略做成可运营规则。</p>
+        </div>
+        <Layers size={18} />
+      </div>
+      <form className="intent-route-form" onSubmit={submit}>
+        <label>
+          <span>标识</span>
+          <input value={intentCode} maxLength={64} placeholder="METHOD_ANALYSIS" onChange={(event) => setIntentCode(event.target.value)} />
+        </label>
+        <label>
+          <span>名称</span>
+          <input value={label} maxLength={120} placeholder="方法分析" onChange={(event) => setLabel(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>关键词</span>
+          <input value={keywords} maxLength={2000} placeholder="方法,架构,method,architecture" onChange={(event) => setKeywords(event.target.value)} />
+        </label>
+        <label>
+          <span>回答策略</span>
+          <input value={answerStrategy} maxLength={64} placeholder="EVIDENCE_GROUNDED_QA" onChange={(event) => setAnswerStrategy(event.target.value)} />
+        </label>
+        <label>
+          <span>检索提示</span>
+          <input value={searchHint} maxLength={500} placeholder="method architecture module" onChange={(event) => setSearchHint(event.target.value)} />
+        </label>
+        <label>
+          <span>排序</span>
+          <input value={sortOrder} inputMode="numeric" onChange={(event) => setSortOrder(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>输出契约</span>
+          <input value={answerContract} maxLength={2000} placeholder="输出结构：..." onChange={(event) => setAnswerContract(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>说明</span>
+          <input value={description} maxLength={500} placeholder="用于识别特定阅读任务" onChange={(event) => setDescription(event.target.value)} />
+        </label>
+        <label className="intent-route-check">
+          <input type="checkbox" checked={comparisonEnabled} onChange={(event) => setComparisonEnabled(event.target.checked)} />
+          <span>比较类</span>
+        </label>
+        <div className="intent-route-actions">
+          {editingRoute && (
+            <button className="secondary-button" type="button" onClick={reset}>
+              取消
+            </button>
+          )}
+          <button className="primary-button" type="submit" disabled={!intentCode.trim() || !label.trim() || !keywords.trim() || !answerStrategy.trim()}>
+            <Plus size={17} />
+            {editingRoute ? '更新' : '添加'}
+          </button>
+        </div>
+      </form>
+      <div className="intent-route-list">
+        {routes.length === 0 ? (
+          <EmptyState compact title="暂无意图路由" detail="添加规则后，QueryPlanningNode 会优先读取这些配置。" />
+        ) : (
+          routes.map((route) => (
+            <div className={`intent-route-row ${route.enabled ? '' : 'is-disabled'}`} key={route.id}>
+              <strong>{route.intentCode}</strong>
+              <span>
+                <b>{route.label}</b>
+                <small>{route.keywords}</small>
+              </span>
+              <em>{route.answerStrategy}</em>
+              <em>{route.comparisonEnabled ? '比较' : '普通'} · {route.enabled ? '启用' : '停用'} · {route.sortOrder}</em>
+              <button className="secondary-button compact-action" type="button" onClick={() => startEdit(route)}>
+                编辑
+              </button>
+              <button
+                className="secondary-button compact-action"
+                type="button"
+                onClick={() => onUpdate(route, { enabled: !route.enabled })}
+              >
+                {route.enabled ? '停用' : '启用'}
+              </button>
+              <button className="icon-button small danger" type="button" title="删除意图路由" onClick={() => onDelete(route)}>
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -2698,6 +2959,13 @@ function promptTexts(prompts: SamplePrompt[], fallback: string[]) {
     .sort(compareSamplePrompts)
     .map((item) => item.prompt.trim());
   return texts.length > 0 ? texts : fallback;
+}
+
+function compareIntentRoutes(a: IntentRoute, b: IntentRoute) {
+  if ((a.sortOrder ?? 100) !== (b.sortOrder ?? 100)) {
+    return (a.sortOrder ?? 100) - (b.sortOrder ?? 100);
+  }
+  return a.id - b.id;
 }
 
 function compareSamplePrompts(a: SamplePrompt, b: SamplePrompt) {

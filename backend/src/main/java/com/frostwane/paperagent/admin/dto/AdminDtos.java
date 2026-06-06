@@ -34,6 +34,8 @@ public final class AdminDtos {
         long negativeFeedbacks,
         long totalQueryMappings,
         long enabledQueryMappings,
+        long totalIntentRoutes,
+        long enabledIntentRoutes,
         long totalSamplePrompts,
         long enabledSamplePrompts,
         int averageLatencyMs,
@@ -220,6 +222,37 @@ public final class AdminDtos {
         @NotBlank @Size(max = 120) String term,
         @NotBlank @Size(max = 1000) String expansions,
         Boolean enabled
+    ) {
+    }
+
+    public record IntentRouteResponse(
+        Long id,
+        String intentCode,
+        String label,
+        String description,
+        String keywords,
+        String searchHint,
+        String answerStrategy,
+        String answerContract,
+        boolean comparisonEnabled,
+        boolean enabled,
+        int sortOrder,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record IntentRouteRequest(
+        @NotBlank @Size(max = 64) String intentCode,
+        @NotBlank @Size(max = 120) String label,
+        @Size(max = 500) String description,
+        @NotBlank @Size(max = 2000) String keywords,
+        @Size(max = 500) String searchHint,
+        @NotBlank @Size(max = 64) String answerStrategy,
+        @Size(max = 2000) String answerContract,
+        Boolean comparisonEnabled,
+        Boolean enabled,
+        @Min(0) @Max(1000) Integer sortOrder
     ) {
     }
 
