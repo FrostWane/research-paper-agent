@@ -44,7 +44,7 @@ public class MultiChannelRetrievalEngine {
                 candidate.paperId(),
                 candidate.title(),
                 candidate.pageNumber(),
-                compact(candidate.content(), 520)
+                compact(candidate.content(), request.settings().sourceExcerptChars())
             ))
             .toList();
 

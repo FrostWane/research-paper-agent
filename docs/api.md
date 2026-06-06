@@ -96,6 +96,8 @@ GET   /api/admin/query-term-mappings
 POST  /api/admin/query-term-mappings
 PATCH /api/admin/query-term-mappings/{id}
 DELETE /api/admin/query-term-mappings/{id}
+GET   /api/admin/rag-settings
+PATCH /api/admin/rag-settings
 GET   /api/admin/sample-prompts
 POST  /api/admin/sample-prompts
 PATCH /api/admin/sample-prompts/{id}
@@ -115,6 +117,20 @@ DELETE /api/admin/sample-prompts/{id}
 ```
 
 启用后的映射会在 `QueryPlanningNode` 命中问题或初始检索式时自动扩展 `searchQuery`，并写入 Trace 的 `queryExpansions`。
+
+RAG 检索参数请求：
+
+```json
+{
+  "candidateLimit": 10,
+  "resultLimit": 5,
+  "sourceExcerptChars": 520,
+  "vectorWeight": 1.0,
+  "keywordWeight": 0.78
+}
+```
+
+`candidateLimit` 控制每个检索通道的候选召回上限，`resultLimit` 控制最终返回来源数，`sourceExcerptChars` 控制来源卡片摘录长度，`vectorWeight` 和 `keywordWeight` 控制通道融合权重。
 
 示例问题管理请求：
 

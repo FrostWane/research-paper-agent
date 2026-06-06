@@ -1366,6 +1366,52 @@ select,
   overflow: hidden;
 }
 
+.admin-rag-settings-panel {
+  overflow: hidden;
+}
+
+.rag-settings-form {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(112px, 1fr)) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 14px;
+}
+
+.rag-settings-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rag-settings-form span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rag-settings-form input {
+  min-height: 38px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #f8fafc;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+}
+
+.rag-settings-actions {
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+}
+
+.rag-settings-actions em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
 .query-mapping-form {
   display: grid;
   grid-template-columns: minmax(140px, 0.42fr) minmax(260px, 1fr) auto;
@@ -2091,6 +2137,17 @@ select,
     grid-template-columns: 62px minmax(0, 1fr) repeat(5, minmax(58px, auto));
   }
 
+  .rag-settings-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rag-settings-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
   .query-mapping-form {
     grid-template-columns: 1fr;
   }
@@ -2175,6 +2232,19 @@ select,
 
   .query-mapping-row em {
     display: none;
+  }
+
+  .rag-settings-form {
+    grid-template-columns: 1fr;
+  }
+
+  .rag-settings-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rag-settings-actions em {
+    white-space: normal;
   }
 
   .sample-prompt-form {

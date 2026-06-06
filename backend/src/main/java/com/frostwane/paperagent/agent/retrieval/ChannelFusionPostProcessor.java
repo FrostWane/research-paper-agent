@@ -48,7 +48,7 @@ public class ChannelFusionPostProcessor implements RetrievalPostProcessor {
                 RetrievalCandidate candidate = result.candidates().get(i);
                 double normalizedScore = maxScore <= 0 ? 0 : candidate.score() / maxScore;
                 double rankScore = (size - i) / (double) Math.max(size, 1);
-                double contribution = channelWeight(result.name()) * (0.65d * rankScore + 0.35d * normalizedScore);
+                double contribution = channelWeight(context, result.name()) * (0.65d * rankScore + 0.35d * normalizedScore);
                 fused.computeIfAbsent(candidateKey(candidate), ignored -> new AggregatedCandidate(candidate))
                     .add(contribution, result.name());
             }
@@ -64,10 +64,10 @@ public class ChannelFusionPostProcessor implements RetrievalPostProcessor {
             .toList();
     }
 
-    private double channelWeight(String channelName) {
+    private double channelWeight(RetrievalProcessingContext context, String channelName) {
         return switch (channelName) {
-            case "vector" -> 1.0d;
-            case "keyword" -> 0.78d;
+            case "vector" -> context.request().settings().vectorWeight();
+            case "keyword" -> context.request().settings().keywordWeight();
             default -> 0.65d;
         };
     }

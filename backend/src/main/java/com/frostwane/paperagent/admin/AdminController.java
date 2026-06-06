@@ -4,10 +4,13 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RagSettingsRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RagSettingsResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.UserStatusUpdateRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.sample.SamplePromptService;
+import com.frostwane.paperagent.agent.settings.RagSettingsService;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
 import jakarta.validation.Valid;
@@ -28,11 +31,13 @@ public class AdminController {
 
     private final AdminService adminService;
     private final SamplePromptService samplePromptService;
+    private final RagSettingsService ragSettingsService;
     private final CurrentUserService currentUserService;
 
-    public AdminController(AdminService adminService, SamplePromptService samplePromptService, CurrentUserService currentUserService) {
+    public AdminController(AdminService adminService, SamplePromptService samplePromptService, RagSettingsService ragSettingsService, CurrentUserService currentUserService) {
         this.adminService = adminService;
         this.samplePromptService = samplePromptService;
+        this.ragSettingsService = ragSettingsService;
         this.currentUserService = currentUserService;
     }
 
@@ -54,6 +59,16 @@ public class AdminController {
     @GetMapping("/query-term-mappings")
     public ApiResponse<List<QueryTermMappingResponse>> queryTermMappings() {
         return ApiResponse.ok(adminService.queryTermMappings(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/rag-settings")
+    public ApiResponse<RagSettingsResponse> ragSettings() {
+        return ApiResponse.ok(ragSettingsService.get(currentUserService.getRequiredUser()));
+    }
+
+    @PatchMapping("/rag-settings")
+    public ApiResponse<RagSettingsResponse> updateRagSettings(@Valid @RequestBody RagSettingsRequest request) {
+        return ApiResponse.ok(ragSettingsService.update(request, currentUserService.getRequiredUser()));
     }
 
     @PostMapping("/query-term-mappings")

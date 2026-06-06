@@ -29,6 +29,7 @@ import {
   Send,
   ServerCog,
   ShieldCheck,
+  SlidersHorizontal,
   ThumbsDown,
   ThumbsUp,
   Trash2,
@@ -45,11 +46,13 @@ import {
   deleteSamplePrompt,
   deleteQueryTermMapping,
   fetchAdminOverview,
+  fetchRagSettings,
   fetchSamplePrompts,
   fetchAdminUsers,
   fetchQueryTermMappings,
   updateSamplePrompt,
   updateAdminUserStatus,
+  updateRagSettings,
   updateQueryTermMapping
 } from './api/admin';
 import { askAgent, listChats, listLibraryChats, listSamplePrompts, submitChatFeedback } from './api/agent';
@@ -57,7 +60,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminUser, ChatRecord, Paper, PaperForm, QueryTermMapping, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminOverview, AdminUser, ChatRecord, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -121,6 +124,22 @@ type SamplePromptInput = {
   description: string;
   sortOrder: number;
 };
+type RagSettingsInput = {
+  candidateLimit: number;
+  resultLimit: number;
+  sourceExcerptChars: number;
+  vectorWeight: number;
+  keywordWeight: number;
+};
+type RagSettingsFormState = Record<keyof RagSettingsInput, string>;
+
+const defaultRagSettingsInput: RagSettingsInput = {
+  candidateLimit: 10,
+  resultLimit: 5,
+  sourceExcerptChars: 520,
+  vectorWeight: 1,
+  keywordWeight: 0.78
+};
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -142,6 +161,7 @@ export default function App() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
   const [samplePrompts, setSamplePrompts] = useState<SamplePrompt[]>([]);
+  const [ragSettings, setRagSettings] = useState<RagSettings | null>(null);
   const [paperPrompts, setPaperPrompts] = useState<string[]>(quickPrompts);
   const [libraryPrompts, setLibraryPrompts] = useState<string[]>(libraryQuickPrompts);
   const [adminLoading, setAdminLoading] = useState(false);
@@ -274,6 +294,7 @@ export default function App() {
     setAdminUsers([]);
     setQueryMappings([]);
     setSamplePrompts([]);
+    setRagSettings(null);
     setPaperPrompts(quickPrompts);
     setLibraryPrompts(libraryQuickPrompts);
     setActiveView('library');
@@ -446,16 +467,18 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, users, mappings, prompts] = await Promise.all([
+      const [overview, users, mappings, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminUsers(),
         fetchQueryTermMappings(),
-        fetchSamplePrompts()
+        fetchSamplePrompts(),
+        fetchRagSettings()
       ]);
       setAdminOverview(overview);
       setAdminUsers(users);
       setQueryMappings(mappings);
       setSamplePrompts(prompts);
+      setRagSettings(settings);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -576,6 +599,19 @@ export default function App() {
       setAdminOverview(await fetchAdminOverview());
       await loadPromptPresets();
       showNotice('示例问题已删除。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleUpdateRagSettings(input: RagSettingsInput) {
+    try {
+      setBusyText('正在保存 RAG 参数...');
+      const updated = await updateRagSettings(input);
+      setRagSettings(updated);
+      showNotice('RAG 检索参数已更新。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -819,6 +855,7 @@ export default function App() {
             users={adminUsers}
             queryMappings={queryMappings}
             samplePrompts={samplePrompts}
+            ragSettings={ragSettings}
             loading={adminLoading}
             currentUserId={user.id}
             onRefresh={() => void loadAdminData()}
@@ -829,6 +866,7 @@ export default function App() {
             onCreateSamplePrompt={(input) => void handleCreateSamplePrompt(input)}
             onUpdateSamplePrompt={(prompt, patch) => void handleUpdateSamplePrompt(prompt, patch)}
             onDeleteSamplePrompt={(prompt) => void handleDeleteSamplePrompt(prompt)}
+            onUpdateRagSettings={(input) => void handleUpdateRagSettings(input)}
           />
         )}
       </main>
@@ -1339,6 +1377,7 @@ function AdminView({
   users,
   queryMappings,
   samplePrompts,
+  ragSettings,
   loading,
   currentUserId,
   onRefresh,
@@ -1348,12 +1387,14 @@ function AdminView({
   onDeleteQueryMapping,
   onCreateSamplePrompt,
   onUpdateSamplePrompt,
-  onDeleteSamplePrompt
+  onDeleteSamplePrompt,
+  onUpdateRagSettings
 }: {
   overview: AdminOverview | null;
   users: AdminUser[];
   queryMappings: QueryTermMapping[];
   samplePrompts: SamplePrompt[];
+  ragSettings: RagSettings | null;
   loading: boolean;
   currentUserId: number;
   onRefresh: () => void;
@@ -1364,6 +1405,7 @@ function AdminView({
   onCreateSamplePrompt: (input: SamplePromptInput) => void;
   onUpdateSamplePrompt: (prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) => void;
   onDeleteSamplePrompt: (prompt: SamplePrompt) => void;
+  onUpdateRagSettings: (input: RagSettingsInput) => void;
 }) {
   const embeddedRatio = overview?.totalChunks ? Math.round((overview.embeddedChunks / overview.totalChunks) * 100) : 0;
   const indexedRatio = overview?.totalPapers ? Math.round((overview.indexedPapers / overview.totalPapers) * 100) : 0;
@@ -1475,6 +1517,8 @@ function AdminView({
           )}
         </div>
       </div>
+
+      <RagSettingsPanel settings={ragSettings} onUpdate={onUpdateRagSettings} />
 
       <QueryTermMappingPanel
         mappings={queryMappings}
@@ -1726,6 +1770,70 @@ function AdminView({
         </div>
       </div>
     </section>
+  );
+}
+
+function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null; onUpdate: (input: RagSettingsInput) => void }) {
+  const [form, setForm] = useState<RagSettingsFormState>(toRagSettingsForm(settings));
+
+  useEffect(() => {
+    setForm(toRagSettingsForm(settings));
+  }, [settings]);
+
+  function updateField(key: keyof RagSettingsInput, value: string) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onUpdate({
+      candidateLimit: boundedInt(form.candidateLimit, 1, 50, defaultRagSettingsInput.candidateLimit),
+      resultLimit: boundedInt(form.resultLimit, 1, 20, defaultRagSettingsInput.resultLimit),
+      sourceExcerptChars: boundedInt(form.sourceExcerptChars, 120, 1200, defaultRagSettingsInput.sourceExcerptChars),
+      vectorWeight: boundedFloat(form.vectorWeight, 0, 3, defaultRagSettingsInput.vectorWeight),
+      keywordWeight: boundedFloat(form.keywordWeight, 0, 3, defaultRagSettingsInput.keywordWeight)
+    });
+  }
+
+  return (
+    <div className="admin-panel admin-rag-settings-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>RAG 检索参数</h3>
+          <p>控制候选召回、最终来源、来源摘录和多通道融合权重。</p>
+        </div>
+        <SlidersHorizontal size={18} />
+      </div>
+      <form className="rag-settings-form" onSubmit={submit}>
+        <label>
+          <span>候选数</span>
+          <input type="number" min={1} max={50} value={form.candidateLimit} onChange={(event) => updateField('candidateLimit', event.target.value)} />
+        </label>
+        <label>
+          <span>来源数</span>
+          <input type="number" min={1} max={20} value={form.resultLimit} onChange={(event) => updateField('resultLimit', event.target.value)} />
+        </label>
+        <label>
+          <span>摘录长度</span>
+          <input type="number" min={120} max={1200} step={20} value={form.sourceExcerptChars} onChange={(event) => updateField('sourceExcerptChars', event.target.value)} />
+        </label>
+        <label>
+          <span>向量权重</span>
+          <input type="number" min={0} max={3} step={0.05} value={form.vectorWeight} onChange={(event) => updateField('vectorWeight', event.target.value)} />
+        </label>
+        <label>
+          <span>关键词权重</span>
+          <input type="number" min={0} max={3} step={0.05} value={form.keywordWeight} onChange={(event) => updateField('keywordWeight', event.target.value)} />
+        </label>
+        <div className="rag-settings-actions">
+          <em>{settings?.updatedAt ? `更新于 ${formatTime(settings.updatedAt)}` : '使用默认参数'}</em>
+          <button className="primary-button" type="submit">
+            <CheckCircle2 size={17} />
+            保存
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -2555,6 +2663,29 @@ function scopeLabel(scope: string) {
 function compactText(value: string, maxLength = 120) {
   const normalized = value.replace(/\s+/g, ' ').trim();
   return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+}
+
+function toRagSettingsForm(settings: RagSettings | null): RagSettingsFormState {
+  const source = settings ?? defaultRagSettingsInput;
+  return {
+    candidateLimit: String(source.candidateLimit),
+    resultLimit: String(source.resultLimit),
+    sourceExcerptChars: String(source.sourceExcerptChars),
+    vectorWeight: String(source.vectorWeight),
+    keywordWeight: String(source.keywordWeight)
+  };
+}
+
+function boundedInt(value: string, min: number, max: number, fallback: number) {
+  const parsed = Number.parseInt(value, 10);
+  const candidate = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.max(min, Math.min(max, candidate));
+}
+
+function boundedFloat(value: string, min: number, max: number, fallback: number) {
+  const parsed = Number.parseFloat(value);
+  const candidate = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.max(min, Math.min(max, Number(candidate.toFixed(2))));
 }
 
 function normalizePromptScope(value: string): 'PAPER' | 'LIBRARY' {

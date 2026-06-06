@@ -38,7 +38,7 @@ AgentOrchestratorService
      -> AnswerFormattingNode
 ```
 
-`AgentOrchestratorService` 负责事务边界、聊天历史和 RAG Trace 收尾；具体业务步骤由 `AgentNode` 实现。`QueryPlanningNode` 会识别总结、贡献、实验、局限、比较、综述等意图，生成面向召回的 `searchQuery`，并读取管理员维护的查询术语映射，把领域缩写、英文别名和中文同义词扩展进检索式。`RetrievalNode` 内部使用 `MultiChannelRetrievalEngine`，并行执行向量通道和关键词通道，再通过后处理器链完成通道融合、检索式感知精排、跨论文多样性重排和结果截断，通道与后处理器的候选数、输入输出和耗时都会写入 Trace。`AnswerPlanningNode` 吸收 ragent Prompt Plan 的思路，把意图、范围和证据状态转换成 `answerStrategy` 与 `answerContract`，让比较、综述、实验和局限类问题进入不同回答结构。`AgentPipeline` 自动记录节点 span，并写入 `rag_traces.node_spans_json`，同时保留检索、生成、校验和格式化的聚合耗时字段。问答记录支持用户反馈有用 / 无用，反馈会落到 `chat_records` 并进入管理员后台聚合，作为后续答案评审、Prompt 调优和模型路由策略的质量信号。后续可以继续插入 LLM 改写、向量意图树、模型 rerank、跨论文综合、答案评审等节点。
+`AgentOrchestratorService` 负责事务边界、聊天历史和 RAG Trace 收尾；具体业务步骤由 `AgentNode` 实现。`QueryPlanningNode` 会识别总结、贡献、实验、局限、比较、综述等意图，生成面向召回的 `searchQuery`，并读取管理员维护的查询术语映射，把领域缩写、英文别名和中文同义词扩展进检索式。`RetrievalNode` 内部使用 `RetrieverAgent` 读取 `RagSettingsService` 快照，再交给 `MultiChannelRetrievalEngine` 并行执行向量通道和关键词通道；候选召回数、最终来源数、来源摘录长度、向量权重和关键词权重都来自运行时配置。后处理器链负责通道融合、检索式感知精排、跨论文多样性重排和结果截断，通道与后处理器的候选数、输入输出和耗时都会写入 Trace。`AnswerPlanningNode` 吸收 ragent Prompt Plan 的思路，把意图、范围和证据状态转换成 `answerStrategy` 与 `answerContract`，让比较、综述、实验和局限类问题进入不同回答结构。`AgentPipeline` 自动记录节点 span，并写入 `rag_traces.node_spans_json`，同时保留检索、生成、校验和格式化的聚合耗时字段。问答记录支持用户反馈有用 / 无用，反馈会落到 `chat_records` 并进入管理员后台聚合，作为后续答案评审、Prompt 调优和模型路由策略的质量信号。后续可以继续插入 LLM 改写、向量意图树、模型 rerank、跨论文综合、答案评审等节点。
 
 默认走兜底回答，保证无模型 API Key 时系统仍然可用。配置 OpenAI-compatible API 后，`AnswerGenerationNode` 会调用 `AnswerAgent`，再通过 `ModelRoutingService` 进入 Spring AI `ChatClient` 生成回答。模型路由会记录目标模型、成功 / 失败 / fallback、延迟和错误摘要，管理员后台据此展示模型健康，后续可以继续扩展为多模型优先级、限流、熔断和故障切换。
 

@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminOverview, AdminUser, QueryTermMapping, SamplePrompt } from '../types';
+import type { AdminOverview, AdminUser, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -27,6 +27,14 @@ export function updateQueryTermMapping(id: number, input: { term: string; expans
 
 export function deleteQueryTermMapping(id: number) {
   return unwrap<void>(api.delete(`/api/admin/query-term-mappings/${id}`));
+}
+
+export function fetchRagSettings() {
+  return unwrap<RagSettings>(api.get('/api/admin/rag-settings'));
+}
+
+export function updateRagSettings(input: Partial<Pick<RagSettings, 'candidateLimit' | 'resultLimit' | 'sourceExcerptChars' | 'vectorWeight' | 'keywordWeight'>>) {
+  return unwrap<RagSettings>(api.patch('/api/admin/rag-settings', input));
 }
 
 export function fetchSamplePrompts() {

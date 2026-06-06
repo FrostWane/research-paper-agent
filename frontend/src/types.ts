@@ -279,6 +279,15 @@ export interface SamplePrompt {
   updatedAt: string;
 }
 
+export interface RagSettings {
+  candidateLimit: number;
+  resultLimit: number;
+  sourceExcerptChars: number;
+  vectorWeight: number;
+  keywordWeight: number;
+  updatedAt?: string;
+}
+
 export interface AdminUser {
   id: number;
   username: string;

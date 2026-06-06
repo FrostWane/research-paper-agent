@@ -1,6 +1,10 @@
 package com.frostwane.paperagent.admin.dto;
 
 import com.frostwane.paperagent.user.UserStatus;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -216,6 +220,25 @@ public final class AdminDtos {
         @NotBlank @Size(max = 120) String term,
         @NotBlank @Size(max = 1000) String expansions,
         Boolean enabled
+    ) {
+    }
+
+    public record RagSettingsResponse(
+        int candidateLimit,
+        int resultLimit,
+        int sourceExcerptChars,
+        double vectorWeight,
+        double keywordWeight,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record RagSettingsRequest(
+        @Min(1) @Max(50) Integer candidateLimit,
+        @Min(1) @Max(20) Integer resultLimit,
+        @Min(120) @Max(1200) Integer sourceExcerptChars,
+        @DecimalMin("0.0") @DecimalMax("3.0") Double vectorWeight,
+        @DecimalMin("0.0") @DecimalMax("3.0") Double keywordWeight
     ) {
     }
 }

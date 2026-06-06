@@ -1,5 +1,6 @@
 package com.frostwane.paperagent.agent.retrieval;
 
+import com.frostwane.paperagent.agent.settings.RagSettingsSnapshot;
 import com.frostwane.paperagent.paper.Paper;
 import com.frostwane.paperagent.user.User;
 
@@ -8,6 +9,7 @@ public record RetrievalRequest(
     User owner,
     String query,
     boolean libraryScope,
-    int candidateLimit
+    int candidateLimit,
+    RagSettingsSnapshot settings
 ) {
 }
