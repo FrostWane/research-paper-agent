@@ -100,6 +100,10 @@ GET   /api/admin/intent-routes
 POST  /api/admin/intent-routes
 PATCH /api/admin/intent-routes/{id}
 DELETE /api/admin/intent-routes/{id}
+GET   /api/admin/answer-prompt-templates
+POST  /api/admin/answer-prompt-templates
+PATCH /api/admin/answer-prompt-templates/{id}
+DELETE /api/admin/answer-prompt-templates/{id}
 GET   /api/admin/rag-settings
 PATCH /api/admin/rag-settings
 GET   /api/admin/sample-prompts
@@ -108,7 +112,7 @@ PATCH /api/admin/sample-prompts/{id}
 DELETE /api/admin/sample-prompts/{id}
 ```
 
-`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；模型健康字段包含 `provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、术语扩展、策略、检索通道、后处理器、节点链路、检索和生成耗时。
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；意图路由指标包含 `totalIntentRoutes`、`enabledIntentRoutes`，用于观察 QueryPlanning 运营规则规模；回答模板指标包含 `totalAnswerPromptTemplates`、`enabledAnswerPromptTemplates`，用于观察 AnswerAgent Prompt 运营规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；模型健康字段包含 `provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、术语扩展、策略、检索通道、后处理器、节点链路、检索和生成耗时。
 
 查询术语映射请求：
 
@@ -140,6 +144,23 @@ DELETE /api/admin/sample-prompts/{id}
 ```
 
 启用后的意图路由会被 `QueryPlanningNode` 用于识别 `queryIntent`、扩展检索提示和标记比较类问题；`AnswerPlanningNode` 会读取对应的 `answerStrategy` 和 `answerContract`。
+
+回答 Prompt 模板请求：
+
+```json
+{
+  "code": "ACADEMIC_RAG",
+  "name": "科研 RAG 默认模板",
+  "description": "面向论文精读和全库综合。",
+  "systemPrompt": "你是 Research Paper Agent 的论文精读 Agent。",
+  "userPromptTemplate": "回答范围：{{scope}}\n{{paper_metadata}}\n回答策略：{{answer_strategy}}\n输出契约：{{answer_contract}}\n用户问题：{{question}}\n检索片段：{{sources}}",
+  "enabled": true,
+  "defaultTemplate": true,
+  "sortOrder": 10
+}
+```
+
+`AnswerAgent` 会优先使用启用的默认模板；如果没有默认模板，则使用排序最靠前的启用模板；如果数据库无可用模板，则使用内置兜底模板。支持占位符：`{{scope}}`、`{{paper_metadata}}`、`{{answer_strategy}}`、`{{answer_contract}}`、`{{question}}`、`{{sources}}`。
 
 RAG 检索参数请求：
 

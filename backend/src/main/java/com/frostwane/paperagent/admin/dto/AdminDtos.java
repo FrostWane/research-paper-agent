@@ -36,6 +36,8 @@ public final class AdminDtos {
         long enabledQueryMappings,
         long totalIntentRoutes,
         long enabledIntentRoutes,
+        long totalAnswerPromptTemplates,
+        long enabledAnswerPromptTemplates,
         long totalSamplePrompts,
         long enabledSamplePrompts,
         int averageLatencyMs,
@@ -252,6 +254,33 @@ public final class AdminDtos {
         @Size(max = 2000) String answerContract,
         Boolean comparisonEnabled,
         Boolean enabled,
+        @Min(0) @Max(1000) Integer sortOrder
+    ) {
+    }
+
+    public record AnswerPromptTemplateResponse(
+        Long id,
+        String code,
+        String name,
+        String description,
+        String systemPrompt,
+        String userPromptTemplate,
+        boolean enabled,
+        boolean defaultTemplate,
+        int sortOrder,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record AnswerPromptTemplateRequest(
+        @NotBlank @Size(max = 64) String code,
+        @NotBlank @Size(max = 120) String name,
+        @Size(max = 500) String description,
+        @NotBlank @Size(max = 8000) String systemPrompt,
+        @NotBlank @Size(max = 12000) String userPromptTemplate,
+        Boolean enabled,
+        Boolean defaultTemplate,
         @Min(0) @Max(1000) Integer sortOrder
     ) {
     }

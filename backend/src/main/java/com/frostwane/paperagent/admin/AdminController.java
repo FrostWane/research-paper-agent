@@ -2,6 +2,8 @@ package com.frostwane.paperagent.admin;
 
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingRequest;
@@ -12,6 +14,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.UserStatusUpdateRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.intent.IntentRouteService;
+import com.frostwane.paperagent.agent.prompt.AnswerPromptTemplateService;
 import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.agent.settings.RagSettingsService;
 import com.frostwane.paperagent.auth.CurrentUserService;
@@ -36,6 +39,7 @@ public class AdminController {
     private final SamplePromptService samplePromptService;
     private final RagSettingsService ragSettingsService;
     private final IntentRouteService intentRouteService;
+    private final AnswerPromptTemplateService answerPromptTemplateService;
     private final CurrentUserService currentUserService;
 
     public AdminController(
@@ -43,12 +47,14 @@ public class AdminController {
         SamplePromptService samplePromptService,
         RagSettingsService ragSettingsService,
         IntentRouteService intentRouteService,
+        AnswerPromptTemplateService answerPromptTemplateService,
         CurrentUserService currentUserService
     ) {
         this.adminService = adminService;
         this.samplePromptService = samplePromptService;
         this.ragSettingsService = ragSettingsService;
         this.intentRouteService = intentRouteService;
+        this.answerPromptTemplateService = answerPromptTemplateService;
         this.currentUserService = currentUserService;
     }
 
@@ -100,6 +106,27 @@ public class AdminController {
     @DeleteMapping("/intent-routes/{id}")
     public ApiResponse<Void> deleteIntentRoute(@PathVariable Long id) {
         intentRouteService.delete(id, currentUserService.getRequiredUser());
+        return ApiResponse.empty();
+    }
+
+    @GetMapping("/answer-prompt-templates")
+    public ApiResponse<List<AnswerPromptTemplateResponse>> answerPromptTemplates() {
+        return ApiResponse.ok(answerPromptTemplateService.list(currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/answer-prompt-templates")
+    public ApiResponse<AnswerPromptTemplateResponse> createAnswerPromptTemplate(@Valid @RequestBody AnswerPromptTemplateRequest request) {
+        return ApiResponse.ok(answerPromptTemplateService.create(request, currentUserService.getRequiredUser()));
+    }
+
+    @PatchMapping("/answer-prompt-templates/{id}")
+    public ApiResponse<AnswerPromptTemplateResponse> updateAnswerPromptTemplate(@PathVariable Long id, @Valid @RequestBody AnswerPromptTemplateRequest request) {
+        return ApiResponse.ok(answerPromptTemplateService.update(id, request, currentUserService.getRequiredUser()));
+    }
+
+    @DeleteMapping("/answer-prompt-templates/{id}")
+    public ApiResponse<Void> deleteAnswerPromptTemplate(@PathVariable Long id) {
+        answerPromptTemplateService.delete(id, currentUserService.getRequiredUser());
         return ApiResponse.empty();
     }
 

@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminOverview, AdminUser, IntentRoute, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminOverview, AdminUser, AnswerPromptTemplate, IntentRoute, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -68,6 +68,43 @@ export function updateIntentRoute(
 
 export function deleteIntentRoute(id: number) {
   return unwrap<void>(api.delete(`/api/admin/intent-routes/${id}`));
+}
+
+export function fetchAnswerPromptTemplates() {
+  return unwrap<AnswerPromptTemplate[]>(api.get('/api/admin/answer-prompt-templates'));
+}
+
+export function createAnswerPromptTemplate(input: {
+  code: string;
+  name: string;
+  description?: string;
+  systemPrompt: string;
+  userPromptTemplate: string;
+  enabled?: boolean;
+  defaultTemplate?: boolean;
+  sortOrder?: number;
+}) {
+  return unwrap<AnswerPromptTemplate>(api.post('/api/admin/answer-prompt-templates', input));
+}
+
+export function updateAnswerPromptTemplate(
+  id: number,
+  input: {
+    code: string;
+    name: string;
+    description?: string;
+    systemPrompt: string;
+    userPromptTemplate: string;
+    enabled?: boolean;
+    defaultTemplate?: boolean;
+    sortOrder?: number;
+  }
+) {
+  return unwrap<AnswerPromptTemplate>(api.patch(`/api/admin/answer-prompt-templates/${id}`, input));
+}
+
+export function deleteAnswerPromptTemplate(id: number) {
+  return unwrap<void>(api.delete(`/api/admin/answer-prompt-templates/${id}`));
 }
 
 export function fetchRagSettings() {

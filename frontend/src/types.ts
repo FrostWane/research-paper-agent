@@ -243,6 +243,8 @@ export interface AdminOverview {
   enabledQueryMappings: number;
   totalIntentRoutes: number;
   enabledIntentRoutes: number;
+  totalAnswerPromptTemplates: number;
+  enabledAnswerPromptTemplates: number;
   totalSamplePrompts: number;
   enabledSamplePrompts: number;
   averageLatencyMs: number;
@@ -280,6 +282,20 @@ export interface IntentRoute {
   answerContract?: string;
   comparisonEnabled: boolean;
   enabled: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnswerPromptTemplate {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  systemPrompt: string;
+  userPromptTemplate: string;
+  enabled: boolean;
+  defaultTemplate: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

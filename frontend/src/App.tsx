@@ -41,18 +41,22 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  createAnswerPromptTemplate,
   createIntentRoute,
   createSamplePrompt,
   createQueryTermMapping,
+  deleteAnswerPromptTemplate,
   deleteIntentRoute,
   deleteSamplePrompt,
   deleteQueryTermMapping,
   fetchAdminOverview,
+  fetchAnswerPromptTemplates,
   fetchIntentRoutes,
   fetchRagSettings,
   fetchSamplePrompts,
   fetchAdminUsers,
   fetchQueryTermMappings,
+  updateAnswerPromptTemplate,
   updateIntentRoute,
   updateSamplePrompt,
   updateAdminUserStatus,
@@ -64,7 +68,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminUser, ChatRecord, IntentRoute, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminOverview, AdminUser, AnswerPromptTemplate, ChatRecord, IntentRoute, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -139,6 +143,15 @@ type IntentRouteInput = {
   comparisonEnabled: boolean;
   sortOrder: number;
 };
+type AnswerPromptTemplateInput = {
+  code: string;
+  name: string;
+  description: string;
+  systemPrompt: string;
+  userPromptTemplate: string;
+  defaultTemplate: boolean;
+  sortOrder: number;
+};
 type RagSettingsInput = {
   candidateLimit: number;
   resultLimit: number;
@@ -176,6 +189,7 @@ export default function App() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
   const [intentRoutes, setIntentRoutes] = useState<IntentRoute[]>([]);
+  const [answerPromptTemplates, setAnswerPromptTemplates] = useState<AnswerPromptTemplate[]>([]);
   const [samplePrompts, setSamplePrompts] = useState<SamplePrompt[]>([]);
   const [ragSettings, setRagSettings] = useState<RagSettings | null>(null);
   const [paperPrompts, setPaperPrompts] = useState<string[]>(quickPrompts);
@@ -310,6 +324,7 @@ export default function App() {
     setAdminUsers([]);
     setQueryMappings([]);
     setIntentRoutes([]);
+    setAnswerPromptTemplates([]);
     setSamplePrompts([]);
     setRagSettings(null);
     setPaperPrompts(quickPrompts);
@@ -484,11 +499,12 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, users, mappings, routes, prompts, settings] = await Promise.all([
+      const [overview, users, mappings, routes, templates, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminUsers(),
         fetchQueryTermMappings(),
         fetchIntentRoutes(),
+        fetchAnswerPromptTemplates(),
         fetchSamplePrompts(),
         fetchRagSettings()
       ]);
@@ -496,6 +512,7 @@ export default function App() {
       setAdminUsers(users);
       setQueryMappings(mappings);
       setIntentRoutes(routes);
+      setAnswerPromptTemplates(templates);
       setSamplePrompts(prompts);
       setRagSettings(settings);
     } catch (err) {
@@ -619,6 +636,61 @@ export default function App() {
       setIntentRoutes((current) => current.filter((item) => item.id !== route.id));
       setAdminOverview(await fetchAdminOverview());
       showNotice('意图路由已删除。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleCreateAnswerPromptTemplate(input: AnswerPromptTemplateInput) {
+    try {
+      setBusyText('正在保存回答模板...');
+      const created = await createAnswerPromptTemplate({ ...input, enabled: true });
+      setAnswerPromptTemplates((current) => [...current, created].sort(compareAnswerPromptTemplates));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('回答模板已添加。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleUpdateAnswerPromptTemplate(template: AnswerPromptTemplate, patch: Partial<AnswerPromptTemplateInput & { enabled: boolean }>) {
+    try {
+      setBusyText('正在更新回答模板...');
+      const updated = await updateAnswerPromptTemplate(template.id, {
+        code: patch.code ?? template.code,
+        name: patch.name ?? template.name,
+        description: patch.description ?? template.description ?? '',
+        systemPrompt: patch.systemPrompt ?? template.systemPrompt,
+        userPromptTemplate: patch.userPromptTemplate ?? template.userPromptTemplate,
+        defaultTemplate: patch.defaultTemplate ?? template.defaultTemplate,
+        enabled: patch.enabled ?? template.enabled,
+        sortOrder: patch.sortOrder ?? template.sortOrder
+      });
+      setAnswerPromptTemplates((current) => current.map((item) => (item.id === updated.id ? updated : item)).sort(compareAnswerPromptTemplates));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('回答模板已更新。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleDeleteAnswerPromptTemplate(template: AnswerPromptTemplate) {
+    const confirmed = window.confirm(`删除回答模板「${template.name}」？`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setBusyText('正在删除回答模板...');
+      await deleteAnswerPromptTemplate(template.id);
+      setAnswerPromptTemplates((current) => current.filter((item) => item.id !== template.id));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('回答模板已删除。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -931,6 +1003,7 @@ export default function App() {
             users={adminUsers}
             queryMappings={queryMappings}
             intentRoutes={intentRoutes}
+            answerPromptTemplates={answerPromptTemplates}
             samplePrompts={samplePrompts}
             ragSettings={ragSettings}
             loading={adminLoading}
@@ -943,6 +1016,9 @@ export default function App() {
             onCreateIntentRoute={(input) => void handleCreateIntentRoute(input)}
             onUpdateIntentRoute={(route, patch) => void handleUpdateIntentRoute(route, patch)}
             onDeleteIntentRoute={(route) => void handleDeleteIntentRoute(route)}
+            onCreateAnswerPromptTemplate={(input) => void handleCreateAnswerPromptTemplate(input)}
+            onUpdateAnswerPromptTemplate={(template, patch) => void handleUpdateAnswerPromptTemplate(template, patch)}
+            onDeleteAnswerPromptTemplate={(template) => void handleDeleteAnswerPromptTemplate(template)}
             onCreateSamplePrompt={(input) => void handleCreateSamplePrompt(input)}
             onUpdateSamplePrompt={(prompt, patch) => void handleUpdateSamplePrompt(prompt, patch)}
             onDeleteSamplePrompt={(prompt) => void handleDeleteSamplePrompt(prompt)}
@@ -1457,6 +1533,7 @@ function AdminView({
   users,
   queryMappings,
   intentRoutes,
+  answerPromptTemplates,
   samplePrompts,
   ragSettings,
   loading,
@@ -1469,6 +1546,9 @@ function AdminView({
   onCreateIntentRoute,
   onUpdateIntentRoute,
   onDeleteIntentRoute,
+  onCreateAnswerPromptTemplate,
+  onUpdateAnswerPromptTemplate,
+  onDeleteAnswerPromptTemplate,
   onCreateSamplePrompt,
   onUpdateSamplePrompt,
   onDeleteSamplePrompt,
@@ -1478,6 +1558,7 @@ function AdminView({
   users: AdminUser[];
   queryMappings: QueryTermMapping[];
   intentRoutes: IntentRoute[];
+  answerPromptTemplates: AnswerPromptTemplate[];
   samplePrompts: SamplePrompt[];
   ragSettings: RagSettings | null;
   loading: boolean;
@@ -1490,6 +1571,9 @@ function AdminView({
   onCreateIntentRoute: (input: IntentRouteInput) => void;
   onUpdateIntentRoute: (route: IntentRoute, patch: Partial<IntentRouteInput & { enabled: boolean }>) => void;
   onDeleteIntentRoute: (route: IntentRoute) => void;
+  onCreateAnswerPromptTemplate: (input: AnswerPromptTemplateInput) => void;
+  onUpdateAnswerPromptTemplate: (template: AnswerPromptTemplate, patch: Partial<AnswerPromptTemplateInput & { enabled: boolean }>) => void;
+  onDeleteAnswerPromptTemplate: (template: AnswerPromptTemplate) => void;
   onCreateSamplePrompt: (input: SamplePromptInput) => void;
   onUpdateSamplePrompt: (prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) => void;
   onDeleteSamplePrompt: (prompt: SamplePrompt) => void;
@@ -1521,6 +1605,7 @@ function AdminView({
         <AdminStat icon={ThumbsUp} label="反馈" value={overview?.totalFeedbacks ?? 0} detail={`${overview?.positiveFeedbacks ?? 0} 有用 / ${overview?.negativeFeedbacks ?? 0} 无用`} />
         <AdminStat icon={Search} label="术语映射" value={overview?.totalQueryMappings ?? 0} detail={`${overview?.enabledQueryMappings ?? 0} 条启用`} />
         <AdminStat icon={Layers} label="意图路由" value={overview?.totalIntentRoutes ?? 0} detail={`${overview?.enabledIntentRoutes ?? 0} 条启用`} />
+        <AdminStat icon={Bot} label="回答模板" value={overview?.totalAnswerPromptTemplates ?? 0} detail={`${overview?.enabledAnswerPromptTemplates ?? 0} 条启用`} />
         <AdminStat icon={Brain} label="示例问题" value={overview?.totalSamplePrompts ?? 0} detail={`${overview?.enabledSamplePrompts ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
       </div>
@@ -1614,6 +1699,13 @@ function AdminView({
         onCreate={onCreateIntentRoute}
         onUpdate={onUpdateIntentRoute}
         onDelete={onDeleteIntentRoute}
+      />
+
+      <AnswerPromptTemplatePanel
+        templates={answerPromptTemplates}
+        onCreate={onCreateAnswerPromptTemplate}
+        onUpdate={onUpdateAnswerPromptTemplate}
+        onDelete={onDeleteAnswerPromptTemplate}
       />
 
       <QueryTermMappingPanel
@@ -2088,6 +2180,167 @@ function IntentRoutePanel({
                 {route.enabled ? '停用' : '启用'}
               </button>
               <button className="icon-button small danger" type="button" title="删除意图路由" onClick={() => onDelete(route)}>
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnswerPromptTemplatePanel({
+  templates,
+  onCreate,
+  onUpdate,
+  onDelete
+}: {
+  templates: AnswerPromptTemplate[];
+  onCreate: (input: AnswerPromptTemplateInput) => void;
+  onUpdate: (template: AnswerPromptTemplate, patch: Partial<AnswerPromptTemplateInput & { enabled: boolean }>) => void;
+  onDelete: (template: AnswerPromptTemplate) => void;
+}) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [userPromptTemplate, setUserPromptTemplate] = useState('');
+  const [defaultTemplate, setDefaultTemplate] = useState(false);
+  const [sortOrder, setSortOrder] = useState('100');
+  const editingTemplate = templates.find((item) => item.id === editingId) ?? null;
+
+  function reset() {
+    setEditingId(null);
+    setCode('');
+    setName('');
+    setDescription('');
+    setSystemPrompt('');
+    setUserPromptTemplate('');
+    setDefaultTemplate(false);
+    setSortOrder('100');
+  }
+
+  function startEdit(template: AnswerPromptTemplate) {
+    setEditingId(template.id);
+    setCode(template.code);
+    setName(template.name);
+    setDescription(template.description ?? '');
+    setSystemPrompt(template.systemPrompt);
+    setUserPromptTemplate(template.userPromptTemplate);
+    setDefaultTemplate(template.defaultTemplate);
+    setSortOrder(String(template.sortOrder ?? 100));
+  }
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const input = {
+      code: code.trim(),
+      name: name.trim(),
+      description: description.trim(),
+      systemPrompt: systemPrompt.trim(),
+      userPromptTemplate: userPromptTemplate.trim(),
+      defaultTemplate,
+      sortOrder: Number.parseInt(sortOrder, 10) || 100
+    };
+    if (!input.code || !input.name || !input.systemPrompt || !input.userPromptTemplate) {
+      return;
+    }
+    if (editingTemplate) {
+      onUpdate(editingTemplate, input);
+    } else {
+      onCreate(input);
+    }
+    reset();
+  }
+
+  return (
+    <div className="admin-panel admin-answer-template-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>回答 Prompt 模板</h3>
+          <p>运营 AnswerAgent 的 System Prompt 和用户消息模板。</p>
+        </div>
+        <Bot size={18} />
+      </div>
+      <form className="answer-template-form" onSubmit={submit}>
+        <label>
+          <span>标识</span>
+          <input value={code} maxLength={64} placeholder="ACADEMIC_RAG" onChange={(event) => setCode(event.target.value)} />
+        </label>
+        <label>
+          <span>名称</span>
+          <input value={name} maxLength={120} placeholder="科研 RAG 模板" onChange={(event) => setName(event.target.value)} />
+        </label>
+        <label>
+          <span>排序</span>
+          <input value={sortOrder} inputMode="numeric" onChange={(event) => setSortOrder(event.target.value)} />
+        </label>
+        <label className="answer-template-check">
+          <input type="checkbox" checked={defaultTemplate} onChange={(event) => setDefaultTemplate(event.target.checked)} />
+          <span>默认</span>
+        </label>
+        <label className="wide">
+          <span>说明</span>
+          <input value={description} maxLength={500} placeholder="用于论文精读和全库综合" onChange={(event) => setDescription(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>System Prompt</span>
+          <textarea value={systemPrompt} maxLength={8000} rows={6} placeholder="你是 Research Paper Agent..." onChange={(event) => setSystemPrompt(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>User Prompt 模板</span>
+          <textarea
+            value={userPromptTemplate}
+            maxLength={12000}
+            rows={7}
+            placeholder="回答范围：{{scope}}\n{{paper_metadata}}\n回答策略：{{answer_strategy}}\n输出契约：{{answer_contract}}\n用户问题：{{question}}\n检索片段：{{sources}}"
+            onChange={(event) => setUserPromptTemplate(event.target.value)}
+          />
+        </label>
+        <div className="answer-template-actions">
+          {editingTemplate && (
+            <button className="secondary-button" type="button" onClick={reset}>
+              取消
+            </button>
+          )}
+          <button className="primary-button" type="submit" disabled={!code.trim() || !name.trim() || !systemPrompt.trim() || !userPromptTemplate.trim()}>
+            <Plus size={17} />
+            {editingTemplate ? '更新' : '添加'}
+          </button>
+        </div>
+      </form>
+      <div className="answer-template-list">
+        {templates.length === 0 ? (
+          <EmptyState compact title="暂无回答模板" detail="添加后 AnswerAgent 会使用启用的默认模板渲染提示词。" />
+        ) : (
+          templates.map((template) => (
+            <div className={`answer-template-row ${template.enabled ? '' : 'is-disabled'}`} key={template.id}>
+              <strong>{template.code}</strong>
+              <span>
+                <b>{template.name}</b>
+                <small>{template.description || compactText(template.systemPrompt, 88)}</small>
+              </span>
+              <em>{template.defaultTemplate ? '默认' : '候选'} · {template.enabled ? '启用' : '停用'} · {template.sortOrder}</em>
+              <button className="secondary-button compact-action" type="button" onClick={() => startEdit(template)}>
+                编辑
+              </button>
+              <button
+                className="secondary-button compact-action"
+                type="button"
+                onClick={() => onUpdate(template, { enabled: !template.enabled })}
+              >
+                {template.enabled ? '停用' : '启用'}
+              </button>
+              <button
+                className="secondary-button compact-action"
+                type="button"
+                onClick={() => onUpdate(template, { defaultTemplate: true, enabled: true })}
+              >
+                设默认
+              </button>
+              <button className="icon-button small danger" type="button" title="删除回答模板" onClick={() => onDelete(template)}>
                 <Trash2 size={15} />
               </button>
             </div>
@@ -2962,6 +3215,16 @@ function promptTexts(prompts: SamplePrompt[], fallback: string[]) {
 }
 
 function compareIntentRoutes(a: IntentRoute, b: IntentRoute) {
+  if ((a.sortOrder ?? 100) !== (b.sortOrder ?? 100)) {
+    return (a.sortOrder ?? 100) - (b.sortOrder ?? 100);
+  }
+  return a.id - b.id;
+}
+
+function compareAnswerPromptTemplates(a: AnswerPromptTemplate, b: AnswerPromptTemplate) {
+  if (a.defaultTemplate !== b.defaultTemplate) {
+    return a.defaultTemplate ? -1 : 1;
+  }
   if ((a.sortOrder ?? 100) !== (b.sortOrder ?? 100)) {
     return (a.sortOrder ?? 100) - (b.sortOrder ?? 100);
   }

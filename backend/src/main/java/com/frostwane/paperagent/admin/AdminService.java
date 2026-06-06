@@ -79,6 +79,8 @@ public class AdminService {
             count("select count(*) from query_term_mappings where enabled = true"),
             count("select count(*) from intent_routes"),
             count("select count(*) from intent_routes where enabled = true"),
+            count("select count(*) from answer_prompt_templates"),
+            count("select count(*) from answer_prompt_templates where enabled = true"),
             count("select count(*) from sample_prompts"),
             count("select count(*) from sample_prompts where enabled = true"),
             intValue("select coalesce(round(avg(latency_ms)), 0) from chat_records where latency_ms is not null"),

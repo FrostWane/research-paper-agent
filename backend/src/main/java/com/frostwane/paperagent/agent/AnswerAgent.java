@@ -3,19 +3,22 @@ package com.frostwane.paperagent.agent;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
 import com.frostwane.paperagent.agent.model.ModelRoutingService;
 import com.frostwane.paperagent.agent.model.ModelRoutingService.RoutedAnswer;
+import com.frostwane.paperagent.agent.prompt.AnswerPromptTemplateService;
+import com.frostwane.paperagent.agent.prompt.RenderedAnswerPrompt;
 import com.frostwane.paperagent.paper.Paper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.StringJoiner;
 
 @Service
 public class AnswerAgent {
 
     private final ModelRoutingService modelRoutingService;
+    private final AnswerPromptTemplateService answerPromptTemplateService;
 
-    public AnswerAgent(ModelRoutingService modelRoutingService) {
+    public AnswerAgent(ModelRoutingService modelRoutingService, AnswerPromptTemplateService answerPromptTemplateService) {
         this.modelRoutingService = modelRoutingService;
+        this.answerPromptTemplateService = answerPromptTemplateService;
     }
 
     public GeneratedAnswer answer(Paper paper, String question, List<SourceResponse> sources) {
@@ -29,56 +32,13 @@ public class AnswerAgent {
         String answerStrategy,
         String answerContract
     ) {
+        RenderedAnswerPrompt prompt = answerPromptTemplateService.render(paper, question, sources, answerStrategy, answerContract);
         RoutedAnswer answer = modelRoutingService.generate(
-            systemPrompt(),
-            buildUserPrompt(paper, question, sources, answerStrategy, answerContract),
+            prompt.systemPrompt(),
+            prompt.userPrompt(),
             () -> fallbackAnswer(paper, question, sources, answerStrategy)
         );
         return new GeneratedAnswer(answer.content(), answer.modelName());
-    }
-
-    private String systemPrompt() {
-        return """
-            你是 Research Paper Agent 的论文精读 Agent。
-            必须基于给定范围、文献题录和检索片段回答。
-            必须遵守用户消息中的“回答策略”和“输出契约”。
-            不要在最终答案中复述“回答策略”“输出契约”等内部字段名。
-            如果材料不足，明确说明“材料不足”，不要编造实验结果。
-            用结构化中文 Markdown 输出，并尽量附上论文标题和来源页码。
-            """;
-    }
-
-    private String buildUserPrompt(
-        Paper paper,
-        String question,
-        List<SourceResponse> sources,
-        String answerStrategy,
-        String answerContract
-    ) {
-        StringJoiner joiner = new StringJoiner("\n");
-        if (paper == null) {
-            joiner.add("回答范围：当前用户的整个文献库。");
-        } else {
-            joiner.add("回答范围：单篇论文精读。");
-            joiner.add("文献标题：" + paper.getTitle());
-            joiner.add("作者：" + defaultText(paper.getAuthors(), "未填写"));
-            joiner.add("会议/期刊：" + defaultText(paper.getVenue(), "未填写"));
-            joiner.add("年份：" + (paper.getYear() == null ? "未填写" : paper.getYear()));
-            joiner.add("关键词：" + defaultText(paper.getKeywords(), "未填写"));
-            joiner.add("摘要：" + defaultText(paper.getAbstractText(), "未填写"));
-        }
-        joiner.add("回答策略：" + defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA"));
-        if (answerContract != null && !answerContract.isBlank()) {
-            joiner.add("输出契约：\n" + answerContract.trim());
-        }
-        joiner.add("用户问题：" + question);
-        joiner.add("检索片段：");
-        if (sources.isEmpty()) {
-            joiner.add("无可用检索片段。");
-        } else {
-            sources.forEach(source -> joiner.add("- 《" + source.title() + "》第 " + source.page() + " 页：" + source.content()));
-        }
-        return joiner.toString();
     }
 
     private String fallbackAnswer(Paper paper, String question, List<SourceResponse> sources, String answerStrategy) {
