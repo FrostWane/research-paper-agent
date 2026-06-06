@@ -118,6 +118,7 @@ public final class AdminDtos {
         boolean comparisonRequested,
         String answerStrategy,
         String answerContract,
+        List<ToolExecutionResponse> toolExecutions,
         int sourceCount,
         int memoryTurnCount,
         int memoryChars,
@@ -161,6 +162,17 @@ public final class AdminDtos {
         Long id,
         String term,
         List<String> expansions
+    ) {
+    }
+
+    public record ToolExecutionResponse(
+        String name,
+        String label,
+        String status,
+        String summary,
+        String details,
+        int latencyMs,
+        String errorMessage
     ) {
     }
 

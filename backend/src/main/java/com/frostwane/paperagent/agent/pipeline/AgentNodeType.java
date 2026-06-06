@@ -5,6 +5,7 @@ public enum AgentNodeType {
     MEMORY,
     QUERY_REWRITE,
     QUERY_PLANNING,
+    TOOL_EXECUTION,
     RETRIEVAL,
     ANSWER_PLANNING,
     GENERATION,

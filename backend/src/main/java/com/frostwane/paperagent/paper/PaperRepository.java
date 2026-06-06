@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface PaperRepository extends JpaRepository<Paper, Long>, JpaSpecificationExecutor<Paper> {
     Optional<Paper> findByIdAndOwnerId(Long id, Long ownerId);
+    long countByOwnerId(Long ownerId);
+    long countByOwnerIdAndProcessStatus(Long ownerId, ProcessStatus processStatus);
 }

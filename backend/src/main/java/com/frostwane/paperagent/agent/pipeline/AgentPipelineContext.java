@@ -6,6 +6,7 @@ import com.frostwane.paperagent.agent.ChatSession;
 import com.frostwane.paperagent.agent.retrieval.RetrievalChannelTrace;
 import com.frostwane.paperagent.agent.retrieval.RetrievalProcessorTrace;
 import com.frostwane.paperagent.agent.term.QueryTermExpansion;
+import com.frostwane.paperagent.agent.tool.ToolExecutionTrace;
 import com.frostwane.paperagent.paper.Paper;
 import com.frostwane.paperagent.user.User;
 
@@ -30,6 +31,8 @@ public class AgentPipelineContext {
     private List<RetrievalChannelTrace> retrievalChannels = List.of();
     private List<RetrievalProcessorTrace> retrievalProcessors = List.of();
     private List<QueryTermExpansion> queryExpansions = List.of();
+    private List<ToolExecutionTrace> toolExecutions = List.of();
+    private String toolContext = "";
     private String queryIntent = "GENERAL_QA";
     private String searchQuery;
     private boolean queryRewriteEnabled;
@@ -141,6 +144,23 @@ public class AgentPipelineContext {
 
     public void queryExpansions(List<QueryTermExpansion> queryExpansions) {
         this.queryExpansions = queryExpansions == null ? List.of() : List.copyOf(queryExpansions);
+    }
+
+    public List<ToolExecutionTrace> toolExecutions() {
+        return toolExecutions;
+    }
+
+    public void toolExecutions(List<ToolExecutionTrace> toolExecutions) {
+        this.toolExecutions = toolExecutions == null ? List.of() : List.copyOf(toolExecutions);
+        this.toolContext = this.toolExecutions.stream()
+            .filter(item -> "SUCCESS".equals(item.status()))
+            .map(item -> "- " + item.label() + "：" + item.summary() + detailsLine(item.details()))
+            .reduce((left, right) -> left + "\n" + right)
+            .orElse("");
+    }
+
+    public String toolContext() {
+        return toolContext;
     }
 
     public String queryIntent() {
@@ -417,6 +437,10 @@ public class AgentPipelineContext {
         }
         String sanitized = value.replaceAll("sk-[A-Za-z0-9_-]+", "sk-***");
         return sanitized.length() > 600 ? sanitized.substring(0, 600) : sanitized;
+    }
+
+    private String detailsLine(String details) {
+        return details == null || details.isBlank() ? "" : "\n  " + details.trim().replace("\n", "\n  ");
     }
 
     public record NodeSpan(

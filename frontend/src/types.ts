@@ -178,6 +178,7 @@ export interface AdminTrace {
   comparisonRequested: boolean;
   answerStrategy?: string;
   answerContract?: string;
+  toolExecutions: AdminToolExecution[];
   sourceCount: number;
   memoryTurnCount: number;
   memoryChars: number;
@@ -210,6 +211,16 @@ export interface AdminQueryExpansion {
   id: number;
   term: string;
   expansions: string[];
+}
+
+export interface AdminToolExecution {
+  name: string;
+  label: string;
+  status: 'SUCCESS' | 'FAILED' | string;
+  summary?: string;
+  details?: string;
+  latencyMs: number;
+  errorMessage?: string;
 }
 
 export interface AdminRetrievalChannel {

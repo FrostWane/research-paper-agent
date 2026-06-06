@@ -17,6 +17,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceRetrievalProcessorRe
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RecentPaperResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ToolExecutionResponse;
 import com.frostwane.paperagent.agent.term.QueryTermMapping;
 import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
 import com.frostwane.paperagent.common.BusinessException;
@@ -367,6 +368,7 @@ public class AdminService {
               t.query_rewrite_enabled,
               t.query_rewrite_model_name,
               t.query_expansions_json::text as query_expansions_json,
+              t.tool_executions_json::text as tool_executions_json,
               t.comparison_requested,
               t.answer_strategy,
               t.answer_contract,
@@ -434,12 +436,13 @@ public class AdminService {
                    or lower(coalesce(t.rewritten_query, '')) like ?
                    or lower(coalesce(t.query_intent, '')) like ?
                    or lower(coalesce(t.model_name, 'fallback')) like ?
+                   or lower(coalesce(t.tool_executions_json::text, '[]')) like ?
                    or lower(coalesce(s.title, '')) like ?
                    or lower(coalesce(p.title, '')) like ?
                    or lower(u.username) like ?
                  )
                 """);
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 9; i++) {
                 params.add(pattern);
             }
         }
@@ -474,6 +477,7 @@ public class AdminService {
             rs.getBoolean("comparison_requested"),
             rs.getString("answer_strategy"),
             rs.getString("answer_contract"),
+            toolExecutions(rs.getString("tool_executions_json")),
             rs.getInt("source_count"),
             rs.getInt("memory_turn_count"),
             rs.getInt("memory_chars"),
@@ -596,6 +600,15 @@ public class AdminService {
     }
 
     private List<QueryExpansionResponse> queryExpansions(String json) {
+        try {
+            return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
+            });
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private List<ToolExecutionResponse> toolExecutions(String json) {
         try {
             return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
             });

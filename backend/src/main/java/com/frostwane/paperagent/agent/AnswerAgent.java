@@ -23,7 +23,7 @@ public class AnswerAgent {
     }
 
     public GeneratedAnswer answer(Paper paper, String question, List<SourceResponse> sources) {
-        return answer(paper, question, sources, "", "EVIDENCE_GROUNDED_QA", "");
+        return answer(paper, question, sources, "", "", "EVIDENCE_GROUNDED_QA", "");
     }
 
     public GeneratedAnswer answer(
@@ -34,17 +34,29 @@ public class AnswerAgent {
         String answerStrategy,
         String answerContract
     ) {
-        RenderedAnswerPrompt prompt = answerPromptTemplateService.render(paper, question, sources, conversationHistory, answerStrategy, answerContract);
+        return answer(paper, question, sources, conversationHistory, "", answerStrategy, answerContract);
+    }
+
+    public GeneratedAnswer answer(
+        Paper paper,
+        String question,
+        List<SourceResponse> sources,
+        String conversationHistory,
+        String toolContext,
+        String answerStrategy,
+        String answerContract
+    ) {
+        RenderedAnswerPrompt prompt = answerPromptTemplateService.render(paper, question, sources, conversationHistory, toolContext, answerStrategy, answerContract);
         RoutedAnswer answer = modelRoutingService.generate(
             ModelTaskType.ANSWER_GENERATION,
             prompt.systemPrompt(),
             prompt.userPrompt(),
-            () -> fallbackAnswer(paper, question, sources, answerStrategy)
+                    () -> fallbackAnswer(paper, question, sources, toolContext, answerStrategy)
         );
         return new GeneratedAnswer(answer.content(), answer.modelName());
     }
 
-    private String fallbackAnswer(Paper paper, String question, List<SourceResponse> sources, String answerStrategy) {
+    private String fallbackAnswer(Paper paper, String question, List<SourceResponse> sources, String toolContext, String answerStrategy) {
         String strategy = defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA");
         String lowerQuestion = question.toLowerCase();
         StringBuilder builder = new StringBuilder();
@@ -55,7 +67,11 @@ public class AnswerAgent {
             builder.append("围绕《").append(paper.getTitle()).append("》，可以先基于当前题录和已解析片段做如下阅读判断：\n\n");
         }
 
-        if ("EVIDENCE_GAP".equals(strategy)) {
+        if ("TOOL_AUGMENTED_QA".equals(strategy)) {
+            builder.append("1. **工具结论**：").append(defaultText(toolContext, "当前没有可用业务工具结果。")).append("\n");
+            builder.append("2. **使用边界**：以上统计来自当前用户业务数据；论文内容观点仍需要检索片段支撑。\n");
+            builder.append("3. **下一步**：如果要分析研究主题、方法或实验，请继续基于已解析 PDF 片段追问。\n");
+        } else if ("EVIDENCE_GAP".equals(strategy)) {
             builder.append("1. **材料状态**：当前没有命中的 PDF 正文片段，材料不足，不能给出可靠结论。\n");
             builder.append("2. **需要补充**：建议先解析 PDF、扩大检索范围，或补充摘要/关键词后再提问。\n");
             builder.append("3. **可追问方向**：可以改问研究问题、方法结构、实验设置或局限性等更具体的问题。\n");

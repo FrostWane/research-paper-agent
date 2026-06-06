@@ -37,6 +37,10 @@ public class AnswerPlanningNode implements AgentNode {
     }
 
     private String resolveStrategy(AgentPipelineContext context, IntentRouteMatch route) {
+        boolean hasSuccessfulTool = context.toolExecutions().stream().anyMatch(item -> "SUCCESS".equals(item.status()));
+        if (context.sourceCount() == 0 && hasSuccessfulTool) {
+            return "TOOL_AUGMENTED_QA";
+        }
         if (context.sourceCount() == 0) {
             return "EVIDENCE_GAP";
         }
@@ -47,7 +51,9 @@ public class AnswerPlanningNode implements AgentNode {
         String scopeRule = libraryScope
             ? "回答必须先判断证据覆盖了哪些论文，不要把单篇证据扩展成全库结论。"
             : "回答必须聚焦当前论文，不要引入检索片段之外的论文事实。";
-        String evidenceRule = "每个关键结论都要能对应到检索片段；证据不足时明确写出边界。";
+        String evidenceRule = "TOOL_AUGMENTED_QA".equals(strategy)
+            ? "运营统计、解析状态和文件数量可以直接基于业务工具结果回答；论文内容结论仍必须依赖检索片段。"
+            : "每个关键结论都要能对应到检索片段；证据不足时明确写出边界。";
         String strategyRule = customContract == null || customContract.isBlank() ? defaultStrategyRule(strategy) : customContract.trim();
         return (scopeRule + "\n" + evidenceRule + "\n" + strategyRule).trim();
     }
@@ -74,6 +80,9 @@ public class AnswerPlanningNode implements AgentNode {
                 """;
             case "EVIDENCE_GAP" -> """
                 输出结构：先说明材料不足；列出缺失的证据类型；给出下一步解析、补充文献或重新提问建议。
+                """;
+            case "TOOL_AUGMENTED_QA" -> """
+                输出结构：直接回答工具能够证明的统计或状态；必要时列出关键计数；不要声称工具结果之外的论文内容结论。
                 """;
             default -> """
                 输出结构：直接回答问题；必要时拆成要点；结尾列出证据来源和不确定性。

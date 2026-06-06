@@ -36,6 +36,19 @@ public class AnswerPromptTemplateService {
         String answerStrategy,
         String answerContract
     ) {
+        return render(paper, question, sources, conversationHistory, "", answerStrategy, answerContract);
+    }
+
+    @Transactional(readOnly = true)
+    public RenderedAnswerPrompt render(
+        Paper paper,
+        String question,
+        List<SourceResponse> sources,
+        String conversationHistory,
+        String toolContext,
+        String answerStrategy,
+        String answerContract
+    ) {
         AnswerPromptTemplate template = currentTemplate();
         Map<String, String> slots = new LinkedHashMap<>();
         slots.put("scope", paper == null ? "当前用户的整个文献库。" : "单篇论文精读。");
@@ -43,6 +56,7 @@ public class AnswerPromptTemplateService {
         slots.put("answer_strategy", defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA"));
         slots.put("answer_contract", defaultText(answerContract, "按证据回答，材料不足时明确边界。"));
         slots.put("conversation_history", defaultText(conversationHistory, "无历史对话。"));
+        slots.put("tool_context", defaultText(toolContext, "无业务工具结果。"));
         slots.put("question", defaultText(question, ""));
         slots.put("sources", sourceText(sources));
         return new RenderedAnswerPrompt(
@@ -189,6 +203,7 @@ public class AnswerPromptTemplateService {
         return """
             你是 Research Paper Agent 的论文精读 Agent。
             必须基于给定范围、文献题录和检索片段回答。
+            如果提供了业务工具结果，可以用它回答文献库统计、解析状态和系统运营类问题。
             必须遵守用户消息中的“回答策略”和“输出契约”。
             不要在最终答案中复述“回答策略”“输出契约”等内部字段名。
             如果材料不足，明确说明“材料不足”，不要编造实验结果。
@@ -205,6 +220,8 @@ public class AnswerPromptTemplateService {
             {{answer_contract}}
             历史对话：
             {{conversation_history}}
+            业务工具结果：
+            {{tool_context}}
             用户问题：{{question}}
             检索片段：
             {{sources}}

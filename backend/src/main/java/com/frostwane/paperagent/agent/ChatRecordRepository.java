@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ChatRecordRepository extends JpaRepository<ChatRecord, Long> {
+    long countByOwnerId(Long ownerId);
+    long countByOwnerIdAndPaperIsNull(Long ownerId);
     List<ChatRecord> findByOwnerIdAndPaperIdOrderByCreatedAtAsc(Long ownerId, Long paperId);
     List<ChatRecord> findByOwnerIdAndPaperIsNullOrderByCreatedAtAsc(Long ownerId);
     List<ChatRecord> findByOwnerIdAndSessionIdOrderByCreatedAtAsc(Long ownerId, Long sessionId);

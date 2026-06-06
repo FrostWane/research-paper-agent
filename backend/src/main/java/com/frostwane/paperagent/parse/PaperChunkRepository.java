@@ -25,6 +25,13 @@ public interface PaperChunkRepository extends JpaRepository<PaperChunk, Long> {
         """)
     List<PaperChunk> findByOwnerIdOrderByPaperUpdatedAtDesc(@Param("ownerId") Long ownerId);
 
+    @Query("""
+        select count(chunk)
+        from PaperChunk chunk
+        where chunk.paper.owner.id = :ownerId
+        """)
+    long countByOwnerId(@Param("ownerId") Long ownerId);
+
     long countByPaperId(Long paperId);
     void deleteByPaperId(Long paperId);
 }

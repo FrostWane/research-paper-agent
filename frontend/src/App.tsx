@@ -2337,6 +2337,21 @@ function AdminView({
                     {trace.answerContract && (
                       <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 96)}</small>
                     )}
+                    {(trace.toolExecutions ?? []).length > 0 && (
+                      <div className="admin-tool-executions">
+                        {trace.toolExecutions.map((tool) => (
+                          <span
+                            className={`admin-tool-execution ${tool.status === 'FAILED' ? 'is-failed' : ''}`}
+                            key={`${trace.id}-${tool.name}`}
+                            title={tool.errorMessage || tool.details || tool.summary || tool.label || tool.name}
+                          >
+                            <i>{tool.label || tool.name}</i>
+                            <b>{tool.status === 'SUCCESS' ? 'OK' : tool.status}</b>
+                            <em>{formatLatency(tool.latencyMs)}</em>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {trace.memoryTurnCount > 0 && (
                       <small className="admin-trace-memory">记忆：{trace.memoryTurnCount} 轮 / {trace.memoryChars} 字</small>
                     )}
@@ -2619,6 +2634,17 @@ function TraceExplorerPanel({
                   )}
                   {trace.answerContract && (
                     <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 180)}</small>
+                  )}
+                  {(trace.toolExecutions ?? []).length > 0 && (
+                    <div className="admin-tool-executions">
+                      {trace.toolExecutions.map((tool) => (
+                        <span className={`admin-tool-execution ${tool.status === 'FAILED' ? 'is-failed' : ''}`} key={`${trace.id}-explorer-tool-${tool.name}`} title={tool.errorMessage || tool.details || tool.summary || tool.label || tool.name}>
+                          <i>{tool.label || tool.name}</i>
+                          <b>{tool.status === 'SUCCESS' ? compactText(tool.summary || '已执行', 48) : tool.status}</b>
+                          <em>{formatLatency(tool.latencyMs)}</em>
+                        </span>
+                      ))}
+                    </div>
                   )}
                   {trace.answerQualityNotes && (
                     <small className="admin-trace-quality-note">质量说明：{trace.answerQualityNotes}</small>
@@ -4066,6 +4092,7 @@ function nodeSpanLabel(name: string) {
     'conversation-memory': '记忆',
     'query-rewrite-and-split': '改写',
     'query-planning': '规划',
+    'tool-execution': '工具',
     retrieval: '检索',
     'answer-planning': '策略',
     'answer-generation': '生成',

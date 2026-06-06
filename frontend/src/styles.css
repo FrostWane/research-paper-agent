@@ -2481,6 +2481,49 @@ select,
   overflow: hidden;
 }
 
+.admin-tool-executions {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-tool-execution {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 260px;
+  min-height: 22px;
+  padding: 0 7px;
+  color: #6d3d00;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-tool-execution.is-failed {
+  color: var(--red);
+  background: #fff1f3;
+  border-color: #ffd5dd;
+}
+
+.admin-tool-execution i,
+.admin-tool-execution b,
+.admin-tool-execution em {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.admin-tool-execution em {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .admin-query-expansions {
   display: flex;
   gap: 5px;
