@@ -55,6 +55,7 @@ import {
   deleteQueryTermMapping,
   fetchAdminChunks,
   fetchAdminOverview,
+  fetchAdminParseJobs,
   fetchAdminTraces,
   fetchAnswerPromptTemplates,
   fetchAgentPipelineNodes,
@@ -92,7 +93,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -225,6 +226,10 @@ type AdminChunkFilters = {
   paperId: string;
   keyword: string;
 };
+type AdminParseJobFilters = {
+  status: string;
+  keyword: string;
+};
 
 const defaultRagSettingsInput: RagSettingsInput = {
   candidateLimit: 10,
@@ -257,6 +262,10 @@ const defaultChunkFilters: AdminChunkFilters = {
   paperId: '',
   keyword: ''
 };
+const defaultParseJobFilters: AdminParseJobFilters = {
+  status: '',
+  keyword: ''
+};
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -283,6 +292,8 @@ export default function App() {
   const [adminTraceFilters, setAdminTraceFilters] = useState<AdminTraceFilters>(defaultTraceFilters);
   const [adminChunkPage, setAdminChunkPage] = useState<PageResponse<AdminChunk> | null>(null);
   const [adminChunkFilters, setAdminChunkFilters] = useState<AdminChunkFilters>(defaultChunkFilters);
+  const [adminParseJobPage, setAdminParseJobPage] = useState<PageResponse<AdminParseJob> | null>(null);
+  const [adminParseJobFilters, setAdminParseJobFilters] = useState<AdminParseJobFilters>(defaultParseJobFilters);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [agentPipelineNodes, setAgentPipelineNodes] = useState<AdminAgentPipelineNode[]>([]);
   const [ingestionPipelineNodes, setIngestionPipelineNodes] = useState<AdminIngestionPipelineNode[]>([]);
@@ -468,6 +479,8 @@ export default function App() {
     setAdminTraceFilters(defaultTraceFilters);
     setAdminChunkPage(null);
     setAdminChunkFilters(defaultChunkFilters);
+    setAdminParseJobPage(null);
+    setAdminParseJobFilters(defaultParseJobFilters);
     setAdminUsers([]);
     setAgentPipelineNodes([]);
     setIngestionPipelineNodes([]);
@@ -773,10 +786,11 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, chunks, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, chunks, parseJobs, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
         fetchAdminChunks({ ...adminChunkFilters, page: adminChunkPage?.page ?? 1, pageSize: adminChunkPage?.pageSize ?? 8 }),
+        fetchAdminParseJobs({ ...adminParseJobFilters, page: adminParseJobPage?.page ?? 1, pageSize: adminParseJobPage?.pageSize ?? 10 }),
         fetchAdminUsers(),
         fetchAgentPipelineNodes(),
         fetchIngestionPipelineNodes(),
@@ -793,6 +807,7 @@ export default function App() {
       setAdminOverview(overview);
       setAdminTracePage(traces);
       setAdminChunkPage(chunks);
+      setAdminParseJobPage(parseJobs);
       setAdminUsers(users);
       setAgentPipelineNodes(pipelineNodes);
       setIngestionPipelineNodes(ingestionNodes);
@@ -848,6 +863,25 @@ export default function App() {
     const nextFilters = { ...adminChunkFilters, ...patch };
     setAdminChunkFilters(nextFilters);
     await loadAdminChunkPage(nextFilters, 1);
+  }
+
+  async function loadAdminParseJobPage(nextFilters = adminParseJobFilters, page = adminParseJobPage?.page ?? 1) {
+    try {
+      setAdminLoading(true);
+      setError('');
+      const parseJobs = await fetchAdminParseJobs({ ...nextFilters, page, pageSize: adminParseJobPage?.pageSize ?? 10 });
+      setAdminParseJobPage(parseJobs);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleAdminParseJobFilterChange(patch: Partial<AdminParseJobFilters>) {
+    const nextFilters = { ...adminParseJobFilters, ...patch };
+    setAdminParseJobFilters(nextFilters);
+    await loadAdminParseJobPage(nextFilters, 1);
   }
 
   async function handleAdminChunkEnabled(chunk: AdminChunk, enabled: boolean) {
@@ -1426,6 +1460,8 @@ export default function App() {
             traceFilters={adminTraceFilters}
             chunkPage={adminChunkPage}
             chunkFilters={adminChunkFilters}
+            parseJobPage={adminParseJobPage}
+            parseJobFilters={adminParseJobFilters}
             users={adminUsers}
             agentPipelineNodes={agentPipelineNodes}
             ingestionPipelineNodes={ingestionPipelineNodes}
@@ -1445,6 +1481,8 @@ export default function App() {
             onTracePageChange={(page) => void loadAdminTracePage(adminTraceFilters, page)}
             onChunkFilterChange={(patch) => void handleAdminChunkFilterChange(patch)}
             onChunkPageChange={(page) => void loadAdminChunkPage(adminChunkFilters, page)}
+            onParseJobFilterChange={(patch) => void handleAdminParseJobFilterChange(patch)}
+            onParseJobPageChange={(page) => void loadAdminParseJobPage(adminParseJobFilters, page)}
             onChunkEnabledChange={(chunk, enabled) => void handleAdminChunkEnabled(chunk, enabled)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
@@ -2110,6 +2148,8 @@ function AdminView({
   traceFilters,
   chunkPage,
   chunkFilters,
+  parseJobPage,
+  parseJobFilters,
   users,
   agentPipelineNodes,
   ingestionPipelineNodes,
@@ -2129,6 +2169,8 @@ function AdminView({
   onTracePageChange,
   onChunkFilterChange,
   onChunkPageChange,
+  onParseJobFilterChange,
+  onParseJobPageChange,
   onChunkEnabledChange,
   onUserStatusChange,
   onCreateQueryMapping,
@@ -2153,6 +2195,8 @@ function AdminView({
   traceFilters: AdminTraceFilters;
   chunkPage: PageResponse<AdminChunk> | null;
   chunkFilters: AdminChunkFilters;
+  parseJobPage: PageResponse<AdminParseJob> | null;
+  parseJobFilters: AdminParseJobFilters;
   users: AdminUser[];
   agentPipelineNodes: AdminAgentPipelineNode[];
   ingestionPipelineNodes: AdminIngestionPipelineNode[];
@@ -2172,6 +2216,8 @@ function AdminView({
   onTracePageChange: (page: number) => void;
   onChunkFilterChange: (patch: Partial<AdminChunkFilters>) => void;
   onChunkPageChange: (page: number) => void;
+  onParseJobFilterChange: (patch: Partial<AdminParseJobFilters>) => void;
+  onParseJobPageChange: (page: number) => void;
   onChunkEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
@@ -2361,61 +2407,15 @@ function AdminView({
         onEnabledChange={onChunkEnabledChange}
       />
 
-      <div className="admin-panel admin-job-panel">
-        <div className="admin-panel-head">
-          <div>
-            <h3>解析任务</h3>
-            <p>最近 PDF 入库任务。平均 {formatLatency(overview?.averageParseMs ?? 0)}{overview?.failedParseJobs ? ` · 失败 ${overview.failedParseJobs} 次` : ''}</p>
-          </div>
-          <Loader2 size={18} />
-        </div>
-        <div className="admin-job-list">
-          {(overview?.recentParseJobs ?? []).length === 0 ? (
-            <EmptyState compact title="暂无任务" detail="触发 PDF 解析后会记录入库任务。" />
-          ) : (
-            <>
-              <div className="admin-job-row head">
-                <span>状态</span>
-                <span>文献</span>
-                <span>文件</span>
-                <span>页数</span>
-                <span>片段</span>
-                <span>耗时</span>
-              </div>
-              {overview!.recentParseJobs.map((job) => (
-                <div className={`admin-job-row ${job.status === 'FAILED' ? 'is-failed' : ''}`} key={job.id}>
-                  <strong className={`admin-job-status ${job.status === 'SUCCESS' ? 'is-success' : job.status === 'RUNNING' ? 'is-running' : 'is-failed'}`}>
-                    {parseJobStatusLabel(job.status)}
-                  </strong>
-                  <span className="admin-job-title">
-                    <strong>{job.paperTitle}</strong>
-                    <small>{job.username} · {formatTime(job.startedAt)}</small>
-                    {(job.nodeSpans ?? []).length > 0 && (
-                      <div className="admin-ingestion-spans">
-                        {job.nodeSpans.map((span) => (
-                          <span
-                            className={`admin-node-span ${span.status === 'FAILED' ? 'is-failed' : ''}`}
-                            key={`${job.id}-${span.order}-${span.name}`}
-                            title={span.errorMessage || span.label || span.name}
-                          >
-                            <i>{span.label || ingestionNodeLabel(span.name)}</i>
-                            <b>{formatLatency(span.durationMs)}</b>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {job.status === 'FAILED' && job.errorMessage && <small className="admin-job-error">{job.errorMessage}</small>}
-                  </span>
-                  <em>{job.fileName} · {formatBytes(job.fileSize)}</em>
-                  <span>{job.pageCount}</span>
-                  <span>{job.chunkCount}</span>
-                  <strong>{job.status === 'RUNNING' ? '进行中' : formatLatency(job.durationMs)}</strong>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      </div>
+      <ParseJobExplorerPanel
+        page={parseJobPage}
+        filters={parseJobFilters}
+        loading={loading}
+        averageParseMs={overview?.averageParseMs ?? 0}
+        failedParseJobs={overview?.failedParseJobs ?? 0}
+        onFilterChange={onParseJobFilterChange}
+        onPageChange={onParseJobPageChange}
+      />
 
       <div className="admin-panel admin-trace-panel">
         <div className="admin-panel-head">
@@ -2744,6 +2744,142 @@ function KnowledgeChunkExplorerPanel({
               <p>{chunk.contentPreview}</p>
             </article>
           ))
+        )}
+      </div>
+      <div className="admin-trace-pagination">
+        <button className="secondary-button compact-action" type="button" disabled={loading || currentPage <= 1} onClick={() => onPageChange(Math.max(1, currentPage - 1))}>
+          上一页
+        </button>
+        <button className="secondary-button compact-action" type="button" disabled={loading || totalPages === 0 || currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          下一页
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ParseJobExplorerPanel({
+  page,
+  filters,
+  loading,
+  averageParseMs,
+  failedParseJobs,
+  onFilterChange,
+  onPageChange
+}: {
+  page: PageResponse<AdminParseJob> | null;
+  filters: AdminParseJobFilters;
+  loading: boolean;
+  averageParseMs: number;
+  failedParseJobs: number;
+  onFilterChange: (patch: Partial<AdminParseJobFilters>) => void;
+  onPageChange: (page: number) => void;
+}) {
+  const [draft, setDraft] = useState<AdminParseJobFilters>(filters);
+  const jobs = page?.items ?? [];
+  const currentPage = page?.page ?? 1;
+  const totalPages = page?.totalPages ?? 0;
+  const total = page?.total ?? 0;
+
+  useEffect(() => {
+    setDraft(filters);
+  }, [filters.status, filters.keyword]);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onFilterChange(draft);
+  }
+
+  return (
+    <div className="admin-panel admin-job-panel admin-parse-job-explorer-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>解析任务 Explorer</h3>
+          <p>按状态或关键词检索 PDF 入库任务。平均 {formatLatency(averageParseMs)}{failedParseJobs ? ` · 失败 ${failedParseJobs} 次` : ''}</p>
+        </div>
+        <Loader2 size={18} />
+      </div>
+      <form className="admin-trace-filter admin-parse-job-filter" onSubmit={submit}>
+        <label>
+          <span>状态</span>
+          <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}>
+            <option value="">全部</option>
+            <option value="RUNNING">进行中</option>
+            <option value="SUCCESS">成功</option>
+            <option value="FAILED">失败</option>
+          </select>
+        </label>
+        <label className="trace-filter-keyword">
+          <span>关键词</span>
+          <input value={draft.keyword} placeholder="文献、文件、用户、节点或错误" onChange={(event) => setDraft((current) => ({ ...current, keyword: event.target.value }))} />
+        </label>
+        <button className="secondary-button compact-action" type="submit" disabled={loading}>
+          查询
+        </button>
+        <button
+          className="secondary-button compact-action"
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            setDraft(defaultParseJobFilters);
+            onFilterChange(defaultParseJobFilters);
+          }}
+        >
+          重置
+        </button>
+      </form>
+      <div className="admin-trace-explorer-meta">
+        <span>{total} 个解析任务</span>
+        <span>第 {totalPages === 0 ? 0 : currentPage} / {totalPages} 页</span>
+      </div>
+      <div className="admin-job-list">
+        {jobs.length === 0 ? (
+          <EmptyState compact title="暂无匹配任务" detail="触发 PDF 解析后可按状态、文件或错误信息检索入库任务。" />
+        ) : (
+          <>
+            <div className="admin-job-row head">
+              <span>状态</span>
+              <span>文献</span>
+              <span>文件</span>
+              <span>页数</span>
+              <span>片段</span>
+              <span>耗时</span>
+            </div>
+            {jobs.map((job) => (
+              <div className={`admin-job-row ${job.status === 'FAILED' ? 'is-failed' : ''}`} key={job.id}>
+                <strong className={`admin-job-status ${job.status === 'SUCCESS' ? 'is-success' : job.status === 'RUNNING' ? 'is-running' : 'is-failed'}`}>
+                  {parseJobStatusLabel(job.status)}
+                </strong>
+                <span className="admin-job-title">
+                  <strong>#{job.id} · {job.paperTitle || '未关联文献'}</strong>
+                  <small>
+                    {job.username} · 开始 {formatTime(job.startedAt)}
+                    {job.finishedAt ? ` · 结束 ${formatTime(job.finishedAt)}` : ''}
+                    {job.paperId ? ` · 文献 #${job.paperId}` : ''}
+                  </small>
+                  {(job.nodeSpans ?? []).length > 0 && (
+                    <div className="admin-ingestion-spans">
+                      {job.nodeSpans.map((span) => (
+                        <span
+                          className={`admin-node-span ${span.status === 'FAILED' ? 'is-failed' : ''}`}
+                          key={`${job.id}-${span.order}-${span.name}`}
+                          title={span.errorMessage || span.label || span.name}
+                        >
+                          <i>{span.label || ingestionNodeLabel(span.name)}</i>
+                          <b>{formatLatency(span.durationMs)}</b>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {job.status === 'FAILED' && job.errorMessage && <small className="admin-job-error">{job.errorMessage}</small>}
+                </span>
+                <em>{job.fileName} · {formatBytes(job.fileSize)}</em>
+                <span>{job.pageCount}</span>
+                <span>{job.chunkCount}</span>
+                <strong>{job.status === 'RUNNING' ? '进行中' : formatLatency(job.durationMs)}</strong>
+              </div>
+            ))}
+          </>
         )}
       </div>
       <div className="admin-trace-pagination">

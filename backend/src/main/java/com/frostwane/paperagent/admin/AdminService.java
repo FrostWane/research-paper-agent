@@ -599,6 +599,33 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
+    public PageResponse<ParseJobResponse> parseJobs(
+        User currentUser,
+        String status,
+        String keyword,
+        int page,
+        int pageSize
+    ) {
+        requireAdmin(currentUser);
+        int safePage = Math.max(1, page);
+        int safePageSize = Math.max(5, Math.min(80, pageSize));
+        int offset = (safePage - 1) * safePageSize;
+        List<Object> params = new ArrayList<>();
+        String where = parseJobWhere(status, keyword, params);
+        long total = numberValue("select count(*) " + parseJobFromSql() + where, params);
+        List<Object> rowParams = new ArrayList<>(params);
+        rowParams.add(safePageSize);
+        rowParams.add(offset);
+        List<ParseJobResponse> items = jdbcTemplate.query(
+            parseJobSelectSql() + where + " order by j.started_at desc, j.id desc limit ? offset ?",
+            this::mapParseJob,
+            rowParams.toArray()
+        );
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
+        return new PageResponse<>(items, total, safePage, safePageSize, totalPages);
+    }
+
+    @Transactional(readOnly = true)
     public List<RetrievalChannelCatalogResponse> retrievalChannels(User currentUser) {
         requireAdmin(currentUser);
         Map<String, RetrievalComponentStats> stats = retrievalChannelStats();
@@ -1099,7 +1126,11 @@ public class AdminService {
     }
 
     private List<ParseJobResponse> recentParseJobs() {
-        return jdbcTemplate.query("""
+        return jdbcTemplate.query(parseJobSelectSql() + " order by j.started_at desc, j.id desc limit 8", this::mapParseJob);
+    }
+
+    private String parseJobSelectSql() {
+        return """
             select
               j.id,
               u.username,
@@ -1115,11 +1146,44 @@ public class AdminService {
               j.node_spans_json::text as node_spans_json,
               j.started_at,
               j.finished_at
+            """ + parseJobFromSql();
+    }
+
+    private String parseJobFromSql() {
+        return """
             from parse_jobs j
             join users u on u.id = j.owner_id
-            order by j.started_at desc
-            limit 8
-            """, (rs, rowNum) -> new ParseJobResponse(
+            """;
+    }
+
+    private String parseJobWhere(String status, String keyword, List<Object> params) {
+        StringBuilder where = new StringBuilder(" where 1 = 1");
+        String normalizedStatus = compact(status, 32);
+        if (normalizedStatus != null) {
+            where.append(" and upper(j.status) = ?");
+            params.add(normalizedStatus.toUpperCase(Locale.ROOT));
+        }
+        String normalizedKeyword = compact(keyword, 160);
+        if (normalizedKeyword != null) {
+            String pattern = "%" + normalizedKeyword.toLowerCase(Locale.ROOT) + "%";
+            where.append("""
+                 and (
+                   lower(coalesce(j.paper_title, '')) like ?
+                   or lower(coalesce(j.file_name, '')) like ?
+                   or lower(coalesce(j.error_message, '')) like ?
+                   or lower(coalesce(j.node_spans_json::text, '[]')) like ?
+                   or lower(u.username) like ?
+                 )
+                """);
+            for (int i = 0; i < 5; i++) {
+                params.add(pattern);
+            }
+        }
+        return where.toString();
+    }
+
+    private ParseJobResponse mapParseJob(ResultSet rs, int rowNum) throws SQLException {
+        return new ParseJobResponse(
             rs.getLong("id"),
             rs.getString("username"),
             nullableLong(rs, "paper_id"),
@@ -1134,7 +1198,7 @@ public class AdminService {
             parseJobNodeSpans(rs.getString("node_spans_json")),
             offsetDateTime(rs, "started_at"),
             offsetDateTime(rs, "finished_at")
-        ));
+        );
     }
 
     private long count(String sql) {

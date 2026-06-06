@@ -124,6 +124,7 @@ GET   /api/admin/rag-traces/{id}
 GET   /api/admin/users
 GET   /api/admin/agent-pipeline/nodes
 GET   /api/admin/ingestion-pipeline/nodes
+GET   /api/admin/parse-jobs?status=&keyword=&page=1&pageSize=12
 GET   /api/admin/retrieval-channels
 GET   /api/admin/retrieval-processors
 GET   /api/admin/agent-tools
@@ -159,6 +160,8 @@ DELETE /api/admin/sample-prompts/{id}
 `GET /api/admin/agent-pipeline/nodes` 返回当前问答 Pipeline 的节点目录和运行画像。字段包含 `pipelineName`、`type`、`name`、`label`、`description`、`sortOrder`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`averageLatencyMs` 和 `lastSeenAt`。节点定义来自 `AgentPipeline` 注册表，运行统计从历史 `nodeSpans` Trace 聚合，用于观察节点顺序、职责、失败风险和耗时热点。
 
 `GET /api/admin/ingestion-pipeline/nodes` 返回 PDF 入库 Pipeline 的节点目录和运行画像。字段包含 `pipelineName`、`type`、`name`、`label`、`description`、`sortOrder`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`averageLatencyMs` 和 `lastSeenAt`。节点定义来自 `IngestionPipelineCatalog`，运行统计从历史解析任务的 `nodeSpans` 聚合，用于观察准备、读取 PDF、抽取文本、写入片段、向量索引和完成节点的长期健康状况。
+
+`GET /api/admin/parse-jobs` 返回分页解析任务 Explorer 数据，支持按 `status` 和 `keyword` 过滤；`keyword` 会匹配文献标题、文件名、错误信息、节点 span 和用户名。字段包含 `id`、`username`、`paperId`、`paperTitle`、`fileName`、`fileSize`、`status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`、`startedAt` 和 `finishedAt`，用于追查历史 PDF 入库任务、失败原因和每个入库节点耗时。
 
 `GET /api/admin/retrieval-channels` 返回当前注册的检索通道目录和运行画像。字段包含 `name`、`label`、`description`、`priority`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`totalCandidates`、`averageCandidates`、`averageLatencyMs` 和 `lastSeenAt`。通道定义来自 `RetrievalChannel` Spring Bean，运行统计从历史 Trace 的 `retrievalChannels` 聚合，用于观察向量召回、关键词召回等通道的候选规模、失败风险和平均耗时。
 

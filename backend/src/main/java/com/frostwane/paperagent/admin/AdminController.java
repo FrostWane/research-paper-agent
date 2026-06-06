@@ -13,6 +13,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
@@ -122,6 +123,22 @@ public class AdminController {
     @GetMapping("/ingestion-pipeline/nodes")
     public ApiResponse<List<IngestionPipelineNodeResponse>> ingestionPipelineNodes() {
         return ApiResponse.ok(adminService.ingestionPipelineNodes(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/parse-jobs")
+    public ApiResponse<PageResponse<ParseJobResponse>> parseJobs(
+        @RequestParam(defaultValue = "") String status,
+        @RequestParam(defaultValue = "") String keyword,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "12") int pageSize
+    ) {
+        return ApiResponse.ok(adminService.parseJobs(
+            currentUserService.getRequiredUser(),
+            status,
+            keyword,
+            page,
+            pageSize
+        ));
     }
 
     @GetMapping("/retrieval-channels")

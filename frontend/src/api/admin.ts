@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -35,6 +35,19 @@ export function fetchAgentPipelineNodes() {
 
 export function fetchIngestionPipelineNodes() {
   return unwrap<AdminIngestionPipelineNode[]>(api.get('/api/admin/ingestion-pipeline/nodes'));
+}
+
+export function fetchAdminParseJobs(query: {
+  status?: string;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const params = {
+    ...query,
+    keyword: query.keyword?.trim() || undefined
+  };
+  return unwrap<PageResponse<AdminParseJob>>(api.get('/api/admin/parse-jobs', { params }));
 }
 
 export function fetchRetrievalChannels() {
