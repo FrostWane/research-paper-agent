@@ -1,11 +1,20 @@
 package com.frostwane.paperagent.agent.pipeline;
 
+import com.frostwane.paperagent.agent.term.QueryTermExpansion;
+import com.frostwane.paperagent.agent.term.QueryTermMappingService;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Locale;
 
 @Component
 public class QueryPlanningNode implements AgentNode {
+
+    private final QueryTermMappingService queryTermMappingService;
+
+    public QueryPlanningNode(QueryTermMappingService queryTermMappingService) {
+        this.queryTermMappingService = queryTermMappingService;
+    }
 
     @Override
     public AgentNodeType type() {
@@ -29,7 +38,10 @@ public class QueryPlanningNode implements AgentNode {
         String intent = classify(normalized);
         context.queryIntent(intent);
         context.comparisonRequested("COMPARISON".equals(intent) || "REVIEW_SYNTHESIS".equals(intent));
-        context.searchQuery(buildSearchQuery(question, normalized, intent, context.libraryScope()));
+        String searchQuery = buildSearchQuery(question, normalized, intent, context.libraryScope());
+        List<QueryTermExpansion> expansions = queryTermMappingService.match(question, searchQuery);
+        context.queryExpansions(expansions);
+        context.searchQuery(queryTermMappingService.expandSearchQuery(searchQuery, expansions));
     }
 
     private String classify(String normalized) {

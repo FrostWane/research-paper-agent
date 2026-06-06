@@ -8,12 +8,17 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.ModelHealthResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobNodeSpanResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.QueryExpansionResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceNodeSpanResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceRetrievalChannelResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceRetrievalProcessorResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RecentPaperResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
+import com.frostwane.paperagent.agent.term.QueryTermMapping;
+import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
 import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.user.User;
 import com.frostwane.paperagent.user.UserRepository;
@@ -36,11 +41,18 @@ public class AdminService {
 
     private final JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
+    private final QueryTermMappingRepository queryTermMappingRepository;
     private final ObjectMapper objectMapper;
 
-    public AdminService(JdbcTemplate jdbcTemplate, UserRepository userRepository, ObjectMapper objectMapper) {
+    public AdminService(
+        JdbcTemplate jdbcTemplate,
+        UserRepository userRepository,
+        QueryTermMappingRepository queryTermMappingRepository,
+        ObjectMapper objectMapper
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.userRepository = userRepository;
+        this.queryTermMappingRepository = queryTermMappingRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -63,6 +75,8 @@ public class AdminService {
             count("select count(*) from chat_records where feedback_score is not null"),
             count("select count(*) from chat_records where feedback_score = 1"),
             count("select count(*) from chat_records where feedback_score = -1"),
+            count("select count(*) from query_term_mappings"),
+            count("select count(*) from query_term_mappings where enabled = true"),
             intValue("select coalesce(round(avg(latency_ms)), 0) from chat_records where latency_ms is not null"),
             count("select count(*) from rag_traces where status = 'FAILED'"),
             intValue("select coalesce(round(avg(retrieval_ms)), 0) from rag_traces"),
@@ -128,6 +142,63 @@ public class AdminService {
             .filter(item -> item.id().equals(userId))
             .findFirst()
             .orElseThrow(() -> new BusinessException("用户不存在"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<QueryTermMappingResponse> queryTermMappings(User currentUser) {
+        requireAdmin(currentUser);
+        return queryTermMappingRepository.findAllByOrderByUpdatedAtDesc()
+            .stream()
+            .map(this::queryTermMappingResponse)
+            .toList();
+    }
+
+    @Transactional
+    public QueryTermMappingResponse createQueryTermMapping(QueryTermMappingRequest request, User currentUser) {
+        requireAdmin(currentUser);
+        String term = compact(request.term(), 120);
+        String expansions = compact(request.expansions(), 1000);
+        if (term == null || expansions == null) {
+            throw new BusinessException("术语和扩展词不能为空");
+        }
+        queryTermMappingRepository.findByTermIgnoreCase(term).ifPresent(existing -> {
+            throw new BusinessException("术语映射已存在");
+        });
+        QueryTermMapping mapping = new QueryTermMapping();
+        mapping.setTerm(term);
+        mapping.setExpansions(expansions);
+        mapping.setEnabled(request.enabled() == null || request.enabled());
+        return queryTermMappingResponse(queryTermMappingRepository.save(mapping));
+    }
+
+    @Transactional
+    public QueryTermMappingResponse updateQueryTermMapping(Long id, QueryTermMappingRequest request, User currentUser) {
+        requireAdmin(currentUser);
+        QueryTermMapping mapping = queryTermMappingRepository.findById(id)
+            .orElseThrow(() -> new BusinessException("术语映射不存在"));
+        String term = compact(request.term(), 120);
+        String expansions = compact(request.expansions(), 1000);
+        if (term == null || expansions == null) {
+            throw new BusinessException("术语和扩展词不能为空");
+        }
+        queryTermMappingRepository.findByTermIgnoreCase(term)
+            .filter(existing -> !existing.getId().equals(id))
+            .ifPresent(existing -> {
+                throw new BusinessException("术语映射已存在");
+            });
+        mapping.setTerm(term);
+        mapping.setExpansions(expansions);
+        mapping.setEnabled(request.enabled() == null || request.enabled());
+        return queryTermMappingResponse(queryTermMappingRepository.save(mapping));
+    }
+
+    @Transactional
+    public void deleteQueryTermMapping(Long id, User currentUser) {
+        requireAdmin(currentUser);
+        if (!queryTermMappingRepository.existsById(id)) {
+            throw new BusinessException("术语映射不存在");
+        }
+        queryTermMappingRepository.deleteById(id);
     }
 
     private void requireAdmin(User user) {
@@ -228,6 +299,7 @@ public class AdminService {
               t.pipeline_name,
               t.query_intent,
               t.search_query,
+              t.query_expansions_json::text as query_expansions_json,
               t.comparison_requested,
               t.answer_strategy,
               t.answer_contract,
@@ -259,6 +331,7 @@ public class AdminService {
             rs.getString("pipeline_name"),
             rs.getString("query_intent"),
             rs.getString("search_query"),
+            queryExpansions(rs.getString("query_expansions_json")),
             rs.getBoolean("comparison_requested"),
             rs.getString("answer_strategy"),
             rs.getString("answer_contract"),
@@ -368,6 +441,15 @@ public class AdminService {
         }
     }
 
+    private List<QueryExpansionResponse> queryExpansions(String json) {
+        try {
+            return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
+            });
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
     private List<ParseJobNodeSpanResponse> parseJobNodeSpans(String json) {
         try {
             return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
@@ -375,5 +457,24 @@ public class AdminService {
         } catch (Exception ex) {
             return List.of();
         }
+    }
+
+    private QueryTermMappingResponse queryTermMappingResponse(QueryTermMapping mapping) {
+        return new QueryTermMappingResponse(
+            mapping.getId(),
+            mapping.getTerm(),
+            mapping.getExpansions(),
+            Boolean.TRUE.equals(mapping.getEnabled()),
+            mapping.getCreatedAt(),
+            mapping.getUpdatedAt()
+        );
+    }
+
+    private String compact(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() <= maxLength ? trimmed : trimmed.substring(0, maxLength);
     }
 }

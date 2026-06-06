@@ -145,6 +145,7 @@ export interface AdminTrace {
   pipelineName?: string;
   queryIntent?: string;
   searchQuery?: string;
+  queryExpansions: AdminQueryExpansion[];
   comparisonRequested: boolean;
   answerStrategy?: string;
   answerContract?: string;
@@ -159,6 +160,12 @@ export interface AdminTrace {
   retrievalProcessors: AdminRetrievalProcessor[];
   nodeSpans: AdminTraceNodeSpan[];
   createdAt: string;
+}
+
+export interface AdminQueryExpansion {
+  id: number;
+  term: string;
+  expansions: string[];
 }
 
 export interface AdminRetrievalChannel {
@@ -232,6 +239,8 @@ export interface AdminOverview {
   totalFeedbacks: number;
   positiveFeedbacks: number;
   negativeFeedbacks: number;
+  totalQueryMappings: number;
+  enabledQueryMappings: number;
   averageLatencyMs: number;
   failedTraces: number;
   averageRetrievalMs: number;
@@ -245,6 +254,15 @@ export interface AdminOverview {
   recentPapers: AdminRecentPaper[];
   recentParseJobs: AdminParseJob[];
   recentTraces: AdminTrace[];
+}
+
+export interface QueryTermMapping {
+  id: number;
+  term: string;
+  expansions: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdminUser {

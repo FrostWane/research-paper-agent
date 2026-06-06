@@ -30,6 +30,7 @@ public class RagTraceService {
         String nodeSpansJson,
         String retrievalChannelsJson,
         String retrievalProcessorsJson,
+        String queryExpansionsJson,
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
@@ -54,6 +55,7 @@ public class RagTraceService {
             nodeSpansJson,
             retrievalChannelsJson,
             retrievalProcessorsJson,
+            queryExpansionsJson,
             queryIntent,
             searchQuery,
             comparisonRequested,
@@ -80,6 +82,7 @@ public class RagTraceService {
         String nodeSpansJson,
         String retrievalChannelsJson,
         String retrievalProcessorsJson,
+        String queryExpansionsJson,
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
@@ -105,6 +108,7 @@ public class RagTraceService {
             nodeSpansJson,
             retrievalChannelsJson,
             retrievalProcessorsJson,
+            queryExpansionsJson,
             queryIntent,
             searchQuery,
             comparisonRequested,
@@ -132,6 +136,7 @@ public class RagTraceService {
         String nodeSpansJson,
         String retrievalChannelsJson,
         String retrievalProcessorsJson,
+        String queryExpansionsJson,
         String queryIntent,
         String searchQuery,
         boolean comparisonRequested,
@@ -157,6 +162,7 @@ public class RagTraceService {
         trace.setNodeSpansJson(defaultText(nodeSpansJson, "[]"));
         trace.setRetrievalChannelsJson(defaultText(retrievalChannelsJson, "[]"));
         trace.setRetrievalProcessorsJson(defaultText(retrievalProcessorsJson, "[]"));
+        trace.setQueryExpansionsJson(defaultText(queryExpansionsJson, "[]"));
         trace.setQueryIntent(defaultText(queryIntent, "GENERAL_QA"));
         trace.setSearchQuery(searchQuery);
         trace.setComparisonRequested(comparisonRequested);

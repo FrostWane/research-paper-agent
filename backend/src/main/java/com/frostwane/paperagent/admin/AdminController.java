@@ -2,13 +2,17 @@ package com.frostwane.paperagent.admin;
 
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.UserStatusUpdateRequest;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,5 +44,26 @@ public class AdminController {
     @PatchMapping("/users/{id}/status")
     public ApiResponse<AdminUserResponse> updateUserStatus(@PathVariable Long id, @Valid @RequestBody UserStatusUpdateRequest request) {
         return ApiResponse.ok(adminService.updateUserStatus(id, request.status(), currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/query-term-mappings")
+    public ApiResponse<List<QueryTermMappingResponse>> queryTermMappings() {
+        return ApiResponse.ok(adminService.queryTermMappings(currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/query-term-mappings")
+    public ApiResponse<QueryTermMappingResponse> createQueryTermMapping(@Valid @RequestBody QueryTermMappingRequest request) {
+        return ApiResponse.ok(adminService.createQueryTermMapping(request, currentUserService.getRequiredUser()));
+    }
+
+    @PatchMapping("/query-term-mappings/{id}")
+    public ApiResponse<QueryTermMappingResponse> updateQueryTermMapping(@PathVariable Long id, @Valid @RequestBody QueryTermMappingRequest request) {
+        return ApiResponse.ok(adminService.updateQueryTermMapping(id, request, currentUserService.getRequiredUser()));
+    }
+
+    @DeleteMapping("/query-term-mappings/{id}")
+    public ApiResponse<Void> deleteQueryTermMapping(@PathVariable Long id) {
+        adminService.deleteQueryTermMapping(id, currentUserService.getRequiredUser());
+        return ApiResponse.empty();
     }
 }

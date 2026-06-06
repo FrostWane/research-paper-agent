@@ -39,13 +39,21 @@ import {
   ZoomOut
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { fetchAdminOverview, fetchAdminUsers, updateAdminUserStatus } from './api/admin';
+import {
+  createQueryTermMapping,
+  deleteQueryTermMapping,
+  fetchAdminOverview,
+  fetchAdminUsers,
+  fetchQueryTermMappings,
+  updateAdminUserStatus,
+  updateQueryTermMapping
+} from './api/admin';
 import { askAgent, listChats, listLibraryChats, submitChatFeedback } from './api/agent';
 import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminUser, ChatRecord, Paper, PaperForm, SourceResponse, User } from './types';
+import type { AdminOverview, AdminUser, ChatRecord, Paper, PaperForm, QueryTermMapping, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -121,6 +129,7 @@ export default function App() {
   const [pdfJump, setPdfJump] = useState<PdfJump | null>(null);
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyText, setBusyText] = useState('');
@@ -236,6 +245,7 @@ export default function App() {
     setChats([]);
     setAdminOverview(null);
     setAdminUsers([]);
+    setQueryMappings([]);
     setActiveView('library');
     showNotice('已退出登录。');
   }
@@ -406,9 +416,10 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, users] = await Promise.all([fetchAdminOverview(), fetchAdminUsers()]);
+      const [overview, users, mappings] = await Promise.all([fetchAdminOverview(), fetchAdminUsers(), fetchQueryTermMappings()]);
       setAdminOverview(overview);
       setAdminUsers(users);
+      setQueryMappings(mappings);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -423,6 +434,56 @@ export default function App() {
       setAdminUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       setAdminOverview(await fetchAdminOverview());
       showNotice(status === 'DISABLED' ? '用户已禁用。' : '用户已恢复。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleCreateQueryMapping(input: { term: string; expansions: string }) {
+    try {
+      setBusyText('正在保存术语映射...');
+      const created = await createQueryTermMapping({ ...input, enabled: true });
+      setQueryMappings((current) => [created, ...current]);
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('术语映射已添加。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleUpdateQueryMapping(mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) {
+    try {
+      setBusyText('正在更新术语映射...');
+      const updated = await updateQueryTermMapping(mapping.id, {
+        term: patch.term ?? mapping.term,
+        expansions: patch.expansions ?? mapping.expansions,
+        enabled: patch.enabled ?? mapping.enabled
+      });
+      setQueryMappings((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('术语映射已更新。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleDeleteQueryMapping(mapping: QueryTermMapping) {
+    const confirmed = window.confirm(`删除术语映射「${mapping.term}」？`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setBusyText('正在删除术语映射...');
+      await deleteQueryTermMapping(mapping.id);
+      setQueryMappings((current) => current.filter((item) => item.id !== mapping.id));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('术语映射已删除。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -662,10 +723,14 @@ export default function App() {
           <AdminView
             overview={adminOverview}
             users={adminUsers}
+            queryMappings={queryMappings}
             loading={adminLoading}
             currentUserId={user.id}
             onRefresh={() => void loadAdminData()}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
+            onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
+            onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
+            onDeleteQueryMapping={(mapping) => void handleDeleteQueryMapping(mapping)}
           />
         )}
       </main>
@@ -1171,17 +1236,25 @@ function HistoryView({
 function AdminView({
   overview,
   users,
+  queryMappings,
   loading,
   currentUserId,
   onRefresh,
-  onUserStatusChange
+  onUserStatusChange,
+  onCreateQueryMapping,
+  onUpdateQueryMapping,
+  onDeleteQueryMapping
 }: {
   overview: AdminOverview | null;
   users: AdminUser[];
+  queryMappings: QueryTermMapping[];
   loading: boolean;
   currentUserId: number;
   onRefresh: () => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
+  onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
+  onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
+  onDeleteQueryMapping: (mapping: QueryTermMapping) => void;
 }) {
   const embeddedRatio = overview?.totalChunks ? Math.round((overview.embeddedChunks / overview.totalChunks) * 100) : 0;
   const indexedRatio = overview?.totalPapers ? Math.round((overview.indexedPapers / overview.totalPapers) * 100) : 0;
@@ -1207,6 +1280,7 @@ function AdminView({
         <AdminStat icon={HardDrive} label="PDF 存储" value={formatBytes(overview?.storageBytes ?? 0)} detail={`${overview?.totalFiles ?? 0} 个文件`} />
         <AdminStat icon={MessageSquareText} label="问答" value={overview?.totalChats ?? 0} detail={`${overview?.libraryChats ?? 0} 次全库问答`} />
         <AdminStat icon={ThumbsUp} label="反馈" value={overview?.totalFeedbacks ?? 0} detail={`${overview?.positiveFeedbacks ?? 0} 有用 / ${overview?.negativeFeedbacks ?? 0} 无用`} />
+        <AdminStat icon={Search} label="术语映射" value={overview?.totalQueryMappings ?? 0} detail={`${overview?.enabledQueryMappings ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
       </div>
 
@@ -1291,6 +1365,13 @@ function AdminView({
           )}
         </div>
       </div>
+
+      <QueryTermMappingPanel
+        mappings={queryMappings}
+        onCreate={onCreateQueryMapping}
+        onUpdate={onUpdateQueryMapping}
+        onDelete={onDeleteQueryMapping}
+      />
 
       <div className="admin-panel admin-job-panel">
         <div className="admin-panel-head">
@@ -1382,6 +1463,16 @@ function AdminView({
                     </small>
                     {trace.searchQuery && trace.searchQuery.trim() !== trace.question.trim() && (
                       <small className="admin-trace-search-query">检索式：{trace.searchQuery}</small>
+                    )}
+                    {(trace.queryExpansions ?? []).length > 0 && (
+                      <div className="admin-query-expansions">
+                        {trace.queryExpansions.map((expansion) => (
+                          <span key={`${trace.id}-${expansion.id}-${expansion.term}`} title={expansion.expansions.join('，')}>
+                            <i>{expansion.term}</i>
+                            <b>{expansion.expansions.slice(0, 4).join('，')}</b>
+                          </span>
+                        ))}
+                      </div>
                     )}
                     {trace.answerContract && (
                       <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 96)}</small>
@@ -1518,6 +1609,84 @@ function AdminView({
         </div>
       </div>
     </section>
+  );
+}
+
+function QueryTermMappingPanel({
+  mappings,
+  onCreate,
+  onUpdate,
+  onDelete
+}: {
+  mappings: QueryTermMapping[];
+  onCreate: (input: { term: string; expansions: string }) => void;
+  onUpdate: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
+  onDelete: (mapping: QueryTermMapping) => void;
+}) {
+  const [term, setTerm] = useState('');
+  const [expansions, setExpansions] = useState('');
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextTerm = term.trim();
+    const nextExpansions = expansions.trim();
+    if (!nextTerm || !nextExpansions) {
+      return;
+    }
+    onCreate({ term: nextTerm, expansions: nextExpansions });
+    setTerm('');
+    setExpansions('');
+  }
+
+  return (
+    <div className="admin-panel admin-query-mapping-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>查询术语映射</h3>
+          <p>把领域缩写、别名和同义词注入检索式，提升全库问答召回。</p>
+        </div>
+        <Search size={18} />
+      </div>
+      <form className="query-mapping-form" onSubmit={submit}>
+        <label>
+          <span>术语</span>
+          <input value={term} maxLength={120} placeholder="例如 GNN" onChange={(event) => setTerm(event.target.value)} />
+        </label>
+        <label>
+          <span>扩展词</span>
+          <input value={expansions} maxLength={1000} placeholder="Graph Neural Network，图神经网络" onChange={(event) => setExpansions(event.target.value)} />
+        </label>
+        <button className="primary-button" type="submit" disabled={!term.trim() || !expansions.trim()}>
+          <Plus size={17} />
+          添加
+        </button>
+      </form>
+      <div className="query-mapping-list">
+        {mappings.length === 0 ? (
+          <EmptyState compact title="暂无术语映射" detail="添加领域术语后，命中的问答会自动扩展检索式。" />
+        ) : (
+          mappings.map((mapping) => (
+            <div className={`query-mapping-row ${mapping.enabled ? '' : 'is-disabled'}`} key={mapping.id}>
+              <span>
+                <strong>{mapping.term}</strong>
+                <small>{mapping.expansions}</small>
+              </span>
+              <em>{mapping.enabled ? '启用' : '停用'} · {formatTime(mapping.updatedAt)}</em>
+              <button
+                className="secondary-button compact-action"
+                type="button"
+                onClick={() => onUpdate(mapping, { enabled: !mapping.enabled })}
+              >
+                {mapping.enabled ? '停用' : '启用'}
+              </button>
+              <button className="icon-button small danger" type="button" title="删除术语映射" onClick={() => onDelete(mapping)}>
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 

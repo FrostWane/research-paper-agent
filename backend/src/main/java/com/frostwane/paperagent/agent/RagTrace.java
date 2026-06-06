@@ -64,6 +64,10 @@ public class RagTrace {
     @JdbcTypeCode(SqlTypes.JSON)
     private String retrievalProcessorsJson = "[]";
 
+    @Column(name = "query_expansions_json", nullable = false, columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String queryExpansionsJson = "[]";
+
     @Column(name = "query_intent", nullable = false, length = 64)
     private String queryIntent = "GENERAL_QA";
 
@@ -198,6 +202,14 @@ public class RagTrace {
 
     public void setRetrievalProcessorsJson(String retrievalProcessorsJson) {
         this.retrievalProcessorsJson = retrievalProcessorsJson;
+    }
+
+    public String getQueryExpansionsJson() {
+        return queryExpansionsJson;
+    }
+
+    public void setQueryExpansionsJson(String queryExpansionsJson) {
+        this.queryExpansionsJson = queryExpansionsJson;
     }
 
     public String getQueryIntent() {

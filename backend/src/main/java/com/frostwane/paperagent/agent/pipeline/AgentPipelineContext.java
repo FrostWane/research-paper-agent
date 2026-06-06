@@ -4,6 +4,7 @@ import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SourceResponse;
 import com.frostwane.paperagent.agent.retrieval.RetrievalChannelTrace;
 import com.frostwane.paperagent.agent.retrieval.RetrievalProcessorTrace;
+import com.frostwane.paperagent.agent.term.QueryTermExpansion;
 import com.frostwane.paperagent.paper.Paper;
 import com.frostwane.paperagent.user.User;
 
@@ -25,6 +26,7 @@ public class AgentPipelineContext {
     private List<SourceResponse> sources = List.of();
     private List<RetrievalChannelTrace> retrievalChannels = List.of();
     private List<RetrievalProcessorTrace> retrievalProcessors = List.of();
+    private List<QueryTermExpansion> queryExpansions = List.of();
     private String queryIntent = "GENERAL_QA";
     private String searchQuery;
     private boolean comparisonRequested;
@@ -101,6 +103,14 @@ public class AgentPipelineContext {
 
     public void retrievalProcessors(List<RetrievalProcessorTrace> retrievalProcessors) {
         this.retrievalProcessors = retrievalProcessors == null ? List.of() : List.copyOf(retrievalProcessors);
+    }
+
+    public List<QueryTermExpansion> queryExpansions() {
+        return queryExpansions;
+    }
+
+    public void queryExpansions(List<QueryTermExpansion> queryExpansions) {
+        this.queryExpansions = queryExpansions == null ? List.of() : List.copyOf(queryExpansions);
     }
 
     public String queryIntent() {

@@ -1,7 +1,9 @@
 package com.frostwane.paperagent.admin.dto;
 
 import com.frostwane.paperagent.user.UserStatus;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -26,6 +28,8 @@ public final class AdminDtos {
         long totalFeedbacks,
         long positiveFeedbacks,
         long negativeFeedbacks,
+        long totalQueryMappings,
+        long enabledQueryMappings,
         int averageLatencyMs,
         long failedTraces,
         int averageRetrievalMs,
@@ -90,6 +94,7 @@ public final class AdminDtos {
         String pipelineName,
         String queryIntent,
         String searchQuery,
+        List<QueryExpansionResponse> queryExpansions,
         boolean comparisonRequested,
         String answerStrategy,
         String answerContract,
@@ -114,6 +119,13 @@ public final class AdminDtos {
         int candidateCount,
         int latencyMs,
         String errorMessage
+    ) {
+    }
+
+    public record QueryExpansionResponse(
+        Long id,
+        String term,
+        List<String> expansions
     ) {
     }
 
@@ -185,6 +197,23 @@ public final class AdminDtos {
 
     public record UserStatusUpdateRequest(
         @NotNull UserStatus status
+    ) {
+    }
+
+    public record QueryTermMappingResponse(
+        Long id,
+        String term,
+        String expansions,
+        boolean enabled,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record QueryTermMappingRequest(
+        @NotBlank @Size(max = 120) String term,
+        @NotBlank @Size(max = 1000) String expansions,
+        Boolean enabled
     ) {
     }
 }
