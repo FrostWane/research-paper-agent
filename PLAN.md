@@ -57,14 +57,16 @@
   - `GET /api/papers/{id}/parse-status`
   - `GET /api/agent/chats`
   - `PATCH /api/agent/chats/{id}/feedback`
+  - `GET /api/agent/sample-prompts`
   - `GET/POST/PATCH/DELETE /api/admin/query-term-mappings`
+  - `GET/POST/PATCH/DELETE /api/admin/sample-prompts`
 - 模型接入：
   - 默认支持无 API Key 的兜底 Agent。
   - 配置 OpenAI-compatible API 后启用 Spring AI `ChatClient`、Embedding 和 RAG 检索。
   - 可接 OpenAI、DeepSeek、通义兼容接口或本地兼容网关。
 - 工程化增强：
   - 参考 Ragent 的控制台信息架构，新增轻量管理员后台。
-  - 管理员可查看用户、文献、存储、索引、问答、答案反馈、查询术语映射和模型调用聚合。
+  - 管理员可查看用户、文献、存储、索引、问答、答案反馈、查询术语映射、示例问题和模型调用聚合。
   - 新增轻量模型路由和模型调用日志，管理员可查看目标模型最近状态、成功 / 失败 / fallback 次数和平均延迟。
   - 管理员可启用 / 禁用普通用户。
   - 新增简化 RAG Trace，记录问答范围、问题意图、检索式、回答策略、输出契约、检索通道、检索后处理器、来源数量、Pipeline 节点 span、检索耗时、生成耗时、校验耗时、格式化耗时、总耗时和失败信息。

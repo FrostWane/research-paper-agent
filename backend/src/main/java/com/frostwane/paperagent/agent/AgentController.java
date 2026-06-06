@@ -4,6 +4,8 @@ import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRecordResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatFeedbackRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatResponse;
+import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
+import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
 import jakarta.validation.Valid;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -21,10 +24,16 @@ import java.util.List;
 public class AgentController {
 
     private final AgentOrchestratorService orchestratorService;
+    private final SamplePromptService samplePromptService;
     private final CurrentUserService currentUserService;
 
-    public AgentController(AgentOrchestratorService orchestratorService, CurrentUserService currentUserService) {
+    public AgentController(
+        AgentOrchestratorService orchestratorService,
+        SamplePromptService samplePromptService,
+        CurrentUserService currentUserService
+    ) {
         this.orchestratorService = orchestratorService;
+        this.samplePromptService = samplePromptService;
         this.currentUserService = currentUserService;
     }
 
@@ -41,6 +50,11 @@ public class AgentController {
     @GetMapping("/api/agent/chats")
     public ApiResponse<List<ChatRecordResponse>> libraryChats() {
         return ApiResponse.ok(orchestratorService.listLibraryChats(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/api/agent/sample-prompts")
+    public ApiResponse<List<SamplePromptResponse>> samplePrompts(@RequestParam(defaultValue = "LIBRARY") String scope) {
+        return ApiResponse.ok(samplePromptService.listEnabled(scope));
     }
 
     @PatchMapping("/api/agent/chats/{id}/feedback")

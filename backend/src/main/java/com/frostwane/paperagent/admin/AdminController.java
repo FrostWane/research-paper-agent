@@ -5,6 +5,9 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.UserStatusUpdateRequest;
+import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptRequest;
+import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
+import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
 import jakarta.validation.Valid;
@@ -24,10 +27,12 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+    private final SamplePromptService samplePromptService;
     private final CurrentUserService currentUserService;
 
-    public AdminController(AdminService adminService, CurrentUserService currentUserService) {
+    public AdminController(AdminService adminService, SamplePromptService samplePromptService, CurrentUserService currentUserService) {
         this.adminService = adminService;
+        this.samplePromptService = samplePromptService;
         this.currentUserService = currentUserService;
     }
 
@@ -64,6 +69,27 @@ public class AdminController {
     @DeleteMapping("/query-term-mappings/{id}")
     public ApiResponse<Void> deleteQueryTermMapping(@PathVariable Long id) {
         adminService.deleteQueryTermMapping(id, currentUserService.getRequiredUser());
+        return ApiResponse.empty();
+    }
+
+    @GetMapping("/sample-prompts")
+    public ApiResponse<List<SamplePromptResponse>> samplePrompts() {
+        return ApiResponse.ok(samplePromptService.listAll(currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/sample-prompts")
+    public ApiResponse<SamplePromptResponse> createSamplePrompt(@Valid @RequestBody SamplePromptRequest request) {
+        return ApiResponse.ok(samplePromptService.create(request, currentUserService.getRequiredUser()));
+    }
+
+    @PatchMapping("/sample-prompts/{id}")
+    public ApiResponse<SamplePromptResponse> updateSamplePrompt(@PathVariable Long id, @Valid @RequestBody SamplePromptRequest request) {
+        return ApiResponse.ok(samplePromptService.update(id, request, currentUserService.getRequiredUser()));
+    }
+
+    @DeleteMapping("/sample-prompts/{id}")
+    public ApiResponse<Void> deleteSamplePrompt(@PathVariable Long id) {
+        samplePromptService.delete(id, currentUserService.getRequiredUser());
         return ApiResponse.empty();
     }
 }

@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminOverview, AdminUser, QueryTermMapping } from '../types';
+import type { AdminOverview, AdminUser, QueryTermMapping, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -27,4 +27,37 @@ export function updateQueryTermMapping(id: number, input: { term: string; expans
 
 export function deleteQueryTermMapping(id: number) {
   return unwrap<void>(api.delete(`/api/admin/query-term-mappings/${id}`));
+}
+
+export function fetchSamplePrompts() {
+  return unwrap<SamplePrompt[]>(api.get('/api/admin/sample-prompts'));
+}
+
+export function createSamplePrompt(input: {
+  scope: 'PAPER' | 'LIBRARY';
+  title: string;
+  prompt: string;
+  description?: string;
+  sortOrder?: number;
+  enabled?: boolean;
+}) {
+  return unwrap<SamplePrompt>(api.post('/api/admin/sample-prompts', input));
+}
+
+export function updateSamplePrompt(
+  id: number,
+  input: {
+    scope: 'PAPER' | 'LIBRARY';
+    title: string;
+    prompt: string;
+    description?: string;
+    sortOrder?: number;
+    enabled?: boolean;
+  }
+) {
+  return unwrap<SamplePrompt>(api.patch(`/api/admin/sample-prompts/${id}`, input));
+}
+
+export function deleteSamplePrompt(id: number) {
+  return unwrap<void>(api.delete(`/api/admin/sample-prompts/${id}`));
 }

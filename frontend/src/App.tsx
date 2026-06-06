@@ -40,20 +40,24 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  createSamplePrompt,
   createQueryTermMapping,
+  deleteSamplePrompt,
   deleteQueryTermMapping,
   fetchAdminOverview,
+  fetchSamplePrompts,
   fetchAdminUsers,
   fetchQueryTermMappings,
+  updateSamplePrompt,
   updateAdminUserStatus,
   updateQueryTermMapping
 } from './api/admin';
-import { askAgent, listChats, listLibraryChats, submitChatFeedback } from './api/agent';
+import { askAgent, listChats, listLibraryChats, listSamplePrompts, submitChatFeedback } from './api/agent';
 import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminUser, ChatRecord, Paper, PaperForm, QueryTermMapping, SourceResponse, User } from './types';
+import type { AdminOverview, AdminUser, ChatRecord, Paper, PaperForm, QueryTermMapping, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -110,6 +114,13 @@ type ViewKey = 'library' | 'upload' | 'reader' | 'libraryChat' | 'history' | 'ad
 type AuthMode = 'login' | 'register';
 type ReaderScope = 'paper' | 'library';
 type PdfJump = { paperId: number; page: number; signal: number };
+type SamplePromptInput = {
+  scope: 'PAPER' | 'LIBRARY';
+  title: string;
+  prompt: string;
+  description: string;
+  sortOrder: number;
+};
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -130,6 +141,9 @@ export default function App() {
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
+  const [samplePrompts, setSamplePrompts] = useState<SamplePrompt[]>([]);
+  const [paperPrompts, setPaperPrompts] = useState<string[]>(quickPrompts);
+  const [libraryPrompts, setLibraryPrompts] = useState<string[]>(libraryQuickPrompts);
   const [adminLoading, setAdminLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyText, setBusyText] = useState('');
@@ -181,6 +195,7 @@ export default function App() {
         const current = await me();
         setUser(current);
         await loadPaperList();
+        await loadPromptPresets();
       }
     } catch (err) {
       clearToken();
@@ -215,6 +230,17 @@ export default function App() {
     }
   }
 
+  async function loadPromptPresets() {
+    try {
+      const [paper, library] = await Promise.all([listSamplePrompts('PAPER'), listSamplePrompts('LIBRARY')]);
+      setPaperPrompts(promptTexts(paper, quickPrompts));
+      setLibraryPrompts(promptTexts(library, libraryQuickPrompts));
+    } catch {
+      setPaperPrompts(quickPrompts);
+      setLibraryPrompts(libraryQuickPrompts);
+    }
+  }
+
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -228,6 +254,7 @@ export default function App() {
       setUser(response.user);
       setCredentials({ username: '', email: '', account: '', password: '' });
       await loadPaperList();
+      await loadPromptPresets();
       showNotice('已进入 Research Paper Agent 工作台。');
     } catch (err) {
       setError(extractErrorMessage(err));
@@ -246,6 +273,9 @@ export default function App() {
     setAdminOverview(null);
     setAdminUsers([]);
     setQueryMappings([]);
+    setSamplePrompts([]);
+    setPaperPrompts(quickPrompts);
+    setLibraryPrompts(libraryQuickPrompts);
     setActiveView('library');
     showNotice('已退出登录。');
   }
@@ -416,10 +446,16 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, users, mappings] = await Promise.all([fetchAdminOverview(), fetchAdminUsers(), fetchQueryTermMappings()]);
+      const [overview, users, mappings, prompts] = await Promise.all([
+        fetchAdminOverview(),
+        fetchAdminUsers(),
+        fetchQueryTermMappings(),
+        fetchSamplePrompts()
+      ]);
       setAdminOverview(overview);
       setAdminUsers(users);
       setQueryMappings(mappings);
+      setSamplePrompts(prompts);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -484,6 +520,62 @@ export default function App() {
       setQueryMappings((current) => current.filter((item) => item.id !== mapping.id));
       setAdminOverview(await fetchAdminOverview());
       showNotice('术语映射已删除。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleCreateSamplePrompt(input: SamplePromptInput) {
+    try {
+      setBusyText('正在保存示例问题...');
+      const created = await createSamplePrompt({ ...input, enabled: true });
+      setSamplePrompts((current) => [...current, created].sort(compareSamplePrompts));
+      setAdminOverview(await fetchAdminOverview());
+      await loadPromptPresets();
+      showNotice('示例问题已添加。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleUpdateSamplePrompt(prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) {
+    try {
+      setBusyText('正在更新示例问题...');
+      const updated = await updateSamplePrompt(prompt.id, {
+        scope: patch.scope ?? normalizePromptScope(prompt.scope),
+        title: patch.title ?? prompt.title,
+        prompt: patch.prompt ?? prompt.prompt,
+        description: patch.description ?? prompt.description ?? '',
+        sortOrder: patch.sortOrder ?? prompt.sortOrder,
+        enabled: patch.enabled ?? prompt.enabled
+      });
+      setSamplePrompts((current) => current.map((item) => (item.id === updated.id ? updated : item)).sort(compareSamplePrompts));
+      setAdminOverview(await fetchAdminOverview());
+      await loadPromptPresets();
+      showNotice('示例问题已更新。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleDeleteSamplePrompt(prompt: SamplePrompt) {
+    const confirmed = window.confirm(`删除示例问题「${prompt.title}」？`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setBusyText('正在删除示例问题...');
+      await deleteSamplePrompt(prompt.id);
+      setSamplePrompts((current) => current.filter((item) => item.id !== prompt.id));
+      setAdminOverview(await fetchAdminOverview());
+      await loadPromptPresets();
+      showNotice('示例问题已删除。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -663,6 +755,7 @@ export default function App() {
             scope="paper"
             selectedPaper={selectedPaper}
             chats={chats}
+            prompts={paperPrompts}
             question={question}
             onQuestionChange={setQuestion}
             onSelectScope={(scope, id) => {
@@ -686,6 +779,7 @@ export default function App() {
           <LibraryChatView
             papers={papers}
             chats={chats}
+            prompts={libraryPrompts}
             question={question}
             onQuestionChange={setQuestion}
             onAsk={(prompt) => void handleAsk(prompt)}
@@ -724,6 +818,7 @@ export default function App() {
             overview={adminOverview}
             users={adminUsers}
             queryMappings={queryMappings}
+            samplePrompts={samplePrompts}
             loading={adminLoading}
             currentUserId={user.id}
             onRefresh={() => void loadAdminData()}
@@ -731,6 +826,9 @@ export default function App() {
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
             onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
             onDeleteQueryMapping={(mapping) => void handleDeleteQueryMapping(mapping)}
+            onCreateSamplePrompt={(input) => void handleCreateSamplePrompt(input)}
+            onUpdateSamplePrompt={(prompt, patch) => void handleUpdateSamplePrompt(prompt, patch)}
+            onDeleteSamplePrompt={(prompt) => void handleDeleteSamplePrompt(prompt)}
           />
         )}
       </main>
@@ -929,6 +1027,7 @@ function ReaderView({
   scope,
   selectedPaper,
   chats,
+  prompts,
   question,
   onQuestionChange,
   onSelectScope,
@@ -944,6 +1043,7 @@ function ReaderView({
   scope: ReaderScope;
   selectedPaper: Paper | null;
   chats: ChatRecord[];
+  prompts: string[];
   question: string;
   onQuestionChange: (value: string) => void;
   onSelectScope: (scope: ReaderScope, id?: number) => void;
@@ -956,7 +1056,6 @@ function ReaderView({
   pdfJump: PdfJump | null;
 }) {
   const indexedCount = papers.filter((paper) => paper.processStatus === 'INDEXED').length;
-  const prompts = scope === 'library' ? libraryQuickPrompts : quickPrompts;
 
   if (scope === 'paper' && !selectedPaper) {
     return <EmptyState title="还没有可阅读的文献" detail="先上传一篇 PDF，再进入 Agent 阅读视图。" />;
@@ -1079,6 +1178,7 @@ function ReaderView({
 function LibraryChatView({
   papers,
   chats,
+  prompts,
   question,
   onQuestionChange,
   onAsk,
@@ -1089,6 +1189,7 @@ function LibraryChatView({
 }: {
   papers: Paper[];
   chats: ChatRecord[];
+  prompts: string[];
   question: string;
   onQuestionChange: (value: string) => void;
   onAsk: (prompt?: string) => void;
@@ -1118,7 +1219,7 @@ function LibraryChatView({
         </div>
 
         <div className="library-chat-prompts">
-          {libraryQuickPrompts.map((prompt) => (
+          {prompts.map((prompt) => (
             <button key={prompt} type="button" onClick={() => onAsk(prompt)}>
               <Brain size={16} />
               <span>{prompt}</span>
@@ -1237,17 +1338,22 @@ function AdminView({
   overview,
   users,
   queryMappings,
+  samplePrompts,
   loading,
   currentUserId,
   onRefresh,
   onUserStatusChange,
   onCreateQueryMapping,
   onUpdateQueryMapping,
-  onDeleteQueryMapping
+  onDeleteQueryMapping,
+  onCreateSamplePrompt,
+  onUpdateSamplePrompt,
+  onDeleteSamplePrompt
 }: {
   overview: AdminOverview | null;
   users: AdminUser[];
   queryMappings: QueryTermMapping[];
+  samplePrompts: SamplePrompt[];
   loading: boolean;
   currentUserId: number;
   onRefresh: () => void;
@@ -1255,6 +1361,9 @@ function AdminView({
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
   onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
   onDeleteQueryMapping: (mapping: QueryTermMapping) => void;
+  onCreateSamplePrompt: (input: SamplePromptInput) => void;
+  onUpdateSamplePrompt: (prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) => void;
+  onDeleteSamplePrompt: (prompt: SamplePrompt) => void;
 }) {
   const embeddedRatio = overview?.totalChunks ? Math.round((overview.embeddedChunks / overview.totalChunks) * 100) : 0;
   const indexedRatio = overview?.totalPapers ? Math.round((overview.indexedPapers / overview.totalPapers) * 100) : 0;
@@ -1281,6 +1390,7 @@ function AdminView({
         <AdminStat icon={MessageSquareText} label="问答" value={overview?.totalChats ?? 0} detail={`${overview?.libraryChats ?? 0} 次全库问答`} />
         <AdminStat icon={ThumbsUp} label="反馈" value={overview?.totalFeedbacks ?? 0} detail={`${overview?.positiveFeedbacks ?? 0} 有用 / ${overview?.negativeFeedbacks ?? 0} 无用`} />
         <AdminStat icon={Search} label="术语映射" value={overview?.totalQueryMappings ?? 0} detail={`${overview?.enabledQueryMappings ?? 0} 条启用`} />
+        <AdminStat icon={Brain} label="示例问题" value={overview?.totalSamplePrompts ?? 0} detail={`${overview?.enabledSamplePrompts ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
       </div>
 
@@ -1371,6 +1481,13 @@ function AdminView({
         onCreate={onCreateQueryMapping}
         onUpdate={onUpdateQueryMapping}
         onDelete={onDeleteQueryMapping}
+      />
+
+      <SamplePromptPanel
+        prompts={samplePrompts}
+        onCreate={onCreateSamplePrompt}
+        onUpdate={onUpdateSamplePrompt}
+        onDelete={onDeleteSamplePrompt}
       />
 
       <div className="admin-panel admin-job-panel">
@@ -1680,6 +1797,143 @@ function QueryTermMappingPanel({
                 {mapping.enabled ? '停用' : '启用'}
               </button>
               <button className="icon-button small danger" type="button" title="删除术语映射" onClick={() => onDelete(mapping)}>
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SamplePromptPanel({
+  prompts,
+  onCreate,
+  onUpdate,
+  onDelete
+}: {
+  prompts: SamplePrompt[];
+  onCreate: (input: SamplePromptInput) => void;
+  onUpdate: (prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) => void;
+  onDelete: (prompt: SamplePrompt) => void;
+}) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [scope, setScope] = useState<'PAPER' | 'LIBRARY'>('PAPER');
+  const [title, setTitle] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [description, setDescription] = useState('');
+  const [sortOrder, setSortOrder] = useState('100');
+  const editingPrompt = prompts.find((item) => item.id === editingId) ?? null;
+
+  function reset() {
+    setEditingId(null);
+    setScope('PAPER');
+    setTitle('');
+    setPrompt('');
+    setDescription('');
+    setSortOrder('100');
+  }
+
+  function startEdit(item: SamplePrompt) {
+    setEditingId(item.id);
+    setScope(normalizePromptScope(item.scope));
+    setTitle(item.title);
+    setPrompt(item.prompt);
+    setDescription(item.description ?? '');
+    setSortOrder(String(item.sortOrder ?? 100));
+  }
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextTitle = title.trim();
+    const nextPrompt = prompt.trim();
+    if (!nextTitle || !nextPrompt) {
+      return;
+    }
+    const input = {
+      scope,
+      title: nextTitle,
+      prompt: nextPrompt,
+      description: description.trim(),
+      sortOrder: Number.parseInt(sortOrder, 10) || 100
+    };
+    if (editingPrompt) {
+      onUpdate(editingPrompt, input);
+    } else {
+      onCreate(input);
+    }
+    reset();
+  }
+
+  return (
+    <div className="admin-panel admin-sample-prompt-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>示例问题</h3>
+          <p>运营阅读页和全库问答页的推荐问法。</p>
+        </div>
+        <Brain size={18} />
+      </div>
+      <form className="sample-prompt-form" onSubmit={submit}>
+        <label>
+          <span>范围</span>
+          <select value={scope} onChange={(event) => setScope(normalizePromptScope(event.target.value))}>
+            <option value="PAPER">单篇</option>
+            <option value="LIBRARY">全库</option>
+          </select>
+        </label>
+        <label>
+          <span>标题</span>
+          <input value={title} maxLength={120} placeholder="核心方法" onChange={(event) => setTitle(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>问题</span>
+          <input value={prompt} maxLength={2000} placeholder="请总结这篇论文的核心方法和贡献。" onChange={(event) => setPrompt(event.target.value)} />
+        </label>
+        <label>
+          <span>排序</span>
+          <input value={sortOrder} inputMode="numeric" onChange={(event) => setSortOrder(event.target.value)} />
+        </label>
+        <label className="wide">
+          <span>说明</span>
+          <input value={description} maxLength={255} placeholder="用于快速建立论文理解" onChange={(event) => setDescription(event.target.value)} />
+        </label>
+        <div className="sample-prompt-actions">
+          {editingPrompt && (
+            <button className="secondary-button" type="button" onClick={reset}>
+              取消
+            </button>
+          )}
+          <button className="primary-button" type="submit" disabled={!title.trim() || !prompt.trim()}>
+            <Plus size={17} />
+            {editingPrompt ? '更新' : '添加'}
+          </button>
+        </div>
+      </form>
+      <div className="sample-prompt-list">
+        {prompts.length === 0 ? (
+          <EmptyState compact title="暂无示例问题" detail="添加后会出现在对应问答入口。" />
+        ) : (
+          prompts.map((item) => (
+            <div className={`sample-prompt-row ${item.enabled ? '' : 'is-disabled'}`} key={item.id}>
+              <strong>{scopeLabel(item.scope)}</strong>
+              <span>
+                <b>{item.title}</b>
+                <small>{item.prompt}</small>
+              </span>
+              <em>{item.sortOrder} · {item.enabled ? '启用' : '停用'}</em>
+              <button className="secondary-button compact-action" type="button" onClick={() => startEdit(item)}>
+                编辑
+              </button>
+              <button
+                className="secondary-button compact-action"
+                type="button"
+                onClick={() => onUpdate(item, { enabled: !item.enabled })}
+              >
+                {item.enabled ? '停用' : '启用'}
+              </button>
+              <button className="icon-button small danger" type="button" title="删除示例问题" onClick={() => onDelete(item)}>
                 <Trash2 size={15} />
               </button>
             </div>
@@ -2301,6 +2555,25 @@ function scopeLabel(scope: string) {
 function compactText(value: string, maxLength = 120) {
   const normalized = value.replace(/\s+/g, ' ').trim();
   return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+}
+
+function normalizePromptScope(value: string): 'PAPER' | 'LIBRARY' {
+  return value === 'PAPER' ? 'PAPER' : 'LIBRARY';
+}
+
+function promptTexts(prompts: SamplePrompt[], fallback: string[]) {
+  const texts = prompts
+    .filter((item) => item.enabled && item.prompt?.trim())
+    .sort(compareSamplePrompts)
+    .map((item) => item.prompt.trim());
+  return texts.length > 0 ? texts : fallback;
+}
+
+function compareSamplePrompts(a: SamplePrompt, b: SamplePrompt) {
+  if ((a.sortOrder ?? 100) !== (b.sortOrder ?? 100)) {
+    return (a.sortOrder ?? 100) - (b.sortOrder ?? 100);
+  }
+  return a.id - b.id;
 }
 
 function formatBytes(bytes = 0) {

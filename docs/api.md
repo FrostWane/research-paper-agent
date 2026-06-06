@@ -39,6 +39,7 @@ GET  /api/files/papers/{fileId}/preview
 POST /api/agent/chat
 GET  /api/agent/chats
 GET  /api/papers/{paperId}/chats
+GET  /api/agent/sample-prompts?scope=PAPER
 PATCH /api/agent/chats/{id}/feedback
 ```
 
@@ -75,6 +76,14 @@ PATCH /api/agent/chats/{id}/feedback
 
 `score` 支持 `1`、`-1` 或 `null`，分别表示有用、无用和取消反馈。接口只允许反馈当前用户自己的问答记录，并会在返回的问答记录中带回 `feedbackScore`、`feedbackComment` 和 `feedbackAt`。
 
+示例问题请求：
+
+```http
+GET /api/agent/sample-prompts?scope=LIBRARY
+```
+
+`scope` 支持 `PAPER` 和 `LIBRARY`，返回对应问答入口已启用的推荐问题，按 `sortOrder` 排序。
+
 ## Admin
 
 `/api/admin/**` 需要 `ADMIN` 角色。
@@ -87,9 +96,13 @@ GET   /api/admin/query-term-mappings
 POST  /api/admin/query-term-mappings
 PATCH /api/admin/query-term-mappings/{id}
 DELETE /api/admin/query-term-mappings/{id}
+GET   /api/admin/sample-prompts
+POST  /api/admin/sample-prompts
+PATCH /api/admin/sample-prompts/{id}
+DELETE /api/admin/sample-prompts/{id}
 ```
 
-`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；模型健康字段包含 `provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、术语扩展、策略、检索通道、后处理器、节点链路、检索和生成耗时。
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。答案反馈指标包含 `totalFeedbacks`、`positiveFeedbacks`、`negativeFeedbacks`，用于观察回答质量趋势；查询术语指标包含 `totalQueryMappings`、`enabledQueryMappings`，用于观察领域术语运营规模；示例问题指标包含 `totalSamplePrompts`、`enabledSamplePrompts`，用于观察推荐问法运营规模；模型健康字段包含 `provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`queryExpansions`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、术语扩展、策略、检索通道、后处理器、节点链路、检索和生成耗时。
 
 查询术语映射请求：
 
@@ -102,6 +115,19 @@ DELETE /api/admin/query-term-mappings/{id}
 ```
 
 启用后的映射会在 `QueryPlanningNode` 命中问题或初始检索式时自动扩展 `searchQuery`，并写入 Trace 的 `queryExpansions`。
+
+示例问题管理请求：
+
+```json
+{
+  "scope": "PAPER",
+  "title": "核心方法",
+  "prompt": "请总结这篇论文的核心方法和贡献。",
+  "description": "快速建立单篇论文理解。",
+  "sortOrder": 10,
+  "enabled": true
+}
+```
 
 用户状态更新请求：
 

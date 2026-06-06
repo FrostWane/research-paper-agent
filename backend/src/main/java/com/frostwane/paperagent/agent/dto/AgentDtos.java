@@ -56,4 +56,27 @@ public final class AgentDtos {
         @Size(max = 500) String comment
     ) {
     }
+
+    public record SamplePromptResponse(
+        Long id,
+        String scope,
+        String title,
+        String prompt,
+        String description,
+        Integer sortOrder,
+        boolean enabled,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record SamplePromptRequest(
+        @NotBlank @Size(max = 32) String scope,
+        @NotBlank @Size(max = 120) String title,
+        @NotBlank @Size(max = 2000) String prompt,
+        @Size(max = 255) String description,
+        @Min(0) @Max(10000) Integer sortOrder,
+        Boolean enabled
+    ) {
+    }
 }

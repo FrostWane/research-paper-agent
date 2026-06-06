@@ -30,6 +30,8 @@ public final class AdminDtos {
         long negativeFeedbacks,
         long totalQueryMappings,
         long enabledQueryMappings,
+        long totalSamplePrompts,
+        long enabledSamplePrompts,
         int averageLatencyMs,
         long failedTraces,
         int averageRetrievalMs,

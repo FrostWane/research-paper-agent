@@ -241,6 +241,8 @@ export interface AdminOverview {
   negativeFeedbacks: number;
   totalQueryMappings: number;
   enabledQueryMappings: number;
+  totalSamplePrompts: number;
+  enabledSamplePrompts: number;
   averageLatencyMs: number;
   failedTraces: number;
   averageRetrievalMs: number;
@@ -260,6 +262,18 @@ export interface QueryTermMapping {
   id: number;
   term: string;
   expansions: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SamplePrompt {
+  id: number;
+  scope: 'PAPER' | 'LIBRARY' | string;
+  title: string;
+  prompt: string;
+  description?: string;
+  sortOrder: number;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
