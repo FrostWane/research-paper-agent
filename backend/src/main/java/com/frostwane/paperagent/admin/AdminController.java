@@ -18,6 +18,8 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.QueryTermMappingResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagSettingsRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagSettingsResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalChannelCatalogResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalProcessorCatalogResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.UserStatusUpdateRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
@@ -120,6 +122,16 @@ public class AdminController {
     @GetMapping("/ingestion-pipeline/nodes")
     public ApiResponse<List<IngestionPipelineNodeResponse>> ingestionPipelineNodes() {
         return ApiResponse.ok(adminService.ingestionPipelineNodes(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/retrieval-channels")
+    public ApiResponse<List<RetrievalChannelCatalogResponse>> retrievalChannels() {
+        return ApiResponse.ok(adminService.retrievalChannels(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/retrieval-processors")
+    public ApiResponse<List<RetrievalProcessorCatalogResponse>> retrievalProcessors() {
+        return ApiResponse.ok(adminService.retrievalProcessors(currentUserService.getRequiredUser()));
     }
 
     @GetMapping("/chunks")

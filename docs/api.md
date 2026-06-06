@@ -124,6 +124,8 @@ GET   /api/admin/rag-traces/{id}
 GET   /api/admin/users
 GET   /api/admin/agent-pipeline/nodes
 GET   /api/admin/ingestion-pipeline/nodes
+GET   /api/admin/retrieval-channels
+GET   /api/admin/retrieval-processors
 GET   /api/admin/agent-tools
 GET   /api/admin/chunks?paperId=&keyword=&page=1&pageSize=12
 PATCH /api/admin/chunks/{id}/enabled
@@ -157,6 +159,10 @@ DELETE /api/admin/sample-prompts/{id}
 `GET /api/admin/agent-pipeline/nodes` 返回当前问答 Pipeline 的节点目录和运行画像。字段包含 `pipelineName`、`type`、`name`、`label`、`description`、`sortOrder`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`averageLatencyMs` 和 `lastSeenAt`。节点定义来自 `AgentPipeline` 注册表，运行统计从历史 `nodeSpans` Trace 聚合，用于观察节点顺序、职责、失败风险和耗时热点。
 
 `GET /api/admin/ingestion-pipeline/nodes` 返回 PDF 入库 Pipeline 的节点目录和运行画像。字段包含 `pipelineName`、`type`、`name`、`label`、`description`、`sortOrder`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`averageLatencyMs` 和 `lastSeenAt`。节点定义来自 `IngestionPipelineCatalog`，运行统计从历史解析任务的 `nodeSpans` 聚合，用于观察准备、读取 PDF、抽取文本、写入片段、向量索引和完成节点的长期健康状况。
+
+`GET /api/admin/retrieval-channels` 返回当前注册的检索通道目录和运行画像。字段包含 `name`、`label`、`description`、`priority`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`totalCandidates`、`averageCandidates`、`averageLatencyMs` 和 `lastSeenAt`。通道定义来自 `RetrievalChannel` Spring Bean，运行统计从历史 Trace 的 `retrievalChannels` 聚合，用于观察向量召回、关键词召回等通道的候选规模、失败风险和平均耗时。
+
+`GET /api/admin/retrieval-processors` 返回当前注册的检索后处理器目录和运行画像。字段包含 `name`、`label`、`description`、`sortOrder`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`averageInputCount`、`averageOutputCount`、`averageLatencyMs` 和 `lastSeenAt`。后处理器定义来自 `RetrievalPostProcessor` Spring Bean，运行统计从历史 Trace 的 `retrievalProcessors` 聚合，用于观察通道融合、规则精排、模型重排、多样性重排和结果截断等环节的输入输出规模与耗时。
 
 `GET /api/admin/agent-tools` 返回当前 Pipeline 注册的内部工具目录和调用画像。字段包含 `name`、`label`、`description`、`triggerDescription`、`source`、`enabled`、`totalCalls`、`successCalls`、`failedCalls`、`averageLatencyMs` 和 `lastSeenAt`。工具定义来自 Spring Bean 注册表，调用统计从历史 `toolExecutions` Trace 聚合，用于运营侧观察哪些工具可用、如何触发、近期是否失败以及平均耗时。
 

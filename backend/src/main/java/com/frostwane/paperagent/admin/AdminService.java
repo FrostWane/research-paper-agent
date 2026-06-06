@@ -22,6 +22,8 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceRetrievalChannelResp
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceRetrievalProcessorResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RecentPaperResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalChannelCatalogResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalProcessorCatalogResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ToolExecutionResponse;
 import com.frostwane.paperagent.agent.limit.AgentRateLimitStatus;
@@ -29,6 +31,8 @@ import com.frostwane.paperagent.agent.limit.AgentRateLimiterService;
 import com.frostwane.paperagent.agent.pipeline.AgentNode;
 import com.frostwane.paperagent.agent.pipeline.AgentNodeType;
 import com.frostwane.paperagent.agent.pipeline.AgentPipeline;
+import com.frostwane.paperagent.agent.retrieval.RetrievalChannel;
+import com.frostwane.paperagent.agent.retrieval.RetrievalPostProcessor;
 import com.frostwane.paperagent.agent.term.QueryTermMapping;
 import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
 import com.frostwane.paperagent.agent.tool.AgentTool;
@@ -52,6 +56,7 @@ import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -67,6 +72,8 @@ public class AdminService {
     private final AgentToolRegistry agentToolRegistry;
     private final AgentPipeline agentPipeline;
     private final IngestionPipelineCatalog ingestionPipelineCatalog;
+    private final List<RetrievalChannel> retrievalChannels;
+    private final List<RetrievalPostProcessor> retrievalPostProcessors;
     private final ObjectMapper objectMapper;
 
     public AdminService(
@@ -77,6 +84,8 @@ public class AdminService {
         AgentToolRegistry agentToolRegistry,
         AgentPipeline agentPipeline,
         IngestionPipelineCatalog ingestionPipelineCatalog,
+        List<RetrievalChannel> retrievalChannels,
+        List<RetrievalPostProcessor> retrievalPostProcessors,
         ObjectMapper objectMapper
     ) {
         this.jdbcTemplate = jdbcTemplate;
@@ -86,6 +95,12 @@ public class AdminService {
         this.agentToolRegistry = agentToolRegistry;
         this.agentPipeline = agentPipeline;
         this.ingestionPipelineCatalog = ingestionPipelineCatalog;
+        this.retrievalChannels = retrievalChannels.stream()
+            .sorted(Comparator.comparingInt(RetrievalChannel::priority))
+            .toList();
+        this.retrievalPostProcessors = retrievalPostProcessors.stream()
+            .sorted(Comparator.comparingInt(RetrievalPostProcessor::order))
+            .toList();
         this.objectMapper = objectMapper;
     }
 
@@ -356,6 +371,170 @@ public class AdminService {
         return defaultText(type, "") + "::" + defaultText(name, "");
     }
 
+    private RetrievalChannelCatalogResponse retrievalChannelResponse(RetrievalChannel channel, RetrievalComponentStats stats) {
+        RetrievalComponentStats safeStats = stats == null ? RetrievalComponentStats.empty() : stats;
+        return new RetrievalChannelCatalogResponse(
+            channel.name(),
+            channel.label(),
+            retrievalChannelDescription(channel.name()),
+            channel.priority(),
+            true,
+            safeStats.totalRuns(),
+            safeStats.successRuns(),
+            safeStats.failedRuns(),
+            safeStats.totalOutputCount(),
+            safeStats.averageOutputCount(),
+            safeStats.averageLatencyMs(),
+            safeStats.lastSeenAt()
+        );
+    }
+
+    private RetrievalProcessorCatalogResponse retrievalProcessorResponse(RetrievalPostProcessor processor, RetrievalComponentStats stats) {
+        RetrievalComponentStats safeStats = stats == null ? RetrievalComponentStats.empty() : stats;
+        return new RetrievalProcessorCatalogResponse(
+            processor.name(),
+            processor.label(),
+            retrievalProcessorDescription(processor.name()),
+            processor.order(),
+            true,
+            safeStats.totalRuns(),
+            safeStats.successRuns(),
+            safeStats.failedRuns(),
+            safeStats.averageInputCount(),
+            safeStats.averageOutputCount(),
+            safeStats.averageLatencyMs(),
+            safeStats.lastSeenAt()
+        );
+    }
+
+    private Map<String, RetrievalComponentStats> retrievalChannelStats() {
+        Map<String, RetrievalComponentStats> stats = new HashMap<>();
+        jdbcTemplate.query("""
+            select
+              channel.item->>'name' as name,
+              count(*) as total_runs,
+              sum(case when channel.item->>'status' = 'SUCCESS' then 1 else 0 end) as success_runs,
+              sum(case when channel.item->>'status' = 'FAILED' then 1 else 0 end) as failed_runs,
+              coalesce(sum(
+                case
+                  when jsonb_typeof(channel.item->'candidateCount') = 'number'
+                  then (channel.item->>'candidateCount')::numeric
+                  else 0
+                end
+              ), 0) as total_output_count,
+              coalesce(round(avg(
+                case
+                  when jsonb_typeof(channel.item->'candidateCount') = 'number'
+                  then (channel.item->>'candidateCount')::numeric
+                  else null
+                end
+              )), 0) as average_output_count,
+              coalesce(round(avg(
+                case
+                  when jsonb_typeof(channel.item->'latencyMs') = 'number'
+                  then (channel.item->>'latencyMs')::numeric
+                  else null
+                end
+              )), 0) as average_latency_ms,
+              max(t.created_at) as last_seen_at
+            from rag_traces t
+            cross join lateral jsonb_array_elements(coalesce(t.retrieval_channels_json, '[]'::jsonb)) as channel(item)
+            where coalesce(channel.item->>'name', '') <> ''
+            group by channel.item->>'name'
+            """, rs -> {
+            while (rs.next()) {
+                stats.put(rs.getString("name"), new RetrievalComponentStats(
+                    rs.getLong("total_runs"),
+                    rs.getLong("success_runs"),
+                    rs.getLong("failed_runs"),
+                    0,
+                    rs.getInt("average_output_count"),
+                    rs.getLong("total_output_count"),
+                    rs.getInt("average_latency_ms"),
+                    offsetDateTime(rs, "last_seen_at")
+                ));
+            }
+        });
+        return stats;
+    }
+
+    private Map<String, RetrievalComponentStats> retrievalProcessorStats() {
+        Map<String, RetrievalComponentStats> stats = new HashMap<>();
+        jdbcTemplate.query("""
+            select
+              processor.item->>'name' as name,
+              count(*) as total_runs,
+              sum(case when processor.item->>'status' = 'SUCCESS' then 1 else 0 end) as success_runs,
+              sum(case when processor.item->>'status' = 'FAILED' then 1 else 0 end) as failed_runs,
+              coalesce(round(avg(
+                case
+                  when jsonb_typeof(processor.item->'inputCount') = 'number'
+                  then (processor.item->>'inputCount')::numeric
+                  else null
+                end
+              )), 0) as average_input_count,
+              coalesce(round(avg(
+                case
+                  when jsonb_typeof(processor.item->'outputCount') = 'number'
+                  then (processor.item->>'outputCount')::numeric
+                  else null
+                end
+              )), 0) as average_output_count,
+              coalesce(sum(
+                case
+                  when jsonb_typeof(processor.item->'outputCount') = 'number'
+                  then (processor.item->>'outputCount')::numeric
+                  else 0
+                end
+              ), 0) as total_output_count,
+              coalesce(round(avg(
+                case
+                  when jsonb_typeof(processor.item->'latencyMs') = 'number'
+                  then (processor.item->>'latencyMs')::numeric
+                  else null
+                end
+              )), 0) as average_latency_ms,
+              max(t.created_at) as last_seen_at
+            from rag_traces t
+            cross join lateral jsonb_array_elements(coalesce(t.retrieval_processors_json, '[]'::jsonb)) as processor(item)
+            where coalesce(processor.item->>'name', '') <> ''
+            group by processor.item->>'name'
+            """, rs -> {
+            while (rs.next()) {
+                stats.put(rs.getString("name"), new RetrievalComponentStats(
+                    rs.getLong("total_runs"),
+                    rs.getLong("success_runs"),
+                    rs.getLong("failed_runs"),
+                    rs.getInt("average_input_count"),
+                    rs.getInt("average_output_count"),
+                    rs.getLong("total_output_count"),
+                    rs.getInt("average_latency_ms"),
+                    offsetDateTime(rs, "last_seen_at")
+                ));
+            }
+        });
+        return stats;
+    }
+
+    private String retrievalChannelDescription(String name) {
+        return switch (defaultText(name, "")) {
+            case "vector" -> "基于 chunk embedding 执行 pgvector 相似度召回，只检索启用片段。";
+            case "keyword" -> "在启用 chunk 正文中执行轻量关键词匹配，作为精确词和中文问法兜底。";
+            default -> "注册在 Spring Bean 中的检索通道。";
+        };
+    }
+
+    private String retrievalProcessorDescription(String name) {
+        return switch (defaultText(name, "")) {
+            case "channel-fusion" -> "合并多通道候选，按通道权重融合排序。";
+            case "query-aware-rerank" -> "根据检索式命中词对候选进行规则精排。";
+            case "model-rerank" -> "按配置调用 RETRIEVAL_RERANK 模型重排前 N 个候选。";
+            case "paper-diversity" -> "全库场景提升跨论文多样性，避免单篇论文垄断来源。";
+            case "result-limit" -> "按最终来源上限截断候选，控制回答上下文规模。";
+            default -> "注册在 Spring Bean 中的检索后处理器。";
+        };
+    }
+
     @Transactional(readOnly = true)
     public List<AdminUserResponse> users(User currentUser) {
         requireAdmin(currentUser);
@@ -416,6 +595,24 @@ public class AdminService {
         Map<String, IngestionNodeStats> stats = ingestionNodeStats();
         return ingestionPipelineCatalog.nodes().stream()
             .map(node -> ingestionPipelineNodeResponse(node, stats.get(ingestionNodeKey(node))))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RetrievalChannelCatalogResponse> retrievalChannels(User currentUser) {
+        requireAdmin(currentUser);
+        Map<String, RetrievalComponentStats> stats = retrievalChannelStats();
+        return retrievalChannels.stream()
+            .map(channel -> retrievalChannelResponse(channel, stats.get(channel.name())))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RetrievalProcessorCatalogResponse> retrievalProcessors(User currentUser) {
+        requireAdmin(currentUser);
+        Map<String, RetrievalComponentStats> stats = retrievalProcessorStats();
+        return retrievalPostProcessors.stream()
+            .map(processor -> retrievalProcessorResponse(processor, stats.get(processor.name())))
             .toList();
     }
 
@@ -1088,6 +1285,21 @@ public class AdminService {
     ) {
         static AgentNodeStats empty() {
             return new AgentNodeStats(0, 0, 0, 0, null);
+        }
+    }
+
+    private record RetrievalComponentStats(
+        long totalRuns,
+        long successRuns,
+        long failedRuns,
+        int averageInputCount,
+        int averageOutputCount,
+        long totalOutputCount,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
+    ) {
+        static RetrievalComponentStats empty() {
+            return new RetrievalComponentStats(0, 0, 0, 0, 0, 0, 0, null);
         }
     }
 

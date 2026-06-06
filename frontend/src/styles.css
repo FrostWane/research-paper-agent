@@ -1330,6 +1330,7 @@ select,
 .admin-model-health-list,
 .agent-pipeline-list,
 .ingestion-pipeline-list,
+.retrieval-catalog-list,
 .agent-tool-list,
 .admin-chunk-list,
 .admin-recent-list,
@@ -1489,6 +1490,7 @@ select,
 
 .admin-agent-pipeline-panel,
 .admin-ingestion-pipeline-panel,
+.admin-retrieval-catalog-panel,
 .admin-agent-tool-panel,
 .admin-chunk-panel {
   overflow-x: auto;
@@ -1629,6 +1631,92 @@ select,
 
 .ingestion-pipeline-row em,
 .ingestion-pipeline-row > strong:last-of-type {
+  justify-self: end;
+}
+
+.retrieval-catalog-section {
+  display: grid;
+  gap: 8px;
+}
+
+.retrieval-catalog-section + .retrieval-catalog-section {
+  border-top: 1px solid #e2e8f0;
+}
+
+.retrieval-catalog-section h4 {
+  margin: 0;
+  padding: 14px 14px 0;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.retrieval-catalog-list {
+  min-width: 1080px;
+}
+
+.retrieval-catalog-row {
+  display: grid;
+  grid-template-columns: 62px minmax(140px, 0.8fr) minmax(300px, 1.55fr) 66px 72px 72px 82px 86px 80px 130px;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.retrieval-catalog-row.is-disabled {
+  opacity: .62;
+}
+
+.retrieval-catalog-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.retrieval-catalog-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.retrieval-catalog-row span b,
+.retrieval-catalog-row span small,
+.retrieval-catalog-row p,
+.retrieval-catalog-row em,
+.retrieval-catalog-row > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.retrieval-catalog-row span b {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.retrieval-catalog-row span small,
+.retrieval-catalog-row p,
+.retrieval-catalog-row em,
+.retrieval-catalog-row > small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.retrieval-catalog-row em,
+.retrieval-catalog-row > strong:last-of-type,
+.retrieval-catalog-row > strong:nth-last-of-type(2) {
   justify-self: end;
 }
 

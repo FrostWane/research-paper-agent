@@ -135,6 +135,38 @@ public final class AdminDtos {
     ) {
     }
 
+    public record RetrievalChannelCatalogResponse(
+        String name,
+        String label,
+        String description,
+        int priority,
+        boolean enabled,
+        long totalRuns,
+        long successRuns,
+        long failedRuns,
+        long totalCandidates,
+        int averageCandidates,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
+    ) {
+    }
+
+    public record RetrievalProcessorCatalogResponse(
+        String name,
+        String label,
+        String description,
+        int sortOrder,
+        boolean enabled,
+        long totalRuns,
+        long successRuns,
+        long failedRuns,
+        int averageInputCount,
+        int averageOutputCount,
+        int averageLatencyMs,
+        OffsetDateTime lastSeenAt
+    ) {
+    }
+
     public record AdminChunkResponse(
         Long id,
         String username,

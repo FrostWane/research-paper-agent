@@ -63,6 +63,8 @@ import {
   fetchIngestionPipelineNodes,
   fetchModelTargets,
   fetchRagSettings,
+  fetchRetrievalChannels,
+  fetchRetrievalProcessors,
   fetchSamplePrompts,
   fetchAdminUsers,
   fetchQueryTermMappings,
@@ -90,7 +92,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -284,6 +286,8 @@ export default function App() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [agentPipelineNodes, setAgentPipelineNodes] = useState<AdminAgentPipelineNode[]>([]);
   const [ingestionPipelineNodes, setIngestionPipelineNodes] = useState<AdminIngestionPipelineNode[]>([]);
+  const [retrievalChannels, setRetrievalChannels] = useState<AdminRetrievalChannelCatalog[]>([]);
+  const [retrievalProcessors, setRetrievalProcessors] = useState<AdminRetrievalProcessorCatalog[]>([]);
   const [agentTools, setAgentTools] = useState<AdminAgentTool[]>([]);
   const [queryMappings, setQueryMappings] = useState<QueryTermMapping[]>([]);
   const [intentRoutes, setIntentRoutes] = useState<IntentRoute[]>([]);
@@ -467,6 +471,8 @@ export default function App() {
     setAdminUsers([]);
     setAgentPipelineNodes([]);
     setIngestionPipelineNodes([]);
+    setRetrievalChannels([]);
+    setRetrievalProcessors([]);
     setAgentTools([]);
     setQueryMappings([]);
     setIntentRoutes([]);
@@ -767,13 +773,15 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, chunks, users, pipelineNodes, ingestionNodes, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, chunks, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
         fetchAdminChunks({ ...adminChunkFilters, page: adminChunkPage?.page ?? 1, pageSize: adminChunkPage?.pageSize ?? 8 }),
         fetchAdminUsers(),
         fetchAgentPipelineNodes(),
         fetchIngestionPipelineNodes(),
+        fetchRetrievalChannels(),
+        fetchRetrievalProcessors(),
         fetchAgentTools(),
         fetchQueryTermMappings(),
         fetchIntentRoutes(),
@@ -788,6 +796,8 @@ export default function App() {
       setAdminUsers(users);
       setAgentPipelineNodes(pipelineNodes);
       setIngestionPipelineNodes(ingestionNodes);
+      setRetrievalChannels(retrievalChannelItems);
+      setRetrievalProcessors(retrievalProcessorItems);
       setAgentTools(tools);
       setQueryMappings(mappings);
       setIntentRoutes(routes);
@@ -1419,6 +1429,8 @@ export default function App() {
             users={adminUsers}
             agentPipelineNodes={agentPipelineNodes}
             ingestionPipelineNodes={ingestionPipelineNodes}
+            retrievalChannels={retrievalChannels}
+            retrievalProcessors={retrievalProcessors}
             agentTools={agentTools}
             queryMappings={queryMappings}
             intentRoutes={intentRoutes}
@@ -2101,6 +2113,8 @@ function AdminView({
   users,
   agentPipelineNodes,
   ingestionPipelineNodes,
+  retrievalChannels,
+  retrievalProcessors,
   agentTools,
   queryMappings,
   intentRoutes,
@@ -2142,6 +2156,8 @@ function AdminView({
   users: AdminUser[];
   agentPipelineNodes: AdminAgentPipelineNode[];
   ingestionPipelineNodes: AdminIngestionPipelineNode[];
+  retrievalChannels: AdminRetrievalChannelCatalog[];
+  retrievalProcessors: AdminRetrievalProcessorCatalog[];
   agentTools: AdminAgentTool[];
   queryMappings: QueryTermMapping[];
   intentRoutes: IntentRoute[];
@@ -2292,6 +2308,8 @@ function AdminView({
       </div>
 
       <AgentPipelinePanel nodes={agentPipelineNodes} />
+
+      <RetrievalCatalogPanel channels={retrievalChannels} processors={retrievalProcessors} />
 
       <AgentToolPanel tools={agentTools} />
 
@@ -3021,6 +3039,78 @@ function IngestionPipelinePanel({ nodes }: { nodes: AdminIngestionPipelineNode[]
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function RetrievalCatalogPanel({
+  channels,
+  processors
+}: {
+  channels: AdminRetrievalChannelCatalog[];
+  processors: AdminRetrievalProcessorCatalog[];
+}) {
+  return (
+    <div className="admin-panel admin-retrieval-catalog-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>检索通道与后处理器</h3>
+          <p>多路召回和后处理流水线的注册目录、候选规模和历史运行画像。</p>
+        </div>
+        <Search size={18} />
+      </div>
+      <div className="retrieval-catalog-section">
+        <h4>检索通道</h4>
+        <div className="retrieval-catalog-list">
+          {channels.length === 0 ? (
+            <EmptyState compact title="暂无检索通道" detail="注册 RetrievalChannel Bean 后会显示在这里。" />
+          ) : (
+            channels.map((channel) => (
+              <div className={`retrieval-catalog-row ${channel.enabled ? '' : 'is-disabled'}`} key={`channel-${channel.name}`}>
+                <strong className="retrieval-catalog-order">#{channel.priority}</strong>
+                <span>
+                  <b>{channel.label}</b>
+                  <small>{channel.name}</small>
+                </span>
+                <p>{channel.description}</p>
+                <em>{channel.totalRuns} 次</em>
+                <em>{channel.successRuns} 成功</em>
+                <em>{channel.failedRuns} 失败</em>
+                <em>{channel.totalCandidates} 候选</em>
+                <strong>{channel.averageCandidates} 均候选</strong>
+                <strong>{formatLatency(channel.averageLatencyMs)}</strong>
+                <small>{channel.lastSeenAt ? formatTime(channel.lastSeenAt) : '尚未运行'}</small>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      <div className="retrieval-catalog-section">
+        <h4>后处理器</h4>
+        <div className="retrieval-catalog-list">
+          {processors.length === 0 ? (
+            <EmptyState compact title="暂无后处理器" detail="注册 RetrievalPostProcessor Bean 后会显示在这里。" />
+          ) : (
+            processors.map((processor) => (
+              <div className={`retrieval-catalog-row ${processor.enabled ? '' : 'is-disabled'}`} key={`processor-${processor.name}`}>
+                <strong className="retrieval-catalog-order">#{processor.sortOrder}</strong>
+                <span>
+                  <b>{processor.label}</b>
+                  <small>{processor.name}</small>
+                </span>
+                <p>{processor.description}</p>
+                <em>{processor.totalRuns} 次</em>
+                <em>{processor.successRuns} 成功</em>
+                <em>{processor.failedRuns} 失败</em>
+                <em>{processor.averageInputCount} 入</em>
+                <strong>{processor.averageOutputCount} 出</strong>
+                <strong>{formatLatency(processor.averageLatencyMs)}</strong>
+                <small>{processor.lastSeenAt ? formatTime(processor.lastSeenAt) : '尚未运行'}</small>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

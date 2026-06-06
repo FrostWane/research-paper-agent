@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -35,6 +35,14 @@ export function fetchAgentPipelineNodes() {
 
 export function fetchIngestionPipelineNodes() {
   return unwrap<AdminIngestionPipelineNode[]>(api.get('/api/admin/ingestion-pipeline/nodes'));
+}
+
+export function fetchRetrievalChannels() {
+  return unwrap<AdminRetrievalChannelCatalog[]>(api.get('/api/admin/retrieval-channels'));
+}
+
+export function fetchRetrievalProcessors() {
+  return unwrap<AdminRetrievalProcessorCatalog[]>(api.get('/api/admin/retrieval-processors'));
 }
 
 export function fetchAdminChunks(query: {

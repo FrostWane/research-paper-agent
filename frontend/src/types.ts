@@ -192,6 +192,36 @@ export interface AdminIngestionPipelineNode {
   lastSeenAt?: string;
 }
 
+export interface AdminRetrievalChannelCatalog {
+  name: string;
+  label: string;
+  description: string;
+  priority: number;
+  enabled: boolean;
+  totalRuns: number;
+  successRuns: number;
+  failedRuns: number;
+  totalCandidates: number;
+  averageCandidates: number;
+  averageLatencyMs: number;
+  lastSeenAt?: string;
+}
+
+export interface AdminRetrievalProcessorCatalog {
+  name: string;
+  label: string;
+  description: string;
+  sortOrder: number;
+  enabled: boolean;
+  totalRuns: number;
+  successRuns: number;
+  failedRuns: number;
+  averageInputCount: number;
+  averageOutputCount: number;
+  averageLatencyMs: number;
+  lastSeenAt?: string;
+}
+
 export interface AdminChunk {
   id: number;
   username: string;
