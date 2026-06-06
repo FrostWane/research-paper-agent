@@ -89,6 +89,13 @@ export interface ChatResponse {
   latencyMs: number;
 }
 
+export interface ChatStreamEvent {
+  phase: 'started' | 'running' | 'final' | 'done' | 'error' | string;
+  message?: string;
+  response?: ChatResponse;
+  errorMessage?: string;
+}
+
 export interface ChatRecord {
   id: number;
   sessionId?: number;

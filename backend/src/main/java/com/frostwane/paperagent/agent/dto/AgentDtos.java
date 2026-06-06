@@ -39,6 +39,14 @@ public final class AgentDtos {
     ) {
     }
 
+    public record ChatStreamEvent(
+        String phase,
+        String message,
+        ChatResponse response,
+        String errorMessage
+    ) {
+    }
+
     public record ChatRecordResponse(
         Long id,
         Long sessionId,

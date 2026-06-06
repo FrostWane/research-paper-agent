@@ -649,6 +649,12 @@ select,
   border-radius: 8px;
 }
 
+.library-chat-prompts button:disabled,
+.quick-prompts button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .reader-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 410px;
@@ -966,6 +972,11 @@ select,
   border: 1px solid #e2e8f0;
 }
 
+.chat.assistant.streaming .chat-body {
+  background: #eef6ff;
+  border-color: #bfdbfe;
+}
+
 .source-cards {
   display: grid;
   gap: 8px;
@@ -1148,10 +1159,34 @@ select,
   border-radius: 8px;
 }
 
+.ask-box input:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+  background: #eef2f7;
+}
+
 .send {
   color: #ffffff;
   background: var(--blue);
   border-color: var(--blue);
+}
+
+.stream-stop {
+  color: #ffffff;
+  background: #be123c;
+  border-color: #be123c;
+}
+
+.stream-status {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .history-list {

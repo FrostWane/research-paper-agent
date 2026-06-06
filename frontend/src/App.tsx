@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  CircleStop,
   Clock3,
   Database,
   FileText,
@@ -70,13 +71,13 @@ import {
   updateQueryTermMapping
 } from './api/admin';
 import {
-  askAgent,
   createChatSession,
   listChats,
   listChatSessions,
   listLibraryChats,
   listSamplePrompts,
   listSessionChats,
+  streamAskAgent,
   submitChatFeedback,
   updateChatSession
 } from './api/agent';
@@ -84,7 +85,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminOverview, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -250,6 +251,8 @@ export default function App() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [chats, setChats] = useState<ChatRecord[]>([]);
   const [question, setQuestion] = useState('');
+  const [agentStreaming, setAgentStreaming] = useState(false);
+  const [streamStatus, setStreamStatus] = useState('');
   const [pdfJump, setPdfJump] = useState<PdfJump | null>(null);
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminTracePage, setAdminTracePage] = useState<PageResponse<AdminTrace> | null>(null);
@@ -269,6 +272,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const noticeTimerRef = useRef<number | null>(null);
+  const streamAbortRef = useRef<(() => void) | null>(null);
 
   const selectedPaper = useMemo(
     () => papers.find((paper) => paper.id === selectedPaperId) || papers[0] || null,
@@ -287,6 +291,7 @@ export default function App() {
       if (noticeTimerRef.current) {
         window.clearTimeout(noticeTimerRef.current);
       }
+      streamAbortRef.current?.();
     };
   }, []);
 
@@ -417,6 +422,8 @@ export default function App() {
   }
 
   function signOut() {
+    streamAbortRef.current?.();
+    streamAbortRef.current = null;
     clearToken();
     setUser(null);
     setPapers([]);
@@ -435,6 +442,8 @@ export default function App() {
     setModelTargets([]);
     setSamplePrompts([]);
     setRagSettings(null);
+    setAgentStreaming(false);
+    setStreamStatus('');
     setPaperPrompts(quickPrompts);
     setLibraryPrompts(libraryQuickPrompts);
     setActiveView('library');
@@ -516,17 +525,58 @@ export default function App() {
 
   async function handleAsk(prompt = question) {
     const isLibraryQuestion = activeView === 'libraryChat' || readerScope === 'library';
-    if ((!isLibraryQuestion && !selectedPaper) || !prompt.trim()) {
+    const promptText = prompt.trim();
+    if (agentStreaming || (!isLibraryQuestion && !selectedPaper) || !promptText) {
       return;
     }
+    const paperId = isLibraryQuestion ? null : selectedPaper!.id;
+    const pendingId = -Date.now();
+    const finalResponseRef: { current: ChatResponse | null } = { current: null };
     try {
       setError('');
       setQuestion('');
+      setAgentStreaming(true);
+      setStreamStatus('正在连接流式问答服务...');
       setBusyText('多 Agent 正在检索、生成并校验引用...');
-      const paperId = isLibraryQuestion ? null : selectedPaper!.id;
-      const response = await askAgent(paperId, prompt.trim(), true, selectedSessionId);
+      setChats((current) => [
+        ...current,
+        pendingChatRecord(pendingId, paperId, selectedSessionId, promptText, '正在连接流式问答服务...')
+      ]);
+      const stream = streamAskAgent(paperId, promptText, true, selectedSessionId, {
+        onEvent: (eventName, payload) => {
+          const nextMessage = payload.message || streamEventMessage(eventName);
+          if (payload.response) {
+            finalResponseRef.current = payload.response;
+          }
+          setStreamStatus(nextMessage);
+          setChats((current) =>
+            current.map((chat) =>
+              chat.id === pendingId
+                ? {
+                    ...chat,
+                    answer: payload.response ? payload.response.answer : finalResponseRef.current ? chat.answer : streamChatContent(nextMessage),
+                    sources: payload.response?.sources ?? chat.sources,
+                    modelName: payload.response?.modelName ?? chat.modelName,
+                    latencyMs: payload.response?.latencyMs ?? chat.latencyMs
+                  }
+                : chat
+            )
+          );
+        }
+      });
+      streamAbortRef.current = stream.abort;
+      await stream.done;
+      const finalResponse = finalResponseRef.current;
+      if (!finalResponse) {
+        const message = '流式问答结束，但没有返回最终回答。';
+        setError(message);
+        setChats((current) =>
+          current.map((chat) => (chat.id === pendingId ? { ...chat, answer: streamChatContent(message) } : chat))
+        );
+        return;
+      }
       if (activeView === 'libraryChat' || activeView === 'reader') {
-        await loadSessionList(paperId, response.sessionId);
+        await loadSessionList(paperId, finalResponse.sessionId);
       } else if (isLibraryQuestion) {
         await loadLibraryChatList();
       } else {
@@ -534,10 +584,29 @@ export default function App() {
       }
       showNotice('回答已保存到问答历史。');
     } catch (err) {
-      setError(extractErrorMessage(err));
+      if (isAbortError(err)) {
+        const message = '已停止等待本次流式回答。';
+        setChats((current) =>
+          current.map((chat) => (chat.id === pendingId ? { ...chat, answer: streamChatContent(message) } : chat))
+        );
+        showNotice(message);
+      } else {
+        const message = extractErrorMessage(err);
+        setError(message);
+        setChats((current) =>
+          current.map((chat) => (chat.id === pendingId ? { ...chat, answer: streamChatContent(`回答失败：${message}`) } : chat))
+        );
+      }
     } finally {
+      streamAbortRef.current = null;
+      setAgentStreaming(false);
+      setStreamStatus('');
       setBusyText('');
     }
+  }
+
+  function handleCancelAgentStream() {
+    streamAbortRef.current?.();
   }
 
   async function handleChatFeedback(chat: ChatRecord, score: 1 | -1) {
@@ -1190,6 +1259,8 @@ export default function App() {
             chats={chats}
             prompts={paperPrompts}
             question={question}
+            isStreaming={agentStreaming}
+            streamStatus={streamStatus}
             onQuestionChange={setQuestion}
             onSelectScope={(scope, id) => {
               setReaderScope(scope);
@@ -1199,6 +1270,7 @@ export default function App() {
               }
             }}
             onAsk={(prompt) => void handleAsk(prompt)}
+            onCancelStream={handleCancelAgentStream}
             onCreateSession={() => void handleCreateChatSession()}
             onSelectSession={(session) => void handleSelectChatSession(session)}
             onRenameSession={(session) => void handleRenameChatSession(session)}
@@ -1220,8 +1292,11 @@ export default function App() {
             chats={chats}
             prompts={libraryPrompts}
             question={question}
+            isStreaming={agentStreaming}
+            streamStatus={streamStatus}
             onQuestionChange={setQuestion}
             onAsk={(prompt) => void handleAsk(prompt)}
+            onCancelStream={handleCancelAgentStream}
             onCreateSession={() => void handleCreateChatSession()}
             onSelectSession={(session) => void handleSelectChatSession(session)}
             onRenameSession={(session) => void handleRenameChatSession(session)}
@@ -1492,9 +1567,12 @@ function ReaderView({
   chats,
   prompts,
   question,
+  isStreaming,
+  streamStatus,
   onQuestionChange,
   onSelectScope,
   onAsk,
+  onCancelStream,
   onCreateSession,
   onSelectSession,
   onRenameSession,
@@ -1514,9 +1592,12 @@ function ReaderView({
   chats: ChatRecord[];
   prompts: string[];
   question: string;
+  isStreaming: boolean;
+  streamStatus: string;
   onQuestionChange: (value: string) => void;
   onSelectScope: (scope: ReaderScope, id?: number) => void;
   onAsk: (prompt?: string) => void;
+  onCancelStream: () => void;
   onCreateSession: () => void;
   onSelectSession: (session: ChatSession) => void;
   onRenameSession: (session: ChatSession) => void;
@@ -1621,7 +1702,7 @@ function ReaderView({
         </div>
         <div className="quick-prompts">
           {prompts.map((prompt) => (
-            <button key={prompt} type="button" onClick={() => onAsk(prompt)}>{prompt}</button>
+            <button key={prompt} type="button" disabled={isStreaming} onClick={() => onAsk(prompt)}>{prompt}</button>
           ))}
         </div>
         <ChatSessionBar
@@ -1646,10 +1727,22 @@ function ReaderView({
             onAsk();
           }}
         >
-          <input value={question} placeholder={scope === 'library' ? '围绕全部文献提问...' : '围绕当前论文提问...'} onChange={(event) => onQuestionChange(event.target.value)} />
-          <button className="send icon-button" type="submit" title="发送">
-            <Send size={18} />
-          </button>
+          <input value={question} disabled={isStreaming} placeholder={scope === 'library' ? '围绕全部文献提问...' : '围绕当前论文提问...'} onChange={(event) => onQuestionChange(event.target.value)} />
+          {isStreaming ? (
+            <button className="stream-stop icon-button" type="button" title="停止等待" onClick={onCancelStream}>
+              <CircleStop size={18} />
+            </button>
+          ) : (
+            <button className="send icon-button" type="submit" title="发送" disabled={!question.trim()}>
+              <Send size={18} />
+            </button>
+          )}
+          {isStreaming && (
+            <small className="stream-status">
+              <Loader2 className="spin" size={14} />
+              {streamStatus || 'Agent 正在运行...'}
+            </small>
+          )}
         </form>
       </aside>
     </section>
@@ -1663,8 +1756,11 @@ function LibraryChatView({
   chats,
   prompts,
   question,
+  isStreaming,
+  streamStatus,
   onQuestionChange,
   onAsk,
+  onCancelStream,
   onCreateSession,
   onSelectSession,
   onRenameSession,
@@ -1680,8 +1776,11 @@ function LibraryChatView({
   chats: ChatRecord[];
   prompts: string[];
   question: string;
+  isStreaming: boolean;
+  streamStatus: string;
   onQuestionChange: (value: string) => void;
   onAsk: (prompt?: string) => void;
+  onCancelStream: () => void;
   onCreateSession: () => void;
   onSelectSession: (session: ChatSession) => void;
   onRenameSession: (session: ChatSession) => void;
@@ -1713,7 +1812,7 @@ function LibraryChatView({
 
         <div className="library-chat-prompts">
           {prompts.map((prompt) => (
-            <button key={prompt} type="button" onClick={() => onAsk(prompt)}>
+            <button key={prompt} type="button" disabled={isStreaming} onClick={() => onAsk(prompt)}>
               <Brain size={16} />
               <span>{prompt}</span>
             </button>
@@ -1765,10 +1864,22 @@ function LibraryChatView({
             onAsk();
           }}
         >
-          <input value={question} placeholder="围绕全部文献提问..." onChange={(event) => onQuestionChange(event.target.value)} />
-          <button className="send icon-button" type="submit" title="发送">
-            <Send size={18} />
-          </button>
+          <input value={question} disabled={isStreaming} placeholder="围绕全部文献提问..." onChange={(event) => onQuestionChange(event.target.value)} />
+          {isStreaming ? (
+            <button className="stream-stop icon-button" type="button" title="停止等待" onClick={onCancelStream}>
+              <CircleStop size={18} />
+            </button>
+          ) : (
+            <button className="send icon-button" type="submit" title="发送" disabled={!question.trim()}>
+              <Send size={18} />
+            </button>
+          )}
+          {isStreaming && (
+            <small className="stream-status">
+              <Loader2 className="spin" size={14} />
+              {streamStatus || 'Agent 正在运行...'}
+            </small>
+          )}
         </form>
       </aside>
     </section>
@@ -3598,17 +3709,18 @@ function ChatBubble({
   onSourceClick?: (source: SourceResponse) => void;
   onFeedback?: (chat: ChatRecord, score: 1 | -1) => void;
 }) {
+  const transient = chat.id < 0;
   return (
     <>
       <div className="chat user">
         <span>你</span>
         <p className="chat-body plain-text">{chat.question}</p>
       </div>
-      <div className="chat assistant">
-        <span>Agent · {chat.modelName || 'fallback'}</span>
+      <div className={`chat assistant ${transient ? 'streaming' : ''}`}>
+        <span>Agent · {transient ? '流式运行中' : (chat.modelName || 'fallback')}</span>
         <MarkdownContent content={chat.answer} />
         <SourceCards sources={chat.sources} onSourceClick={onSourceClick} />
-        <FeedbackBar chat={chat} onFeedback={onFeedback} />
+        {!transient && <FeedbackBar chat={chat} onFeedback={onFeedback} />}
       </div>
     </>
   );
@@ -4181,6 +4293,50 @@ function formatSources(sources: Array<{ title: string; page: number }>) {
     .slice(0, 5)
     .map((source) => `《${source.title}》P${source.page}`)
     .join(' · ');
+}
+
+function pendingChatRecord(
+  id: number,
+  paperId: number | null,
+  sessionId: number | null,
+  question: string,
+  message: string
+): ChatRecord {
+  return {
+    id,
+    ...(paperId ? { paperId } : {}),
+    ...(sessionId ? { sessionId } : {}),
+    question,
+    answer: streamChatContent(message),
+    sources: [],
+    modelName: 'streaming',
+    latencyMs: 0,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function streamEventMessage(eventName: string) {
+  switch (eventName) {
+    case 'started':
+      return '已建立流式问答连接。';
+    case 'running':
+      return '多 Agent 正在检索、生成并校验引用...';
+    case 'final':
+      return '最终回答已生成，正在同步问答历史...';
+    case 'done':
+      return '流式问答已完成。';
+    default:
+      return 'Agent 正在运行...';
+  }
+}
+
+function streamChatContent(message: string) {
+  return `**流式运行中**\n\n${message}`;
+}
+
+function isAbortError(err: unknown) {
+  const value = err as { name?: string; message?: string };
+  return value?.name === 'AbortError' || String(value?.message || '').toLowerCase().includes('aborted');
 }
 
 function extractErrorMessage(err: unknown) {

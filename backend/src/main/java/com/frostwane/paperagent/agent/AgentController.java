@@ -12,6 +12,7 @@ import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -27,15 +29,18 @@ import java.util.List;
 public class AgentController {
 
     private final AgentOrchestratorService orchestratorService;
+    private final AgentStreamService agentStreamService;
     private final SamplePromptService samplePromptService;
     private final CurrentUserService currentUserService;
 
     public AgentController(
         AgentOrchestratorService orchestratorService,
+        AgentStreamService agentStreamService,
         SamplePromptService samplePromptService,
         CurrentUserService currentUserService
     ) {
         this.orchestratorService = orchestratorService;
+        this.agentStreamService = agentStreamService;
         this.samplePromptService = samplePromptService;
         this.currentUserService = currentUserService;
     }
@@ -43,6 +48,11 @@ public class AgentController {
     @PostMapping("/api/agent/chat")
     public ApiResponse<ChatResponse> chat(@Valid @RequestBody ChatRequest request) {
         return ApiResponse.ok(orchestratorService.chat(request, currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping(value = "/api/agent/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chatStream(@Valid @RequestBody ChatRequest request) {
+        return agentStreamService.stream(request, currentUserService.getRequiredUser());
     }
 
     @GetMapping("/api/papers/{paperId}/chats")
