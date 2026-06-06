@@ -29,19 +29,20 @@ public class ParseJobService {
         return parseJobRepository.save(job);
     }
 
-    public void succeed(ParseJob job, int pageCount, int chunkCount, int durationMs) {
-        finish(job, "SUCCESS", pageCount, chunkCount, durationMs, null);
+    public void succeed(ParseJob job, int pageCount, int chunkCount, int durationMs, String nodeSpansJson) {
+        finish(job, "SUCCESS", pageCount, chunkCount, durationMs, nodeSpansJson, null);
     }
 
-    public void fail(ParseJob job, int pageCount, int chunkCount, int durationMs, String errorMessage) {
-        finish(job, "FAILED", pageCount, chunkCount, durationMs, sanitizeError(errorMessage));
+    public void fail(ParseJob job, int pageCount, int chunkCount, int durationMs, String nodeSpansJson, String errorMessage) {
+        finish(job, "FAILED", pageCount, chunkCount, durationMs, nodeSpansJson, sanitizeError(errorMessage));
     }
 
-    private void finish(ParseJob job, String status, int pageCount, int chunkCount, int durationMs, String errorMessage) {
+    private void finish(ParseJob job, String status, int pageCount, int chunkCount, int durationMs, String nodeSpansJson, String errorMessage) {
         job.setStatus(status);
         job.setPageCount(Math.max(0, pageCount));
         job.setChunkCount(Math.max(0, chunkCount));
         job.setDurationMs(Math.max(0, durationMs));
+        job.setNodeSpansJson(nodeSpansJson == null || nodeSpansJson.isBlank() ? "[]" : nodeSpansJson);
         job.setErrorMessage(errorMessage);
         job.setFinishedAt(OffsetDateTime.now());
         parseJobRepository.save(job);

@@ -13,6 +13,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 
@@ -59,6 +61,10 @@ public class ParseJob {
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    @Column(name = "node_spans_json", nullable = false, columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String nodeSpansJson = "[]";
 
     @Column(name = "started_at", nullable = false)
     private OffsetDateTime startedAt;
@@ -163,6 +169,14 @@ public class ParseJob {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public String getNodeSpansJson() {
+        return nodeSpansJson;
+    }
+
+    public void setNodeSpansJson(String nodeSpansJson) {
+        this.nodeSpansJson = nodeSpansJson;
     }
 
     public OffsetDateTime getStartedAt() {

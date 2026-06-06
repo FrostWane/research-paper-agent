@@ -6,6 +6,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelHealthResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobNodeSpanResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceNodeSpanResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RagTraceRetrievalChannelResponse;
@@ -286,6 +287,7 @@ public class AdminService {
               j.chunk_count,
               j.duration_ms,
               j.error_message,
+              j.node_spans_json::text as node_spans_json,
               j.started_at,
               j.finished_at
             from parse_jobs j
@@ -304,6 +306,7 @@ public class AdminService {
             rs.getInt("chunk_count"),
             rs.getInt("duration_ms"),
             rs.getString("error_message"),
+            parseJobNodeSpans(rs.getString("node_spans_json")),
             offsetDateTime(rs, "started_at"),
             offsetDateTime(rs, "finished_at")
         ));
@@ -354,6 +357,15 @@ public class AdminService {
     }
 
     private List<RagTraceRetrievalProcessorResponse> retrievalProcessors(String json) {
+        try {
+            return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
+            });
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private List<ParseJobNodeSpanResponse> parseJobNodeSpans(String json) {
         try {
             return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
             });

@@ -1,5 +1,7 @@
 package com.frostwane.paperagent.parse;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.embedding.PaperEmbeddingIndexer;
 import com.frostwane.paperagent.file.FileService;
@@ -35,6 +37,7 @@ public class PaperParseService {
     private final FileService fileService;
     private final PaperEmbeddingIndexer embeddingIndexer;
     private final ParseJobService parseJobService;
+    private final ObjectMapper objectMapper;
 
     public PaperParseService(
         PaperService paperService,
@@ -42,7 +45,8 @@ public class PaperParseService {
         PaperChunkRepository chunkRepository,
         FileService fileService,
         PaperEmbeddingIndexer embeddingIndexer,
-        ParseJobService parseJobService
+        ParseJobService parseJobService,
+        ObjectMapper objectMapper
     ) {
         this.paperService = paperService;
         this.paperRepository = paperRepository;
@@ -50,6 +54,7 @@ public class PaperParseService {
         this.fileService = fileService;
         this.embeddingIndexer = embeddingIndexer;
         this.parseJobService = parseJobService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(noRollbackFor = BusinessException.class)
@@ -63,29 +68,37 @@ public class PaperParseService {
         ParseJob job = parseJobService.start(owner, paper, file);
         int pageCount = file.getPageCount() == null ? 0 : file.getPageCount();
         int chunkCount = 0;
-
-        paper.setProcessStatus(ProcessStatus.PARSING);
-        paperRepository.saveAndFlush(paper);
-        chunkRepository.deleteByPaperId(paper.getId());
+        IngestionTrace trace = new IngestionTrace();
 
         try {
-            byte[] pdfBytes = readAll(fileService.openPdf(file));
-            List<PaperChunk> chunks = extractChunks(paper, pdfBytes);
+            trace.run("prepare", "准备", 10, () -> {
+                paper.setProcessStatus(ProcessStatus.PARSING);
+                paperRepository.saveAndFlush(paper);
+                chunkRepository.deleteByPaperId(paper.getId());
+            });
+            byte[] pdfBytes = trace.call("fetch-pdf", "读取PDF", 20, () -> readAll(fileService.openPdf(file)));
+            ExtractionResult extraction = trace.call("parse-pdf", "抽取文本", 30, () -> extractChunks(paper, pdfBytes));
+            pageCount = extraction.pageCount();
+            List<PaperChunk> chunks = extraction.chunks();
             chunkCount = chunks.size();
-            paper.setProcessStatus(ProcessStatus.INDEXING);
-            paperRepository.saveAndFlush(paper);
-            List<PaperChunk> savedChunks = chunkRepository.saveAllAndFlush(chunks);
-            embeddingIndexer.index(savedChunks);
-            paper.setProcessStatus(ProcessStatus.INDEXED);
-            paperRepository.save(paper);
-            parseJobService.succeed(job, pageCount, chunkCount, elapsedMs(started));
+            List<PaperChunk> savedChunks = trace.call("persist-chunks", "写入片段", 40, () -> {
+                paper.setProcessStatus(ProcessStatus.INDEXING);
+                paperRepository.saveAndFlush(paper);
+                return chunkRepository.saveAllAndFlush(chunks);
+            });
+            trace.run("index-embeddings", "向量索引", 50, () -> embeddingIndexer.index(savedChunks));
+            trace.run("finalize", "完成", 60, () -> {
+                paper.setProcessStatus(ProcessStatus.INDEXED);
+                paperRepository.save(paper);
+            });
+            parseJobService.succeed(job, pageCount, chunkCount, elapsedMs(started), trace.toJson());
             return new ParseStatusResponse(paper.getId(), ProcessStatus.INDEXED.name(), "PDF 已解析并写入向量索引，可用于来源片段检索", 100, chunks.size());
         } catch (Exception ex) {
             chunkRepository.deleteByPaperId(paper.getId());
             paper.setProcessStatus(ProcessStatus.FAILED);
             paperRepository.saveAndFlush(paper);
             String message = "PDF 解析失败：" + ex.getMessage();
-            parseJobService.fail(job, pageCount, chunkCount, elapsedMs(started), message);
+            parseJobService.fail(job, pageCount, chunkCount, elapsedMs(started), trace.toJson(), message);
             throw new BusinessException(message);
         }
     }
@@ -99,11 +112,13 @@ public class PaperParseService {
         return new ParseStatusResponse(paper.getId(), ProcessStatus.PENDING.name(), "已从知识库移除解析结果，PDF 文件仍保留", 0, 0);
     }
 
-    private List<PaperChunk> extractChunks(Paper paper, byte[] pdfBytes) throws Exception {
+    private ExtractionResult extractChunks(Paper paper, byte[] pdfBytes) throws Exception {
         List<PaperChunk> chunks = new ArrayList<>();
+        int pageCount;
         try (PDDocument document = Loader.loadPDF(pdfBytes)) {
+            pageCount = document.getNumberOfPages();
             PDFTextStripper stripper = new PDFTextStripper();
-            for (int page = 1; page <= document.getNumberOfPages(); page++) {
+            for (int page = 1; page <= pageCount; page++) {
                 stripper.setStartPage(page);
                 stripper.setEndPage(page);
                 String text = normalize(stripper.getText(document));
@@ -124,7 +139,7 @@ public class PaperParseService {
         if (chunks.isEmpty()) {
             throw new BusinessException("未从 PDF 中提取到可用文本");
         }
-        return chunks;
+        return new ExtractionResult(chunks, pageCount);
     }
 
     private List<String> splitText(String text) {
@@ -163,5 +178,82 @@ public class PaperParseService {
 
     private int elapsedMs(Instant started) {
         return Math.toIntExact(Math.min(Duration.between(started, Instant.now()).toMillis(), Integer.MAX_VALUE));
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException ex) {
+            return "[]";
+        }
+    }
+
+    private record ExtractionResult(List<PaperChunk> chunks, int pageCount) {
+    }
+
+    private class IngestionTrace {
+        private final List<NodeSpan> spans = new ArrayList<>();
+
+        private <T> T call(String name, String label, int order, ThrowingSupplier<T> supplier) throws Exception {
+            Instant nodeStarted = Instant.now();
+            Exception failure = null;
+            try {
+                return supplier.get();
+            } catch (Exception ex) {
+                failure = ex;
+                throw ex;
+            } finally {
+                spans.add(new NodeSpan(
+                    "INGESTION",
+                    name,
+                    label,
+                    order,
+                    failure == null ? "SUCCESS" : "FAILED",
+                    elapsedMs(nodeStarted),
+                    failure == null ? null : sanitizeError(failure)
+                ));
+            }
+        }
+
+        private void run(String name, String label, int order, ThrowingRunnable runnable) throws Exception {
+            call(name, label, order, () -> {
+                runnable.run();
+                return null;
+            });
+        }
+
+        private String toJson() {
+            return PaperParseService.this.toJson(spans);
+        }
+    }
+
+    private String sanitizeError(Exception exception) {
+        if (exception == null) {
+            return null;
+        }
+        String message = exception.getClass().getSimpleName() + ": " + (exception.getMessage() == null ? "" : exception.getMessage());
+        String sanitized = message.replaceAll("sk-[A-Za-z0-9_-]+", "sk-***");
+        return sanitized.length() > 600 ? sanitized.substring(0, 600) : sanitized;
+    }
+
+    private record NodeSpan(
+        String type,
+        String name,
+        String label,
+        int order,
+        String status,
+        int durationMs,
+        String errorMessage
+    ) {
+    }
+
+    @FunctionalInterface
+    private interface ThrowingSupplier<T> {
+        T get() throws Exception;
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
     }
 }

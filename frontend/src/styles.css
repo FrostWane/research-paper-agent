@@ -1629,6 +1629,13 @@ select,
   overflow: hidden;
 }
 
+.admin-ingestion-spans {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .admin-node-span {
   display: inline-flex;
   align-items: center;

@@ -73,7 +73,7 @@ GET   /api/admin/users
 PATCH /api/admin/users/{id}/status
 ```
 
-`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。模型健康字段包含 `provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`，用于观察 PDF 入库质量；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、策略、检索通道、后处理器、节点链路、检索和生成耗时。
+`GET /api/admin/overview` 会返回系统聚合指标、最近文献、解析任务、模型调用聚合、模型健康和最近 RAG Trace。模型健康字段包含 `provider`、`modelName`、`targetName`、`lastStatus`、`totalCalls`、`successCalls`、`failedCalls`、`fallbackCalls`、`averageLatencyMs`、`lastSeenAt`，用于观察模型路由是否健康；解析任务字段包含 `status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`，用于观察 PDF 入库质量和每个入库节点耗时；Trace 字段包含 `scope`、`status`、`pipelineName`、`queryIntent`、`searchQuery`、`comparisonRequested`、`answerStrategy`、`answerContract`、`retrievalChannels`、`retrievalProcessors`、`nodeSpans`、`sourceCount`、`retrievalMs`、`generationMs`、`verificationMs`、`formattingMs`、`totalMs`，用于观察全库/单篇问答的规划、策略、检索通道、后处理器、节点链路、检索和生成耗时。
 
 用户状态更新请求：
 

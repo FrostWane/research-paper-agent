@@ -147,8 +147,20 @@ public final class AdminDtos {
         int chunkCount,
         int durationMs,
         String errorMessage,
+        List<ParseJobNodeSpanResponse> nodeSpans,
         OffsetDateTime startedAt,
         OffsetDateTime finishedAt
+    ) {
+    }
+
+    public record ParseJobNodeSpanResponse(
+        String type,
+        String name,
+        String label,
+        int order,
+        String status,
+        int durationMs,
+        String errorMessage
     ) {
     }
 

@@ -198,8 +198,19 @@ export interface AdminParseJob {
   chunkCount: number;
   durationMs: number;
   errorMessage?: string;
+  nodeSpans: AdminParseJobNodeSpan[];
   startedAt: string;
   finishedAt?: string;
+}
+
+export interface AdminParseJobNodeSpan {
+  type: string;
+  name: string;
+  label?: string;
+  order: number;
+  status: 'SUCCESS' | 'FAILED' | string;
+  durationMs: number;
+  errorMessage?: string;
 }
 
 export interface AdminOverview {

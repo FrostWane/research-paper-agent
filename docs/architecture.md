@@ -17,7 +17,7 @@ React Web / Android
 - `auth`：注册、登录、JWT、当前用户。
 - `paper`：文献 CRUD、搜索、阅读状态、解析状态。
 - `file`：PDF 上传、MinIO 存储、鉴权预览。
-- `parse`：PDFBox 正文抽取、按页切块、写入 `paper_chunks` 并生成向量索引。
+- `parse`：PDFBox 正文抽取、按页切块、写入 `paper_chunks` 并生成向量索引，同时记录入库节点 span。
 - `embedding`：Spring AI embedding 或本地 hashing embedding、pgvector 写入和向量召回。
 - `agent`：多 Agent Lite 编排、问答、来源片段和历史记录。
 - `common`：统一响应、异常处理、分页对象。
@@ -43,6 +43,10 @@ AgentOrchestratorService
 默认走兜底回答，保证无模型 API Key 时系统仍然可用。配置 OpenAI-compatible API 后，`AnswerGenerationNode` 会调用 `AnswerAgent`，再通过 `ModelRoutingService` 进入 Spring AI `ChatClient` 生成回答。模型路由会记录目标模型、成功 / 失败 / fallback、延迟和错误摘要，管理员后台据此展示模型健康，后续可以继续扩展为多模型优先级、限流、熔断和故障切换。
 
 `paperId` 为空时进入全库问答，`RetrieverAgent` 会在当前用户所有已解析文献中召回片段；`paperId` 有值时只检索单篇论文。
+
+## Ingestion Observability
+
+PDF 入库保留同步执行方式，但解析任务会记录 ragent 风格的轻量节点链路：`prepare -> fetch-pdf -> parse-pdf -> persist-chunks -> index-embeddings -> finalize`。每个节点记录名称、状态、耗时和错误摘要，并保存到 `parse_jobs.node_spans_json`。管理员后台的解析任务面板会显示这些节点标签，用于定位是文件读取、PDF 文本抽取、切块写库还是 embedding 索引慢或失败。
 
 LangGraph 暂不进入第一版主链路。当前 Pipeline 吸收 ragent 的框架感，但保持在 Spring Boot 内部，避免过早引入 AOP Trace、异步流式 Trace 上下文和独立工作流服务。后续如果要做多文献综述、人工确认、可恢复工作流，可以新增独立 `agent-service/`，由 Spring Boot 通过内部 REST 调用。
 

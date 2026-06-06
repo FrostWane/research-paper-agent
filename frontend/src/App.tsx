@@ -1294,6 +1294,20 @@ function AdminView({
                   <span className="admin-job-title">
                     <strong>{job.paperTitle}</strong>
                     <small>{job.username} · {formatTime(job.startedAt)}</small>
+                    {(job.nodeSpans ?? []).length > 0 && (
+                      <div className="admin-ingestion-spans">
+                        {job.nodeSpans.map((span) => (
+                          <span
+                            className={`admin-node-span ${span.status === 'FAILED' ? 'is-failed' : ''}`}
+                            key={`${job.id}-${span.order}-${span.name}`}
+                            title={span.errorMessage || span.label || span.name}
+                          >
+                            <i>{span.label || ingestionNodeLabel(span.name)}</i>
+                            <b>{formatLatency(span.durationMs)}</b>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {job.status === 'FAILED' && job.errorMessage && <small className="admin-job-error">{job.errorMessage}</small>}
                   </span>
                   <em>{job.fileName} · {formatBytes(job.fileSize)}</em>
@@ -2000,6 +2014,18 @@ function nodeSpanLabel(name: string) {
     'answer-generation': '生成',
     'citation-verification': '校验',
     'answer-formatting': '格式'
+  };
+  return labels[name] || name;
+}
+
+function ingestionNodeLabel(name: string) {
+  const labels: Record<string, string> = {
+    prepare: '准备',
+    'fetch-pdf': '读取PDF',
+    'parse-pdf': '抽取文本',
+    'persist-chunks': '写入片段',
+    'index-embeddings': '向量索引',
+    finalize: '完成'
   };
   return labels[name] || name;
 }
