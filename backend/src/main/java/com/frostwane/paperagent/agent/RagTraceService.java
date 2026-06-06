@@ -37,6 +37,8 @@ public class RagTraceService {
         String answerStrategy,
         String answerContract,
         int sourceCount,
+        int memoryTurnCount,
+        int memoryChars,
         int retrievalMs,
         int generationMs,
         int verificationMs,
@@ -66,6 +68,8 @@ public class RagTraceService {
             answerStrategy,
             answerContract,
             sourceCount,
+            memoryTurnCount,
+            memoryChars,
             retrievalMs,
             generationMs,
             verificationMs,
@@ -97,6 +101,8 @@ public class RagTraceService {
         String answerStrategy,
         String answerContract,
         int sourceCount,
+        int memoryTurnCount,
+        int memoryChars,
         int retrievalMs,
         int generationMs,
         int verificationMs,
@@ -127,6 +133,8 @@ public class RagTraceService {
             answerStrategy,
             answerContract,
             sourceCount,
+            memoryTurnCount,
+            memoryChars,
             retrievalMs,
             generationMs,
             verificationMs,
@@ -159,6 +167,8 @@ public class RagTraceService {
         String answerStrategy,
         String answerContract,
         int sourceCount,
+        int memoryTurnCount,
+        int memoryChars,
         int retrievalMs,
         int generationMs,
         int verificationMs,
@@ -189,6 +199,8 @@ public class RagTraceService {
         trace.setAnswerStrategy(defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA"));
         trace.setAnswerContract(answerContract);
         trace.setSourceCount(sourceCount);
+        trace.setMemoryTurnCount(Math.max(0, memoryTurnCount));
+        trace.setMemoryChars(Math.max(0, memoryChars));
         trace.setRetrievalMs(retrievalMs);
         trace.setGenerationMs(generationMs);
         trace.setVerificationMs(verificationMs);

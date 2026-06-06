@@ -112,6 +112,8 @@ public final class AdminDtos {
         String answerStrategy,
         String answerContract,
         int sourceCount,
+        int memoryTurnCount,
+        int memoryChars,
         int retrievalMs,
         int generationMs,
         int verificationMs,
@@ -327,6 +329,8 @@ public final class AdminDtos {
         int sourceExcerptChars,
         double vectorWeight,
         double keywordWeight,
+        int memoryHistoryTurns,
+        int memoryMaxChars,
         OffsetDateTime updatedAt
     ) {
     }
@@ -336,7 +340,9 @@ public final class AdminDtos {
         @Min(1) @Max(20) Integer resultLimit,
         @Min(120) @Max(1200) Integer sourceExcerptChars,
         @DecimalMin("0.0") @DecimalMax("3.0") Double vectorWeight,
-        @DecimalMin("0.0") @DecimalMax("3.0") Double keywordWeight
+        @DecimalMin("0.0") @DecimalMax("3.0") Double keywordWeight,
+        @Min(0) @Max(12) Integer memoryHistoryTurns,
+        @Min(0) @Max(8000) Integer memoryMaxChars
     ) {
     }
 }

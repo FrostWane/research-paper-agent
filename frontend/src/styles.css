@@ -1485,7 +1485,7 @@ select,
 
 .rag-settings-form {
   display: grid;
-  grid-template-columns: repeat(5, minmax(112px, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(112px, 1fr));
   align-items: end;
   gap: 10px;
   padding: 14px;
@@ -1513,9 +1513,11 @@ select,
 }
 
 .rag-settings-actions {
-  display: grid;
-  justify-items: end;
-  gap: 7px;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .rag-settings-actions em {
@@ -2150,6 +2152,10 @@ select,
 
 .admin-trace-question .admin-trace-quality-note {
   color: #1f4f75;
+}
+
+.admin-trace-question .admin-trace-memory {
+  color: #0f766e;
 }
 
 .admin-trace-row > .admin-quality-badge {

@@ -39,6 +39,9 @@ public class AgentPipelineContext {
     private int answerQualityScore;
     private String answerQualityLabel = "UNASSESSED";
     private String answerQualityNotes;
+    private String conversationHistory = "";
+    private int memoryTurnCount;
+    private int memoryChars;
 
     public AgentPipelineContext(ChatRequest request, User owner) {
         this.request = request;
@@ -210,6 +213,27 @@ public class AgentPipelineContext {
 
     public void answerQualityNotes(String answerQualityNotes) {
         this.answerQualityNotes = answerQualityNotes == null ? null : answerQualityNotes.trim();
+    }
+
+    public String conversationHistory() {
+        return conversationHistory;
+    }
+
+    public void conversationHistory(String conversationHistory) {
+        this.conversationHistory = conversationHistory == null ? "" : conversationHistory.trim();
+        this.memoryChars = this.conversationHistory.length();
+    }
+
+    public int memoryTurnCount() {
+        return memoryTurnCount;
+    }
+
+    public void memoryTurnCount(int memoryTurnCount) {
+        this.memoryTurnCount = Math.max(0, memoryTurnCount);
+    }
+
+    public int memoryChars() {
+        return memoryChars;
     }
 
     public void recordTiming(AgentNodeType type, int latencyMs) {

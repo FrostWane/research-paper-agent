@@ -150,6 +150,8 @@ export interface AdminTrace {
   answerStrategy?: string;
   answerContract?: string;
   sourceCount: number;
+  memoryTurnCount: number;
+  memoryChars: number;
   retrievalMs: number;
   generationMs: number;
   verificationMs: number;
@@ -341,6 +343,8 @@ export interface RagSettings {
   sourceExcerptChars: number;
   vectorWeight: number;
   keywordWeight: number;
+  memoryHistoryTurns: number;
+  memoryMaxChars: number;
   updatedAt?: string;
 }
 

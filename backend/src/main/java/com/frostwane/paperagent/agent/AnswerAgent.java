@@ -22,17 +22,18 @@ public class AnswerAgent {
     }
 
     public GeneratedAnswer answer(Paper paper, String question, List<SourceResponse> sources) {
-        return answer(paper, question, sources, "EVIDENCE_GROUNDED_QA", "");
+        return answer(paper, question, sources, "", "EVIDENCE_GROUNDED_QA", "");
     }
 
     public GeneratedAnswer answer(
         Paper paper,
         String question,
         List<SourceResponse> sources,
+        String conversationHistory,
         String answerStrategy,
         String answerContract
     ) {
-        RenderedAnswerPrompt prompt = answerPromptTemplateService.render(paper, question, sources, answerStrategy, answerContract);
+        RenderedAnswerPrompt prompt = answerPromptTemplateService.render(paper, question, sources, conversationHistory, answerStrategy, answerContract);
         RoutedAnswer answer = modelRoutingService.generate(
             prompt.systemPrompt(),
             prompt.userPrompt(),

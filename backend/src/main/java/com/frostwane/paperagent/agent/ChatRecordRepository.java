@@ -1,6 +1,7 @@
 package com.frostwane.paperagent.agent;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -8,5 +9,7 @@ import java.util.Optional;
 public interface ChatRecordRepository extends JpaRepository<ChatRecord, Long> {
     List<ChatRecord> findByOwnerIdAndPaperIdOrderByCreatedAtAsc(Long ownerId, Long paperId);
     List<ChatRecord> findByOwnerIdAndPaperIsNullOrderByCreatedAtAsc(Long ownerId);
+    List<ChatRecord> findByOwnerIdAndPaperIdOrderByCreatedAtDesc(Long ownerId, Long paperId, Pageable pageable);
+    List<ChatRecord> findByOwnerIdAndPaperIsNullOrderByCreatedAtDesc(Long ownerId, Pageable pageable);
     Optional<ChatRecord> findByIdAndOwnerId(Long id, Long ownerId);
 }

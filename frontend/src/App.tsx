@@ -172,6 +172,8 @@ type RagSettingsInput = {
   sourceExcerptChars: number;
   vectorWeight: number;
   keywordWeight: number;
+  memoryHistoryTurns: number;
+  memoryMaxChars: number;
 };
 type RagSettingsFormState = Record<keyof RagSettingsInput, string>;
 
@@ -180,7 +182,9 @@ const defaultRagSettingsInput: RagSettingsInput = {
   resultLimit: 5,
   sourceExcerptChars: 520,
   vectorWeight: 1,
-  keywordWeight: 0.78
+  keywordWeight: 0.78,
+  memoryHistoryTurns: 4,
+  memoryMaxChars: 2400
 };
 
 export default function App() {
@@ -1923,6 +1927,9 @@ function AdminView({
                     {trace.answerContract && (
                       <small className="admin-trace-search-query">契约：{compactText(trace.answerContract, 96)}</small>
                     )}
+                    {trace.memoryTurnCount > 0 && (
+                      <small className="admin-trace-memory">记忆：{trace.memoryTurnCount} 轮 / {trace.memoryChars} 字</small>
+                    )}
                     {trace.answerQualityNotes && (
                       <small className="admin-trace-quality-note">质量：{trace.answerQualityNotes}</small>
                     )}
@@ -2240,7 +2247,9 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       resultLimit: boundedInt(form.resultLimit, 1, 20, defaultRagSettingsInput.resultLimit),
       sourceExcerptChars: boundedInt(form.sourceExcerptChars, 120, 1200, defaultRagSettingsInput.sourceExcerptChars),
       vectorWeight: boundedFloat(form.vectorWeight, 0, 3, defaultRagSettingsInput.vectorWeight),
-      keywordWeight: boundedFloat(form.keywordWeight, 0, 3, defaultRagSettingsInput.keywordWeight)
+      keywordWeight: boundedFloat(form.keywordWeight, 0, 3, defaultRagSettingsInput.keywordWeight),
+      memoryHistoryTurns: boundedInt(form.memoryHistoryTurns, 0, 12, defaultRagSettingsInput.memoryHistoryTurns),
+      memoryMaxChars: boundedInt(form.memoryMaxChars, 0, 8000, defaultRagSettingsInput.memoryMaxChars)
     });
   }
 
@@ -2273,6 +2282,14 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
         <label>
           <span>关键词权重</span>
           <input type="number" min={0} max={3} step={0.05} value={form.keywordWeight} onChange={(event) => updateField('keywordWeight', event.target.value)} />
+        </label>
+        <label>
+          <span>记忆轮数</span>
+          <input type="number" min={0} max={12} value={form.memoryHistoryTurns} onChange={(event) => updateField('memoryHistoryTurns', event.target.value)} />
+        </label>
+        <label>
+          <span>记忆字符</span>
+          <input type="number" min={0} max={8000} step={200} value={form.memoryMaxChars} onChange={(event) => updateField('memoryMaxChars', event.target.value)} />
         </label>
         <div className="rag-settings-actions">
           <em>{settings?.updatedAt ? `更新于 ${formatTime(settings.updatedAt)}` : '使用默认参数'}</em>
@@ -3382,6 +3399,7 @@ function parseJobStatusLabel(status: string) {
 function nodeSpanLabel(name: string) {
   const labels: Record<string, string> = {
     'scope-resolution': '范围',
+    'conversation-memory': '记忆',
     'query-planning': '规划',
     retrieval: '检索',
     'answer-planning': '策略',
@@ -3474,7 +3492,9 @@ function toRagSettingsForm(settings: RagSettings | null): RagSettingsFormState {
     resultLimit: String(source.resultLimit),
     sourceExcerptChars: String(source.sourceExcerptChars),
     vectorWeight: String(source.vectorWeight),
-    keywordWeight: String(source.keywordWeight)
+    keywordWeight: String(source.keywordWeight),
+    memoryHistoryTurns: String(source.memoryHistoryTurns),
+    memoryMaxChars: String(source.memoryMaxChars)
   };
 }
 

@@ -86,6 +86,12 @@ public class RagTrace {
     @Column(name = "source_count", nullable = false)
     private Integer sourceCount = 0;
 
+    @Column(name = "memory_turn_count", nullable = false)
+    private Integer memoryTurnCount = 0;
+
+    @Column(name = "memory_chars", nullable = false)
+    private Integer memoryChars = 0;
+
     @Column(name = "retrieval_ms", nullable = false)
     private Integer retrievalMs = 0;
 
@@ -270,6 +276,22 @@ public class RagTrace {
 
     public void setSourceCount(Integer sourceCount) {
         this.sourceCount = sourceCount;
+    }
+
+    public Integer getMemoryTurnCount() {
+        return memoryTurnCount;
+    }
+
+    public void setMemoryTurnCount(Integer memoryTurnCount) {
+        this.memoryTurnCount = memoryTurnCount;
+    }
+
+    public Integer getMemoryChars() {
+        return memoryChars;
+    }
+
+    public void setMemoryChars(Integer memoryChars) {
+        this.memoryChars = memoryChars;
     }
 
     public Integer getRetrievalMs() {

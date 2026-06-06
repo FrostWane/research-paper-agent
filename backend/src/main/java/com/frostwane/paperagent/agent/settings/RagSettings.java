@@ -30,6 +30,12 @@ public class RagSettings {
     @Column(name = "keyword_weight", nullable = false)
     private Double keywordWeight = 0.78d;
 
+    @Column(name = "memory_history_turns", nullable = false)
+    private Integer memoryHistoryTurns = 4;
+
+    @Column(name = "memory_max_chars", nullable = false)
+    private Integer memoryMaxChars = 2400;
+
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
@@ -88,6 +94,22 @@ public class RagSettings {
 
     public void setKeywordWeight(Double keywordWeight) {
         this.keywordWeight = keywordWeight;
+    }
+
+    public Integer getMemoryHistoryTurns() {
+        return memoryHistoryTurns;
+    }
+
+    public void setMemoryHistoryTurns(Integer memoryHistoryTurns) {
+        this.memoryHistoryTurns = memoryHistoryTurns;
+    }
+
+    public Integer getMemoryMaxChars() {
+        return memoryMaxChars;
+    }
+
+    public void setMemoryMaxChars(Integer memoryMaxChars) {
+        this.memoryMaxChars = memoryMaxChars;
     }
 
     public OffsetDateTime getUpdatedAt() {

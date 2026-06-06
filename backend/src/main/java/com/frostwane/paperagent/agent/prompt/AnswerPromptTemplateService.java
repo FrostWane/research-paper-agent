@@ -32,6 +32,7 @@ public class AnswerPromptTemplateService {
         Paper paper,
         String question,
         List<SourceResponse> sources,
+        String conversationHistory,
         String answerStrategy,
         String answerContract
     ) {
@@ -41,6 +42,7 @@ public class AnswerPromptTemplateService {
         slots.put("paper_metadata", paperMetadata(paper));
         slots.put("answer_strategy", defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA"));
         slots.put("answer_contract", defaultText(answerContract, "按证据回答，材料不足时明确边界。"));
+        slots.put("conversation_history", defaultText(conversationHistory, "无历史对话。"));
         slots.put("question", defaultText(question, ""));
         slots.put("sources", sourceText(sources));
         return new RenderedAnswerPrompt(
@@ -201,6 +203,8 @@ public class AnswerPromptTemplateService {
             回答策略：{{answer_strategy}}
             输出契约：
             {{answer_contract}}
+            历史对话：
+            {{conversation_history}}
             用户问题：{{question}}
             检索片段：
             {{sources}}

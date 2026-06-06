@@ -5,6 +5,8 @@ public record RagSettingsSnapshot(
     int resultLimit,
     int sourceExcerptChars,
     double vectorWeight,
-    double keywordWeight
+    double keywordWeight,
+    int memoryHistoryTurns,
+    int memoryMaxChars
 ) {
 }

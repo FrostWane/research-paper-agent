@@ -39,6 +39,8 @@ public class RagSettingsService {
         settings.setSourceExcerptChars(clamp(request.sourceExcerptChars(), 120, 1200, 520));
         settings.setVectorWeight(clamp(request.vectorWeight(), 0.0d, 3.0d, 1.0d));
         settings.setKeywordWeight(clamp(request.keywordWeight(), 0.0d, 3.0d, 0.78d));
+        settings.setMemoryHistoryTurns(clamp(request.memoryHistoryTurns(), 0, 12, 4));
+        settings.setMemoryMaxChars(clamp(request.memoryMaxChars(), 0, 8000, 2400));
         settings.touch();
         return response(repository.save(settings));
     }
@@ -59,7 +61,9 @@ public class RagSettingsService {
             clamp(settings.getResultLimit(), 1, 20, 5),
             clamp(settings.getSourceExcerptChars(), 120, 1200, 520),
             clamp(settings.getVectorWeight(), 0.0d, 3.0d, 1.0d),
-            clamp(settings.getKeywordWeight(), 0.0d, 3.0d, 0.78d)
+            clamp(settings.getKeywordWeight(), 0.0d, 3.0d, 0.78d),
+            clamp(settings.getMemoryHistoryTurns(), 0, 12, 4),
+            clamp(settings.getMemoryMaxChars(), 0, 8000, 2400)
         );
     }
 
@@ -71,6 +75,8 @@ public class RagSettingsService {
             snapshot.sourceExcerptChars(),
             snapshot.vectorWeight(),
             snapshot.keywordWeight(),
+            snapshot.memoryHistoryTurns(),
+            snapshot.memoryMaxChars(),
             settings.getUpdatedAt()
         );
     }
