@@ -144,6 +144,10 @@ export interface AdminModelHealth {
   successCalls: number;
   failedCalls: number;
   fallbackCalls: number;
+  skippedCalls: number;
+  circuitState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' | string;
+  consecutiveFailures: number;
+  circuitOpenUntil?: string;
   averageLatencyMs: number;
   lastSeenAt?: string;
 }

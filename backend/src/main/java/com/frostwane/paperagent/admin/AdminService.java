@@ -28,6 +28,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ToolExecutionResponse;
 import com.frostwane.paperagent.agent.limit.AgentRateLimitStatus;
 import com.frostwane.paperagent.agent.limit.AgentRateLimiterService;
+import com.frostwane.paperagent.agent.model.ModelCircuitBreaker;
 import com.frostwane.paperagent.agent.pipeline.AgentNode;
 import com.frostwane.paperagent.agent.pipeline.AgentNodeType;
 import com.frostwane.paperagent.agent.pipeline.AgentPipeline;
@@ -69,6 +70,7 @@ public class AdminService {
     private final UserRepository userRepository;
     private final QueryTermMappingRepository queryTermMappingRepository;
     private final AgentRateLimiterService agentRateLimiterService;
+    private final ModelCircuitBreaker modelCircuitBreaker;
     private final AgentToolRegistry agentToolRegistry;
     private final AgentPipeline agentPipeline;
     private final IngestionPipelineCatalog ingestionPipelineCatalog;
@@ -81,6 +83,7 @@ public class AdminService {
         UserRepository userRepository,
         QueryTermMappingRepository queryTermMappingRepository,
         AgentRateLimiterService agentRateLimiterService,
+        ModelCircuitBreaker modelCircuitBreaker,
         AgentToolRegistry agentToolRegistry,
         AgentPipeline agentPipeline,
         IngestionPipelineCatalog ingestionPipelineCatalog,
@@ -92,6 +95,7 @@ public class AdminService {
         this.userRepository = userRepository;
         this.queryTermMappingRepository = queryTermMappingRepository;
         this.agentRateLimiterService = agentRateLimiterService;
+        this.modelCircuitBreaker = modelCircuitBreaker;
         this.agentToolRegistry = agentToolRegistry;
         this.agentPipeline = agentPipeline;
         this.ingestionPipelineCatalog = ingestionPipelineCatalog;
@@ -843,6 +847,7 @@ public class AdminService {
               sum(case when m.status = 'SUCCESS' then 1 else 0 end) as success_calls,
               sum(case when m.status = 'FAILED' then 1 else 0 end) as failed_calls,
               sum(case when m.status = 'FALLBACK' then 1 else 0 end) as fallback_calls,
+              sum(case when m.status = 'SKIPPED' then 1 else 0 end) as skipped_calls,
               coalesce(round(avg(case when m.status = 'SUCCESS' then m.latency_ms end)), 0) as average_latency_ms,
               (
                 select latest.status
@@ -857,19 +862,26 @@ public class AdminService {
             group by m.task_type, m.provider, m.model_name, m.target_name
             order by max(m.created_at) desc
             limit 8
-            """, (rs, rowNum) -> new ModelHealthResponse(
-            rs.getString("task_type"),
-            rs.getString("provider"),
-            rs.getString("model_name"),
-            rs.getString("target_name"),
-            rs.getString("last_status"),
-            rs.getLong("total_calls"),
-            rs.getLong("success_calls"),
-            rs.getLong("failed_calls"),
-            rs.getLong("fallback_calls"),
-            rs.getInt("average_latency_ms"),
-            offsetDateTime(rs, "last_seen_at")
-        ));
+            """, (rs, rowNum) -> {
+            ModelCircuitBreaker.CircuitSnapshot circuit = modelCircuitBreaker.snapshot(rs.getString("target_name"));
+            return new ModelHealthResponse(
+                rs.getString("task_type"),
+                rs.getString("provider"),
+                rs.getString("model_name"),
+                rs.getString("target_name"),
+                rs.getString("last_status"),
+                rs.getLong("total_calls"),
+                rs.getLong("success_calls"),
+                rs.getLong("failed_calls"),
+                rs.getLong("fallback_calls"),
+                rs.getLong("skipped_calls"),
+                circuit.state(),
+                circuit.consecutiveFailures(),
+                circuit.openUntil(),
+                rs.getInt("average_latency_ms"),
+                offsetDateTime(rs, "last_seen_at")
+            );
+        });
     }
 
     private List<RecentPaperResponse> recentPapers() {

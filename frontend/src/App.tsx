@@ -93,7 +93,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -2325,7 +2325,7 @@ function AdminView({
         <div className="admin-panel-head">
           <div>
           <h3>模型健康</h3>
-          <p>模型路由任务、最近状态、成功率和 fallback 情况。</p>
+          <p>模型路由任务、最近状态、成功率、fallback 和熔断跳过情况。</p>
           </div>
           <Bot size={18} />
         </div>
@@ -2334,18 +2334,23 @@ function AdminView({
             <EmptyState compact title="暂无模型记录" detail="完成一次问答后会记录模型路由状态。" />
           ) : (
             overview!.modelHealth.map((model) => (
-              <div className={`admin-model-health-row ${model.lastStatus === 'FAILED' ? 'is-failed' : model.lastStatus === 'FALLBACK' ? 'is-fallback' : ''}`} key={`${model.taskType}-${model.targetName}`}>
-                <strong className={`admin-model-health-status ${model.lastStatus === 'SUCCESS' ? 'is-success' : model.lastStatus === 'FAILED' ? 'is-failed' : 'is-fallback'}`}>
+              <div className={`admin-model-health-row ${modelHealthRowClass(model)}`} key={`${model.taskType}-${model.targetName}`}>
+                <strong className={`admin-model-health-status ${modelHealthStatusClass(model.lastStatus)}`}>
                   {modelHealthStatusLabel(model.lastStatus)}
                 </strong>
                 <span>
                   <b>{modelTaskLabel(model.taskType)} · {model.targetName}</b>
-                  <small>{model.provider} · {model.modelName} · {model.lastSeenAt ? formatTime(model.lastSeenAt) : '暂无时间'}</small>
+                  <small>
+                    {model.provider} · {model.modelName} · {model.lastSeenAt ? formatTime(model.lastSeenAt) : '暂无时间'} · 熔断 {modelCircuitStateLabel(model.circuitState)}
+                    {model.consecutiveFailures ? ` · 连续失败 ${model.consecutiveFailures}` : ''}
+                    {model.circuitOpenUntil ? ` · 冷却至 ${formatTime(model.circuitOpenUntil)}` : ''}
+                  </small>
                 </span>
                 <em>{model.totalCalls} 次</em>
                 <em>{model.successCalls} 成功</em>
                 <em>{model.failedCalls} 失败</em>
                 <em>{model.fallbackCalls} fallback</em>
+                <em>{model.skippedCalls} 跳过</em>
                 <strong>{formatLatency(model.averageLatencyMs)}</strong>
               </div>
             ))
@@ -4675,9 +4680,45 @@ function modelHealthStatusLabel(status: string) {
   const labels: Record<string, string> = {
     SUCCESS: '健康',
     FAILED: '失败',
-    FALLBACK: '兜底'
+    FALLBACK: '兜底',
+    SKIPPED: '跳过'
   };
   return labels[status] || status;
+}
+
+function modelHealthStatusClass(status: string) {
+  if (status === 'SUCCESS') {
+    return 'is-success';
+  }
+  if (status === 'FAILED') {
+    return 'is-failed';
+  }
+  if (status === 'SKIPPED') {
+    return 'is-skipped';
+  }
+  return 'is-fallback';
+}
+
+function modelHealthRowClass(model: AdminModelHealth) {
+  if (model.circuitState === 'OPEN' || model.lastStatus === 'SKIPPED') {
+    return 'is-skipped';
+  }
+  if (model.lastStatus === 'FAILED') {
+    return 'is-failed';
+  }
+  if (model.lastStatus === 'FALLBACK') {
+    return 'is-fallback';
+  }
+  return '';
+}
+
+function modelCircuitStateLabel(state: string) {
+  const labels: Record<string, string> = {
+    CLOSED: '关闭',
+    OPEN: '打开',
+    HALF_OPEN: '半开'
+  };
+  return labels[state] || state || '关闭';
 }
 
 function parseJobStatusLabel(status: string) {

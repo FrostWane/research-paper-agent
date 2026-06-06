@@ -1413,7 +1413,7 @@ select,
 
 .admin-model-health-row {
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) 72px 72px 72px 92px 76px;
+  grid-template-columns: 62px minmax(0, 1fr) 72px 72px 72px 92px 72px 76px;
   align-items: center;
   gap: 10px;
   min-height: 58px;
@@ -1431,6 +1431,11 @@ select,
 .admin-model-health-row.is-fallback {
   background: #fffaf0;
   border-color: #fed7aa;
+}
+
+.admin-model-health-row.is-skipped {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .admin-model-health-row span {
@@ -1486,6 +1491,12 @@ select,
   color: #9a3412;
   background: #fff7ed;
   border-color: #fed7aa;
+}
+
+.admin-model-health-status.is-skipped {
+  color: #334155;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .admin-agent-pipeline-panel,
@@ -3297,7 +3308,7 @@ select,
   }
 
   .admin-model-health-row {
-    grid-template-columns: 62px minmax(0, 1fr) repeat(5, minmax(58px, auto));
+    grid-template-columns: 62px minmax(0, 1fr) repeat(6, minmax(58px, auto));
   }
 
   .model-target-form {

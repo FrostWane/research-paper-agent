@@ -23,17 +23,20 @@ public class ModelRoutingService {
     private static final String FALLBACK_TARGET = "fallback-agent";
 
     private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
+    private final ModelCircuitBreaker modelCircuitBreaker;
     private final ModelInvocationRepository modelInvocationRepository;
     private final ModelTargetService modelTargetService;
     private final ObjectMapper objectMapper;
 
     public ModelRoutingService(
         ObjectProvider<ChatClient.Builder> chatClientBuilderProvider,
+        ModelCircuitBreaker modelCircuitBreaker,
         ModelInvocationRepository modelInvocationRepository,
         ModelTargetService modelTargetService,
         ObjectMapper objectMapper
     ) {
         this.chatClientBuilderProvider = chatClientBuilderProvider;
+        this.modelCircuitBreaker = modelCircuitBreaker;
         this.modelInvocationRepository = modelInvocationRepository;
         this.modelTargetService = modelTargetService;
         this.objectMapper = objectMapper;
@@ -53,6 +56,12 @@ public class ModelRoutingService {
                 record(requestedTask, target.provider(), target.modelName(), target.targetName(), "FALLBACK", 0, lastFailure);
                 continue;
             }
+            ModelCircuitBreaker.CallDecision decision = modelCircuitBreaker.beforeCall(target.targetName());
+            if (!decision.allowed()) {
+                lastFailure = "Target " + target.code() + " skipped by circuit breaker";
+                record(requestedTask, target.provider(), target.modelName(), target.targetName(), "SKIPPED", 0, circuitMessage(decision));
+                continue;
+            }
             Instant started = Instant.now();
             try {
                 String content = target.environmentTarget()
@@ -61,10 +70,12 @@ public class ModelRoutingService {
                 if (content == null || content.isBlank()) {
                     throw new IllegalStateException("Model returned empty content");
                 }
+                modelCircuitBreaker.markSuccess(target.targetName());
                 record(requestedTask, target.provider(), target.modelName(), target.targetName(), "SUCCESS", elapsedMs(started), null);
                 return new RoutedAnswer(content.trim(), target.targetName());
             } catch (Exception ex) {
                 lastFailure = "Target " + target.code() + " failed: " + ex.getClass().getSimpleName();
+                modelCircuitBreaker.markFailure(target.targetName());
                 record(requestedTask, target.provider(), target.modelName(), target.targetName(), "FAILED", elapsedMs(started), ex.getClass().getSimpleName() + ": " + ex.getMessage());
             }
         }
@@ -128,6 +139,11 @@ public class ModelRoutingService {
         invocation.setLatencyMs(Math.max(0, latencyMs));
         invocation.setErrorMessage(sanitize(errorMessage));
         modelInvocationRepository.save(invocation);
+    }
+
+    private String circuitMessage(ModelCircuitBreaker.CallDecision decision) {
+        String suffix = decision.openUntil() == null ? "" : " openUntil=" + decision.openUntil();
+        return defaultText(decision.reason(), "Model target skipped by circuit breaker") + " state=" + decision.circuitState() + suffix;
     }
 
     private String chatCompletionsUrl(String baseUrl) {

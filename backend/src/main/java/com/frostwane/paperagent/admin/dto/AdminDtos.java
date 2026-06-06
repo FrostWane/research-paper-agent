@@ -83,6 +83,10 @@ public final class AdminDtos {
         long successCalls,
         long failedCalls,
         long fallbackCalls,
+        long skippedCalls,
+        String circuitState,
+        int consecutiveFailures,
+        OffsetDateTime circuitOpenUntil,
         int averageLatencyMs,
         OffsetDateTime lastSeenAt
     ) {
