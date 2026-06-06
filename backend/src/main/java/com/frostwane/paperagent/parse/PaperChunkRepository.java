@@ -12,6 +12,7 @@ public interface PaperChunkRepository extends JpaRepository<PaperChunk, Long> {
         from PaperChunk chunk
         join fetch chunk.paper paper
         where paper.id = :paperId
+          and chunk.enabled = true
         order by chunk.pageNumber asc, chunk.chunkIndex asc
         """)
     List<PaperChunk> findByPaperIdOrderByPageNumberAscChunkIndexAsc(@Param("paperId") Long paperId);
@@ -21,6 +22,7 @@ public interface PaperChunkRepository extends JpaRepository<PaperChunk, Long> {
         from PaperChunk chunk
         join fetch chunk.paper paper
         where paper.owner.id = :ownerId
+          and chunk.enabled = true
         order by paper.updatedAt desc, chunk.pageNumber asc, chunk.chunkIndex asc
         """)
     List<PaperChunk> findByOwnerIdOrderByPaperUpdatedAtDesc(@Param("ownerId") Long ownerId);

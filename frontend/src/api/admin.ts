@@ -51,6 +51,10 @@ export function fetchAdminChunks(query: {
   return unwrap<PageResponse<AdminChunk>>(api.get('/api/admin/chunks', { params }));
 }
 
+export function updateAdminChunkEnabled(id: number, enabled: boolean) {
+  return unwrap<AdminChunk>(api.patch(`/api/admin/chunks/${id}/enabled`, { enabled }));
+}
+
 export function updateAdminUserStatus(id: number, status: 'NORMAL' | 'DISABLED') {
   return unwrap<AdminUser>(api.patch(`/api/admin/users/${id}/status`, { status }));
 }

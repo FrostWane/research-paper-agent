@@ -126,6 +126,7 @@ GET   /api/admin/agent-pipeline/nodes
 GET   /api/admin/ingestion-pipeline/nodes
 GET   /api/admin/agent-tools
 GET   /api/admin/chunks?paperId=&keyword=&page=1&pageSize=12
+PATCH /api/admin/chunks/{id}/enabled
 PATCH /api/admin/users/{id}/status
 GET   /api/admin/query-term-mappings
 POST  /api/admin/query-term-mappings
@@ -159,7 +160,7 @@ DELETE /api/admin/sample-prompts/{id}
 
 `GET /api/admin/agent-tools` 返回当前 Pipeline 注册的内部工具目录和调用画像。字段包含 `name`、`label`、`description`、`triggerDescription`、`source`、`enabled`、`totalCalls`、`successCalls`、`failedCalls`、`averageLatencyMs` 和 `lastSeenAt`。工具定义来自 Spring Bean 注册表，调用统计从历史 `toolExecutions` Trace 聚合，用于运营侧观察哪些工具可用、如何触发、近期是否失败以及平均耗时。
 
-`GET /api/admin/chunks` 返回知识片段分页数据，支持按 `paperId` 和 `keyword` 过滤；`keyword` 会匹配片段正文、论文标题、作者、关键词和用户名。字段包含 `id`、`username`、`paperId`、`paperTitle`、`pageNumber`、`chunkIndex`、`contentPreview`、`contentLength`、`embedded` 和 `createdAt`，用于管理员排查 PDF 入库后的 chunk 内容、页码定位和向量化覆盖情况。
+`GET /api/admin/chunks` 返回知识片段分页数据，支持按 `paperId` 和 `keyword` 过滤；`keyword` 会匹配片段正文、论文标题、作者、关键词和用户名。字段包含 `id`、`username`、`paperId`、`paperTitle`、`pageNumber`、`chunkIndex`、`contentPreview`、`contentLength`、`embedded`、`enabled` 和 `createdAt`，用于管理员排查 PDF 入库后的 chunk 内容、页码定位、向量化覆盖和是否参与检索。`PATCH /api/admin/chunks/{id}/enabled` 请求体为 `{"enabled": false}` 或 `{"enabled": true}`；禁用后的片段仍保留在库中和后台列表里，但关键词检索与向量检索都会跳过它。
 
 `GET /api/admin/rag-traces` 返回分页 Trace Explorer 数据，支持按 `status`、`scope`、`sessionId` 和 `keyword` 过滤；`keyword` 会匹配问题、检索式、改写问题、意图、模型名、工具执行结果、意图引导、错误信息、会话标题、论文标题和用户名。`GET /api/admin/rag-traces/{id}` 返回单条 Trace 的完整诊断字段，便于从后台打开历史链路详情。
 

@@ -1673,6 +1673,14 @@ select,
   white-space: nowrap;
 }
 
+.admin-chunk-row-head span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
 .admin-chunk-embed {
   flex: 0 0 auto;
   padding: 3px 8px;
@@ -1682,12 +1690,31 @@ select,
   background: #eff6ff;
   font-size: 12px;
   font-weight: 800;
+  font-style: normal;
 }
 
 .admin-chunk-embed.is-missing {
   color: #9a3412;
   background: #fff7ed;
   border-color: #fed7aa;
+}
+
+.admin-chunk-enabled {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  color: #15803d;
+  background: #f0fdf4;
+  font-size: 12px;
+  font-weight: 800;
+  font-style: normal;
+}
+
+.admin-chunk-enabled.is-disabled {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fecaca;
 }
 
 .admin-chunk-row small {

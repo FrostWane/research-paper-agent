@@ -71,6 +71,7 @@ import {
   updateModelTarget,
   updateSamplePrompt,
   updateAdminUserStatus,
+  updateAdminChunkEnabled,
   updateRagSettings,
   updateQueryTermMapping
 } from './api/admin';
@@ -839,6 +840,24 @@ export default function App() {
     await loadAdminChunkPage(nextFilters, 1);
   }
 
+  async function handleAdminChunkEnabled(chunk: AdminChunk, enabled: boolean) {
+    try {
+      setBusyText(enabled ? '正在启用知识片段...' : '正在禁用知识片段...');
+      const updated = await updateAdminChunkEnabled(chunk.id, enabled);
+      setAdminChunkPage((current) => current
+        ? {
+            ...current,
+            items: current.items.map((item) => (item.id === updated.id ? updated : item))
+          }
+        : current);
+      showNotice(enabled ? '知识片段已重新参与检索。' : '知识片段已从检索召回中下线。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
   async function handleAdminUserStatus(userItem: AdminUser, status: 'NORMAL' | 'DISABLED') {
     try {
       setBusyText(status === 'DISABLED' ? '正在禁用用户...' : '正在恢复用户...');
@@ -1414,6 +1433,7 @@ export default function App() {
             onTracePageChange={(page) => void loadAdminTracePage(adminTraceFilters, page)}
             onChunkFilterChange={(patch) => void handleAdminChunkFilterChange(patch)}
             onChunkPageChange={(page) => void loadAdminChunkPage(adminChunkFilters, page)}
+            onChunkEnabledChange={(chunk, enabled) => void handleAdminChunkEnabled(chunk, enabled)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
             onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
@@ -2095,6 +2115,7 @@ function AdminView({
   onTracePageChange,
   onChunkFilterChange,
   onChunkPageChange,
+  onChunkEnabledChange,
   onUserStatusChange,
   onCreateQueryMapping,
   onUpdateQueryMapping,
@@ -2135,6 +2156,7 @@ function AdminView({
   onTracePageChange: (page: number) => void;
   onChunkFilterChange: (patch: Partial<AdminChunkFilters>) => void;
   onChunkPageChange: (page: number) => void;
+  onChunkEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
   onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
@@ -2318,6 +2340,7 @@ function AdminView({
         loading={loading}
         onFilterChange={onChunkFilterChange}
         onPageChange={onChunkPageChange}
+        onEnabledChange={onChunkEnabledChange}
       />
 
       <div className="admin-panel admin-job-panel">
@@ -2615,13 +2638,15 @@ function KnowledgeChunkExplorerPanel({
   filters,
   loading,
   onFilterChange,
-  onPageChange
+  onPageChange,
+  onEnabledChange
 }: {
   page: PageResponse<AdminChunk> | null;
   filters: AdminChunkFilters;
   loading: boolean;
   onFilterChange: (patch: Partial<AdminChunkFilters>) => void;
   onPageChange: (page: number) => void;
+  onEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
 }) {
   const [draft, setDraft] = useState<AdminChunkFilters>(filters);
   const chunks = page?.items ?? [];
@@ -2683,8 +2708,16 @@ function KnowledgeChunkExplorerPanel({
             <article className="admin-chunk-row" key={chunk.id}>
               <div className="admin-chunk-row-head">
                 <strong>#{chunk.id} · P{chunk.pageNumber} · C{chunk.chunkIndex}</strong>
-                <span className={`admin-chunk-embed ${chunk.embedded ? 'is-embedded' : 'is-missing'}`}>
-                  {chunk.embedded ? '已向量化' : '未向量化'}
+                <span>
+                  <i className={`admin-chunk-embed ${chunk.embedded ? 'is-embedded' : 'is-missing'}`}>
+                    {chunk.embedded ? '已向量化' : '未向量化'}
+                  </i>
+                  <i className={`admin-chunk-enabled ${chunk.enabled ? 'is-enabled' : 'is-disabled'}`}>
+                    {chunk.enabled ? '参与检索' : '已下线'}
+                  </i>
+                  <button className="secondary-button compact-action" type="button" disabled={loading} onClick={() => onEnabledChange(chunk, !chunk.enabled)}>
+                    {chunk.enabled ? '禁用' : '启用'}
+                  </button>
                 </span>
               </div>
               <small>

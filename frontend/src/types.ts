@@ -202,6 +202,7 @@ export interface AdminChunk {
   contentPreview: string;
   contentLength: number;
   embedded: boolean;
+  enabled: boolean;
   createdAt: string;
 }
 

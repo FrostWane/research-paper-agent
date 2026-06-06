@@ -46,7 +46,7 @@ public class PaperChunkVectorRepository {
                        1 - (chunk.embedding <=> ?::vector) AS similarity
                 FROM paper_chunks chunk
                 JOIN papers paper ON paper.id = chunk.paper_id
-                WHERE chunk.paper_id = ? AND chunk.embedding IS NOT NULL
+                WHERE chunk.paper_id = ? AND chunk.embedding IS NOT NULL AND chunk.enabled = TRUE
                 ORDER BY chunk.embedding <=> ?::vector
                 LIMIT ?
                 """,
@@ -66,7 +66,7 @@ public class PaperChunkVectorRepository {
                        1 - (chunk.embedding <=> ?::vector) AS similarity
                 FROM paper_chunks chunk
                 JOIN papers paper ON paper.id = chunk.paper_id
-                WHERE paper.owner_id = ? AND chunk.embedding IS NOT NULL
+                WHERE paper.owner_id = ? AND chunk.embedding IS NOT NULL AND chunk.enabled = TRUE
                 ORDER BY chunk.embedding <=> ?::vector
                 LIMIT ?
                 """,

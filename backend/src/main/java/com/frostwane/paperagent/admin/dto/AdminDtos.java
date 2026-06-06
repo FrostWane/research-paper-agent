@@ -145,7 +145,13 @@ public final class AdminDtos {
         String contentPreview,
         int contentLength,
         boolean embedded,
+        boolean enabled,
         OffsetDateTime createdAt
+    ) {
+    }
+
+    public record AdminChunkEnabledRequest(
+        @NotNull Boolean enabled
     ) {
     }
 

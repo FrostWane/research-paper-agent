@@ -446,6 +446,23 @@ public class AdminService {
         return new PageResponse<>(items, total, safePage, safePageSize, totalPages);
     }
 
+    @Transactional
+    public AdminChunkResponse updateChunkEnabled(Long chunkId, boolean enabled, User currentUser) {
+        requireAdmin(currentUser);
+        int updated = jdbcTemplate.update("update paper_chunks set enabled = ? where id = ?", enabled, chunkId);
+        if (updated == 0) {
+            throw new BusinessException("知识片段不存在");
+        }
+        return jdbcTemplate.query(
+                chunkSelectSql() + " where c.id = ?",
+                this::mapChunk,
+                chunkId
+            )
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new BusinessException("知识片段不存在"));
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<RagTraceResponse> ragTraces(
         User currentUser,
@@ -666,6 +683,7 @@ public class AdminService {
               end as content_preview,
               length(c.content) as content_length,
               c.embedding is not null as embedded,
+              c.enabled,
               c.created_at
             """ + chunkFromSql();
     }
@@ -714,6 +732,7 @@ public class AdminService {
             rs.getString("content_preview"),
             rs.getInt("content_length"),
             rs.getBoolean("embedded"),
+            rs.getBoolean("enabled"),
             offsetDateTime(rs, "created_at")
         );
     }

@@ -38,6 +38,9 @@ public class PaperChunk {
     @Column(name = "embedding_id", length = 128)
     private String embeddingId;
 
+    @Column(nullable = false)
+    private boolean enabled = true;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -88,6 +91,14 @@ public class PaperChunk {
 
     public void setEmbeddingId(String embeddingId) {
         this.embeddingId = embeddingId;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 
     public OffsetDateTime getCreatedAt() {

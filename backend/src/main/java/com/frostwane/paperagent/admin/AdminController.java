@@ -2,6 +2,7 @@ package com.frostwane.paperagent.admin;
 
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
@@ -134,6 +135,15 @@ public class AdminController {
             keyword,
             page,
             pageSize
+        ));
+    }
+
+    @PatchMapping("/chunks/{id}/enabled")
+    public ApiResponse<AdminChunkResponse> updateChunkEnabled(@PathVariable Long id, @Valid @RequestBody AdminChunkEnabledRequest request) {
+        return ApiResponse.ok(adminService.updateChunkEnabled(
+            id,
+            request.enabled(),
+            currentUserService.getRequiredUser()
         ));
     }
 
