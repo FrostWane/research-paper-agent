@@ -36,6 +36,12 @@ public class RagSettings {
     @Column(name = "memory_max_chars", nullable = false)
     private Integer memoryMaxChars = 2400;
 
+    @Column(name = "query_rewrite_enabled", nullable = false)
+    private Boolean queryRewriteEnabled = true;
+
+    @Column(name = "query_rewrite_max_sub_questions", nullable = false)
+    private Integer queryRewriteMaxSubQuestions = 3;
+
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
 
@@ -110,6 +116,22 @@ public class RagSettings {
 
     public void setMemoryMaxChars(Integer memoryMaxChars) {
         this.memoryMaxChars = memoryMaxChars;
+    }
+
+    public Boolean getQueryRewriteEnabled() {
+        return queryRewriteEnabled;
+    }
+
+    public void setQueryRewriteEnabled(Boolean queryRewriteEnabled) {
+        this.queryRewriteEnabled = queryRewriteEnabled;
+    }
+
+    public Integer getQueryRewriteMaxSubQuestions() {
+        return queryRewriteMaxSubQuestions;
+    }
+
+    public void setQueryRewriteMaxSubQuestions(Integer queryRewriteMaxSubQuestions) {
+        this.queryRewriteMaxSubQuestions = queryRewriteMaxSubQuestions;
     }
 
     public OffsetDateTime getUpdatedAt() {

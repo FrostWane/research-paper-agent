@@ -174,8 +174,10 @@ type RagSettingsInput = {
   keywordWeight: number;
   memoryHistoryTurns: number;
   memoryMaxChars: number;
+  queryRewriteEnabled: boolean;
+  queryRewriteMaxSubQuestions: number;
 };
-type RagSettingsFormState = Record<keyof RagSettingsInput, string>;
+type RagSettingsFormState = Omit<Record<keyof RagSettingsInput, string>, 'queryRewriteEnabled'> & { queryRewriteEnabled: boolean };
 
 const defaultRagSettingsInput: RagSettingsInput = {
   candidateLimit: 10,
@@ -184,7 +186,9 @@ const defaultRagSettingsInput: RagSettingsInput = {
   vectorWeight: 1,
   keywordWeight: 0.78,
   memoryHistoryTurns: 4,
-  memoryMaxChars: 2400
+  memoryMaxChars: 2400,
+  queryRewriteEnabled: true,
+  queryRewriteMaxSubQuestions: 3
 };
 
 export default function App() {
@@ -1914,6 +1918,12 @@ function AdminView({
                     {trace.searchQuery && trace.searchQuery.trim() !== trace.question.trim() && (
                       <small className="admin-trace-search-query">检索式：{trace.searchQuery}</small>
                     )}
+                    {trace.queryRewriteEnabled && trace.rewrittenQuery && trace.rewrittenQuery.trim() !== trace.question.trim() && (
+                      <small className="admin-trace-rewrite">改写：{trace.rewrittenQuery}{trace.queryRewriteModelName ? ` · ${trace.queryRewriteModelName}` : ''}</small>
+                    )}
+                    {trace.queryRewriteEnabled && (trace.querySubQuestions ?? []).length > 1 && (
+                      <small className="admin-trace-rewrite">子问题：{trace.querySubQuestions.map((item) => compactText(item, 42)).join(' / ')}</small>
+                    )}
                     {(trace.queryExpansions ?? []).length > 0 && (
                       <div className="admin-query-expansions">
                         {trace.queryExpansions.map((expansion) => (
@@ -2249,7 +2259,9 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       vectorWeight: boundedFloat(form.vectorWeight, 0, 3, defaultRagSettingsInput.vectorWeight),
       keywordWeight: boundedFloat(form.keywordWeight, 0, 3, defaultRagSettingsInput.keywordWeight),
       memoryHistoryTurns: boundedInt(form.memoryHistoryTurns, 0, 12, defaultRagSettingsInput.memoryHistoryTurns),
-      memoryMaxChars: boundedInt(form.memoryMaxChars, 0, 8000, defaultRagSettingsInput.memoryMaxChars)
+      memoryMaxChars: boundedInt(form.memoryMaxChars, 0, 8000, defaultRagSettingsInput.memoryMaxChars),
+      queryRewriteEnabled: form.queryRewriteEnabled,
+      queryRewriteMaxSubQuestions: boundedInt(form.queryRewriteMaxSubQuestions, 1, 6, defaultRagSettingsInput.queryRewriteMaxSubQuestions)
     });
   }
 
@@ -2258,7 +2270,7 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
       <div className="admin-panel-head">
         <div>
           <h3>RAG 检索参数</h3>
-          <p>控制候选召回、最终来源、来源摘录和多通道融合权重。</p>
+          <p>控制查询改写、候选召回、来源摘录、会话记忆和多通道融合权重。</p>
         </div>
         <SlidersHorizontal size={18} />
       </div>
@@ -2290,6 +2302,14 @@ function RagSettingsPanel({ settings, onUpdate }: { settings: RagSettings | null
         <label>
           <span>记忆字符</span>
           <input type="number" min={0} max={8000} step={200} value={form.memoryMaxChars} onChange={(event) => updateField('memoryMaxChars', event.target.value)} />
+        </label>
+        <label>
+          <span>改写子问</span>
+          <input type="number" min={1} max={6} value={form.queryRewriteMaxSubQuestions} onChange={(event) => updateField('queryRewriteMaxSubQuestions', event.target.value)} />
+        </label>
+        <label className="rag-settings-check">
+          <span>查询改写</span>
+          <input type="checkbox" checked={form.queryRewriteEnabled} onChange={(event) => setForm((current) => ({ ...current, queryRewriteEnabled: event.target.checked }))} />
         </label>
         <div className="rag-settings-actions">
           <em>{settings?.updatedAt ? `更新于 ${formatTime(settings.updatedAt)}` : '使用默认参数'}</em>
@@ -3400,6 +3420,7 @@ function nodeSpanLabel(name: string) {
   const labels: Record<string, string> = {
     'scope-resolution': '范围',
     'conversation-memory': '记忆',
+    'query-rewrite-and-split': '改写',
     'query-planning': '规划',
     retrieval: '检索',
     'answer-planning': '策略',
@@ -3494,7 +3515,9 @@ function toRagSettingsForm(settings: RagSettings | null): RagSettingsFormState {
     vectorWeight: String(source.vectorWeight),
     keywordWeight: String(source.keywordWeight),
     memoryHistoryTurns: String(source.memoryHistoryTurns),
-    memoryMaxChars: String(source.memoryMaxChars)
+    memoryMaxChars: String(source.memoryMaxChars),
+    queryRewriteEnabled: source.queryRewriteEnabled,
+    queryRewriteMaxSubQuestions: String(source.queryRewriteMaxSubQuestions)
   };
 }
 

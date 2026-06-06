@@ -107,6 +107,10 @@ public final class AdminDtos {
         String pipelineName,
         String queryIntent,
         String searchQuery,
+        String rewrittenQuery,
+        List<String> querySubQuestions,
+        boolean queryRewriteEnabled,
+        String queryRewriteModelName,
         List<QueryExpansionResponse> queryExpansions,
         boolean comparisonRequested,
         String answerStrategy,
@@ -331,6 +335,8 @@ public final class AdminDtos {
         double keywordWeight,
         int memoryHistoryTurns,
         int memoryMaxChars,
+        boolean queryRewriteEnabled,
+        int queryRewriteMaxSubQuestions,
         OffsetDateTime updatedAt
     ) {
     }
@@ -342,7 +348,9 @@ public final class AdminDtos {
         @DecimalMin("0.0") @DecimalMax("3.0") Double vectorWeight,
         @DecimalMin("0.0") @DecimalMax("3.0") Double keywordWeight,
         @Min(0) @Max(12) Integer memoryHistoryTurns,
-        @Min(0) @Max(8000) Integer memoryMaxChars
+        @Min(0) @Max(8000) Integer memoryMaxChars,
+        Boolean queryRewriteEnabled,
+        @Min(1) @Max(6) Integer queryRewriteMaxSubQuestions
     ) {
     }
 }

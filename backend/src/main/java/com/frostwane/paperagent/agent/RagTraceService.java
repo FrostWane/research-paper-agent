@@ -33,6 +33,10 @@ public class RagTraceService {
         String queryExpansionsJson,
         String queryIntent,
         String searchQuery,
+        boolean queryRewriteEnabled,
+        String rewrittenQuery,
+        String querySubQuestionsJson,
+        String queryRewriteModelName,
         boolean comparisonRequested,
         String answerStrategy,
         String answerContract,
@@ -64,6 +68,10 @@ public class RagTraceService {
             queryExpansionsJson,
             queryIntent,
             searchQuery,
+            queryRewriteEnabled,
+            rewrittenQuery,
+            querySubQuestionsJson,
+            queryRewriteModelName,
             comparisonRequested,
             answerStrategy,
             answerContract,
@@ -97,6 +105,10 @@ public class RagTraceService {
         String queryExpansionsJson,
         String queryIntent,
         String searchQuery,
+        boolean queryRewriteEnabled,
+        String rewrittenQuery,
+        String querySubQuestionsJson,
+        String queryRewriteModelName,
         boolean comparisonRequested,
         String answerStrategy,
         String answerContract,
@@ -129,6 +141,10 @@ public class RagTraceService {
             queryExpansionsJson,
             queryIntent,
             searchQuery,
+            queryRewriteEnabled,
+            rewrittenQuery,
+            querySubQuestionsJson,
+            queryRewriteModelName,
             comparisonRequested,
             answerStrategy,
             answerContract,
@@ -163,6 +179,10 @@ public class RagTraceService {
         String queryExpansionsJson,
         String queryIntent,
         String searchQuery,
+        boolean queryRewriteEnabled,
+        String rewrittenQuery,
+        String querySubQuestionsJson,
+        String queryRewriteModelName,
         boolean comparisonRequested,
         String answerStrategy,
         String answerContract,
@@ -195,6 +215,10 @@ public class RagTraceService {
         trace.setQueryExpansionsJson(defaultText(queryExpansionsJson, "[]"));
         trace.setQueryIntent(defaultText(queryIntent, "GENERAL_QA"));
         trace.setSearchQuery(searchQuery);
+        trace.setQueryRewriteEnabled(queryRewriteEnabled);
+        trace.setRewrittenQuery(rewrittenQuery);
+        trace.setQuerySubQuestionsJson(defaultText(querySubQuestionsJson, "[]"));
+        trace.setQueryRewriteModelName(queryRewriteModelName);
         trace.setComparisonRequested(comparisonRequested);
         trace.setAnswerStrategy(defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA"));
         trace.setAnswerContract(answerContract);

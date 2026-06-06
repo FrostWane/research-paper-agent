@@ -308,6 +308,10 @@ public class AdminService {
               t.pipeline_name,
               t.query_intent,
               t.search_query,
+              t.rewritten_query,
+              t.query_sub_questions_json::text as query_sub_questions_json,
+              t.query_rewrite_enabled,
+              t.query_rewrite_model_name,
               t.query_expansions_json::text as query_expansions_json,
               t.comparison_requested,
               t.answer_strategy,
@@ -346,6 +350,10 @@ public class AdminService {
             rs.getString("pipeline_name"),
             rs.getString("query_intent"),
             rs.getString("search_query"),
+            rs.getString("rewritten_query"),
+            stringList(rs.getString("query_sub_questions_json")),
+            rs.getBoolean("query_rewrite_enabled"),
+            rs.getString("query_rewrite_model_name"),
             queryExpansions(rs.getString("query_expansions_json")),
             rs.getBoolean("comparison_requested"),
             rs.getString("answer_strategy"),
@@ -463,6 +471,15 @@ public class AdminService {
     }
 
     private List<QueryExpansionResponse> queryExpansions(String json) {
+        try {
+            return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
+            });
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private List<String> stringList(String json) {
         try {
             return objectMapper.readValue(json == null ? "[]" : json, new TypeReference<>() {
             });

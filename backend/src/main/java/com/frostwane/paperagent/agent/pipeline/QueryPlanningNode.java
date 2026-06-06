@@ -37,9 +37,10 @@ public class QueryPlanningNode implements AgentNode {
 
     @Override
     public void execute(AgentPipelineContext context) {
-        String question = context.question();
-        String normalized = normalize(question);
-        IntentRouteMatch intent = intentRouteService.match(normalized);
+        String question = context.planningQuestion();
+        String searchText = context.planningSearchText();
+        String normalized = normalize(searchText);
+        IntentRouteMatch intent = intentRouteService.match(normalized + " " + normalize(context.question()));
         context.queryIntent(intent.intentCode());
         context.comparisonRequested(intent.comparisonRequested());
         String searchQuery = buildSearchQuery(question, normalized, intent.searchHint(), context.libraryScope());

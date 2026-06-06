@@ -12,6 +12,7 @@ import java.util.EnumMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public class AgentPipelineContext {
 
@@ -29,6 +30,10 @@ public class AgentPipelineContext {
     private List<QueryTermExpansion> queryExpansions = List.of();
     private String queryIntent = "GENERAL_QA";
     private String searchQuery;
+    private boolean queryRewriteEnabled;
+    private String rewrittenQuery;
+    private List<String> querySubQuestions = List.of();
+    private String queryRewriteModelName;
     private boolean comparisonRequested;
     private String answerStrategy = "EVIDENCE_GROUNDED_QA";
     private String answerContract = "";
@@ -133,6 +138,62 @@ public class AgentPipelineContext {
 
     public void searchQuery(String searchQuery) {
         this.searchQuery = searchQuery == null || searchQuery.isBlank() ? question : searchQuery.trim();
+    }
+
+    public boolean queryRewriteEnabled() {
+        return queryRewriteEnabled;
+    }
+
+    public void queryRewriteEnabled(boolean queryRewriteEnabled) {
+        this.queryRewriteEnabled = queryRewriteEnabled;
+    }
+
+    public String rewrittenQuery() {
+        return rewrittenQuery;
+    }
+
+    public void rewrittenQuery(String rewrittenQuery) {
+        this.rewrittenQuery = rewrittenQuery == null ? null : rewrittenQuery.trim();
+    }
+
+    public List<String> querySubQuestions() {
+        return querySubQuestions;
+    }
+
+    public void querySubQuestions(List<String> querySubQuestions) {
+        if (querySubQuestions == null) {
+            this.querySubQuestions = List.of();
+            return;
+        }
+        this.querySubQuestions = querySubQuestions.stream()
+            .filter(item -> item != null && !item.isBlank())
+            .map(String::trim)
+            .distinct()
+            .limit(8)
+            .toList();
+    }
+
+    public String queryRewriteModelName() {
+        return queryRewriteModelName;
+    }
+
+    public void queryRewriteModelName(String queryRewriteModelName) {
+        this.queryRewriteModelName = queryRewriteModelName == null ? null : queryRewriteModelName.trim();
+    }
+
+    public String planningQuestion() {
+        return rewrittenQuery == null || rewrittenQuery.isBlank() ? question : rewrittenQuery;
+    }
+
+    public String planningSearchText() {
+        String primary = planningQuestion();
+        String joined = Stream.concat(Stream.of(primary), querySubQuestions.stream())
+            .filter(item -> item != null && !item.isBlank())
+            .map(String::trim)
+            .distinct()
+            .reduce((left, right) -> left + " " + right)
+            .orElse(primary);
+        return joined.isBlank() ? question : joined;
     }
 
     public boolean comparisonRequested() {

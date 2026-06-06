@@ -7,6 +7,8 @@ public record RagSettingsSnapshot(
     double vectorWeight,
     double keywordWeight,
     int memoryHistoryTurns,
-    int memoryMaxChars
+    int memoryMaxChars,
+    boolean queryRewriteEnabled,
+    int queryRewriteMaxSubQuestions
 ) {
 }

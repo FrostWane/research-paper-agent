@@ -145,6 +145,10 @@ export interface AdminTrace {
   pipelineName?: string;
   queryIntent?: string;
   searchQuery?: string;
+  rewrittenQuery?: string;
+  querySubQuestions: string[];
+  queryRewriteEnabled: boolean;
+  queryRewriteModelName?: string;
   queryExpansions: AdminQueryExpansion[];
   comparisonRequested: boolean;
   answerStrategy?: string;
@@ -345,6 +349,8 @@ export interface RagSettings {
   keywordWeight: number;
   memoryHistoryTurns: number;
   memoryMaxChars: number;
+  queryRewriteEnabled: boolean;
+  queryRewriteMaxSubQuestions: number;
   updatedAt?: string;
 }
 

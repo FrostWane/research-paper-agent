@@ -74,6 +74,19 @@ public class RagTrace {
     @Column(name = "search_query", columnDefinition = "TEXT")
     private String searchQuery;
 
+    @Column(name = "query_rewrite_enabled", nullable = false)
+    private Boolean queryRewriteEnabled = false;
+
+    @Column(name = "rewritten_query", columnDefinition = "TEXT")
+    private String rewrittenQuery;
+
+    @Column(name = "query_sub_questions_json", nullable = false, columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String querySubQuestionsJson = "[]";
+
+    @Column(name = "query_rewrite_model_name", length = 120)
+    private String queryRewriteModelName;
+
     @Column(name = "comparison_requested", nullable = false)
     private Boolean comparisonRequested = false;
 
@@ -244,6 +257,38 @@ public class RagTrace {
 
     public void setSearchQuery(String searchQuery) {
         this.searchQuery = searchQuery;
+    }
+
+    public Boolean getQueryRewriteEnabled() {
+        return queryRewriteEnabled;
+    }
+
+    public void setQueryRewriteEnabled(Boolean queryRewriteEnabled) {
+        this.queryRewriteEnabled = queryRewriteEnabled;
+    }
+
+    public String getRewrittenQuery() {
+        return rewrittenQuery;
+    }
+
+    public void setRewrittenQuery(String rewrittenQuery) {
+        this.rewrittenQuery = rewrittenQuery;
+    }
+
+    public String getQuerySubQuestionsJson() {
+        return querySubQuestionsJson;
+    }
+
+    public void setQuerySubQuestionsJson(String querySubQuestionsJson) {
+        this.querySubQuestionsJson = querySubQuestionsJson;
+    }
+
+    public String getQueryRewriteModelName() {
+        return queryRewriteModelName;
+    }
+
+    public void setQueryRewriteModelName(String queryRewriteModelName) {
+        this.queryRewriteModelName = queryRewriteModelName;
     }
 
     public Boolean getComparisonRequested() {
