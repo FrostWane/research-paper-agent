@@ -35,5 +35,8 @@ public interface PaperChunkRepository extends JpaRepository<PaperChunk, Long> {
     long countByOwnerId(@Param("ownerId") Long ownerId);
 
     long countByPaperId(Long paperId);
+    long countByPaperIdAndEnabledTrue(Long paperId);
+    long countByPaperIdAndEmbeddingIdIsNotNull(Long paperId);
+    long countByPaperIdAndEnabledTrueAndEmbeddingIdIsNotNull(Long paperId);
     void deleteByPaperId(Long paperId);
 }

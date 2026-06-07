@@ -178,7 +178,7 @@ DELETE /api/admin/sample-prompts/{id}
 
 `GET /api/admin/retrieval-processors` 返回当前注册的检索后处理器目录和运行画像。字段包含 `name`、`label`、`description`、`sortOrder`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`averageInputCount`、`averageOutputCount`、`averageLatencyMs` 和 `lastSeenAt`。后处理器定义来自 `RetrievalPostProcessor` Spring Bean，运行统计从历史 Trace 的 `retrievalProcessors` 聚合，用于观察通道融合、规则精排、模型重排、多样性重排和结果截断等环节的输入输出规模与耗时。
 
-`GET /api/admin/agent-tools` 返回当前 Pipeline 注册的内部工具目录和调用画像。字段包含 `name`、`label`、`description`、`triggerDescription`、`source`、`enabled`、`minimumRole`、`totalCalls`、`successCalls`、`failedCalls`、`averageLatencyMs` 和 `lastSeenAt`。工具定义来自 Spring Bean 注册表，启停状态和最小调用角色来自 `agent_tool_settings`，调用统计从历史 `toolExecutions` Trace 聚合，用于运营侧观察哪些工具可用、如何触发、近期是否失败以及平均耗时。`PATCH /api/admin/agent-tools/{name}/enabled` 请求体为 `{"enabled": false}` 或 `{"enabled": true}`；停用后的工具仍保留在后台目录中，但 `AgentToolRegistry` 不会再把它交给问答链路执行。`PATCH /api/admin/agent-tools/{name}/minimum-role` 请求体为 `{"minimumRole": "ADMIN"}` 或 `{"minimumRole": "USER"}`；限制为 `ADMIN` 后，普通用户问答链路不会匹配该工具，管理员问答仍可调用。
+`GET /api/admin/agent-tools` 返回当前 Pipeline 注册的内部工具目录和调用画像。字段包含 `name`、`label`、`description`、`triggerDescription`、`source`、`enabled`、`minimumRole`、`totalCalls`、`successCalls`、`failedCalls`、`averageLatencyMs` 和 `lastSeenAt`。工具定义来自 Spring Bean 注册表，默认包含 `library-stats` 和 `paper-parse-status`；启停状态和最小调用角色来自 `agent_tool_settings`，调用统计从历史 `toolExecutions` Trace 聚合，用于运营侧观察哪些工具可用、如何触发、近期是否失败以及平均耗时。`PATCH /api/admin/agent-tools/{name}/enabled` 请求体为 `{"enabled": false}` 或 `{"enabled": true}`；停用后的工具仍保留在后台目录中，但 `AgentToolRegistry` 不会再把它交给问答链路执行。`PATCH /api/admin/agent-tools/{name}/minimum-role` 请求体为 `{"minimumRole": "ADMIN"}` 或 `{"minimumRole": "USER"}`；限制为 `ADMIN` 后，普通用户问答链路不会匹配该工具，管理员问答仍可调用。
 
 `GET /api/admin/agent-tool-executions` 返回分页工具调用审计明细，支持按 `toolName`、`status` 和 `keyword` 过滤；`keyword` 会匹配触发问题、工具摘要、工具详情、失败信息、工具名、工具标签、会话标题、论文标题和用户名。字段包含 `traceId`、`username`、`paperId`、`paperTitle`、`sessionId`、`sessionTitle`、`scope`、`question`、`traceStatus`、`name`、`label`、`status`、`summary`、`details`、`latencyMs`、`errorMessage` 和 `createdAt`，用于管理员按工具维度追查一次调用的触发问题、结果摘要、失败原因和耗时。
 
@@ -218,7 +218,7 @@ DELETE /api/admin/sample-prompts/{id}
 }
 ```
 
-启用后的意图路由会被 `QueryPlanningNode` 用于识别 `queryIntent`、扩展检索提示、标记比较类问题，并把 `boundToolName` 指定的 Agent 工具传给后续工具节点；`AnswerPlanningNode` 会读取对应的 `answerStrategy` 和 `answerContract`。`boundToolName` 可为空；有值时必须匹配 `/api/admin/agent-tools` 中已注册的工具名，例如 `library-stats`。绑定工具只表示路由显式请求该工具，仍会受工具启停状态和最小调用角色约束。
+启用后的意图路由会被 `QueryPlanningNode` 用于识别 `queryIntent`、扩展检索提示、标记比较类问题，并把 `boundToolName` 指定的 Agent 工具传给后续工具节点；`AnswerPlanningNode` 会读取对应的 `answerStrategy` 和 `answerContract`。`boundToolName` 可为空；有值时必须匹配 `/api/admin/agent-tools` 中已注册的工具名，例如 `library-stats` 或 `paper-parse-status`。绑定工具只表示路由显式请求该工具，仍会受工具启停状态和最小调用角色约束。
 
 回答 Prompt 模板请求：
 
