@@ -120,11 +120,18 @@ public final class AdminDtos {
         String description,
         int sortOrder,
         boolean enabled,
+        boolean canDisable,
         long totalRuns,
         long successRuns,
         long failedRuns,
+        long skippedRuns,
         int averageLatencyMs,
         OffsetDateTime lastSeenAt
+    ) {
+    }
+
+    public record AgentPipelineNodeEnabledRequest(
+        @NotNull Boolean enabled
     ) {
     }
 

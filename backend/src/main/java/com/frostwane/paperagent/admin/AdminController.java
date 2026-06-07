@@ -4,6 +4,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
@@ -128,6 +129,15 @@ public class AdminController {
     @GetMapping("/agent-pipeline/nodes")
     public ApiResponse<List<AgentPipelineNodeResponse>> agentPipelineNodes() {
         return ApiResponse.ok(adminService.agentPipelineNodes(currentUserService.getRequiredUser()));
+    }
+
+    @PatchMapping("/agent-pipeline/nodes/{name}/enabled")
+    public ApiResponse<AgentPipelineNodeResponse> updateAgentPipelineNodeEnabled(@PathVariable String name, @Valid @RequestBody AgentPipelineNodeEnabledRequest request) {
+        return ApiResponse.ok(adminService.updateAgentPipelineNodeEnabled(
+            name,
+            request.enabled(),
+            currentUserService.getRequiredUser()
+        ));
     }
 
     @GetMapping("/ingestion-pipeline/nodes")

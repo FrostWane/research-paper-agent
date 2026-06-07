@@ -174,9 +174,11 @@ export interface AdminAgentPipelineNode {
   description: string;
   sortOrder: number;
   enabled: boolean;
+  canDisable: boolean;
   totalRuns: number;
   successRuns: number;
   failedRuns: number;
+  skippedRuns: number;
   averageLatencyMs: number;
   lastSeenAt?: string;
 }

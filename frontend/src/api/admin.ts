@@ -37,6 +37,10 @@ export function fetchAgentPipelineNodes() {
   return unwrap<AdminAgentPipelineNode[]>(api.get('/api/admin/agent-pipeline/nodes'));
 }
 
+export function updateAgentPipelineNodeEnabled(name: string, enabled: boolean) {
+  return unwrap<AdminAgentPipelineNode>(api.patch(`/api/admin/agent-pipeline/nodes/${encodeURIComponent(name)}/enabled`, { enabled }));
+}
+
 export function fetchIngestionPipelineNodes() {
   return unwrap<AdminIngestionPipelineNode[]>(api.get('/api/admin/ingestion-pipeline/nodes'));
 }

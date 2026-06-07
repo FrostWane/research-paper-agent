@@ -69,6 +69,7 @@ import {
   fetchSamplePrompts,
   fetchAdminUsers,
   fetchQueryTermMappings,
+  updateAgentPipelineNodeEnabled,
   updateAnswerPromptTemplate,
   updateIntentRoute,
   updateModelTarget,
@@ -917,6 +918,20 @@ export default function App() {
     }
   }
 
+  async function handleAdminAgentPipelineNodeEnabled(node: AdminAgentPipelineNode, enabled: boolean) {
+    try {
+      setBusyText(enabled ? '正在启用 Agent Pipeline 节点...' : '正在停用 Agent Pipeline 节点...');
+      const updated = await updateAgentPipelineNodeEnabled(node.name, enabled);
+      setAgentPipelineNodes((current) => current.map((item) => (item.name === updated.name ? updated : item)));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice(enabled ? 'Agent Pipeline 节点已启用。' : 'Agent Pipeline 节点已停用，后续问答会记录为跳过。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
   async function handleAdminUserStatus(userItem: AdminUser, status: 'NORMAL' | 'DISABLED') {
     try {
       setBusyText(status === 'DISABLED' ? '正在禁用用户...' : '正在恢复用户...');
@@ -1499,6 +1514,7 @@ export default function App() {
             onParseJobFilterChange={(patch) => void handleAdminParseJobFilterChange(patch)}
             onParseJobPageChange={(page) => void loadAdminParseJobPage(adminParseJobFilters, page)}
             onChunkEnabledChange={(chunk, enabled) => void handleAdminChunkEnabled(chunk, enabled)}
+            onAgentPipelineNodeEnabledChange={(node, enabled) => void handleAdminAgentPipelineNodeEnabled(node, enabled)}
             onAgentToolEnabledChange={(tool, enabled) => void handleAdminAgentToolEnabled(tool, enabled)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
@@ -2188,6 +2204,7 @@ function AdminView({
   onParseJobFilterChange,
   onParseJobPageChange,
   onChunkEnabledChange,
+  onAgentPipelineNodeEnabledChange,
   onAgentToolEnabledChange,
   onUserStatusChange,
   onCreateQueryMapping,
@@ -2236,6 +2253,7 @@ function AdminView({
   onParseJobFilterChange: (patch: Partial<AdminParseJobFilters>) => void;
   onParseJobPageChange: (page: number) => void;
   onChunkEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
+  onAgentPipelineNodeEnabledChange: (node: AdminAgentPipelineNode, enabled: boolean) => void;
   onAgentToolEnabledChange: (tool: AdminAgentTool, enabled: boolean) => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
@@ -2376,7 +2394,7 @@ function AdminView({
         </div>
       </div>
 
-      <AgentPipelinePanel nodes={agentPipelineNodes} />
+      <AgentPipelinePanel nodes={agentPipelineNodes} onEnabledChange={onAgentPipelineNodeEnabledChange} loading={loading} />
 
       <RetrievalCatalogPanel channels={retrievalChannels} processors={retrievalProcessors} />
 
@@ -3133,7 +3151,15 @@ function TraceGuidance({ trace }: { trace: AdminTrace }) {
   );
 }
 
-function AgentPipelinePanel({ nodes }: { nodes: AdminAgentPipelineNode[] }) {
+function AgentPipelinePanel({
+  nodes,
+  onEnabledChange,
+  loading
+}: {
+  nodes: AdminAgentPipelineNode[];
+  onEnabledChange: (node: AdminAgentPipelineNode, enabled: boolean) => void;
+  loading: boolean;
+}) {
   return (
     <div className="admin-panel admin-agent-pipeline-panel">
       <div className="admin-panel-head">
@@ -3152,14 +3178,24 @@ function AgentPipelinePanel({ nodes }: { nodes: AdminAgentPipelineNode[] }) {
               <strong className="agent-pipeline-order">#{node.sortOrder}</strong>
               <span>
                 <b>{node.label}</b>
-                <small>{node.name} · {node.type}</small>
+                <small>{node.name} · {node.type} · {node.enabled ? '启用' : '停用'}{node.canDisable ? '' : ' · 主链路'}</small>
               </span>
               <p>{node.description}</p>
               <em>{node.totalRuns} 次</em>
               <em>{node.successRuns} 成功</em>
               <em>{node.failedRuns} 失败</em>
+              <em>{node.skippedRuns} 跳过</em>
               <strong>{formatLatency(node.averageLatencyMs)}</strong>
               <small>{node.lastSeenAt ? formatTime(node.lastSeenAt) : '尚未运行'}</small>
+              <button
+                className={`secondary-button compact-action ${node.enabled ? 'danger-action' : ''}`}
+                type="button"
+                disabled={loading || !node.canDisable}
+                title={node.canDisable ? undefined : '主链路节点不能停用'}
+                onClick={() => onEnabledChange(node, !node.enabled)}
+              >
+                {node.canDisable ? (node.enabled ? '停用' : '启用') : '锁定'}
+              </button>
             </div>
           ))
         )}

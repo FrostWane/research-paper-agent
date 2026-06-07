@@ -1508,12 +1508,12 @@ select,
 }
 
 .agent-pipeline-list {
-  min-width: 960px;
+  min-width: 1180px;
 }
 
 .agent-pipeline-row {
   display: grid;
-  grid-template-columns: 62px minmax(150px, 0.9fr) minmax(300px, 1.7fr) 66px 72px 72px 76px 130px;
+  grid-template-columns: 62px minmax(150px, 0.85fr) minmax(280px, 1.5fr) 66px 72px 72px 72px 76px 126px 66px;
   align-items: center;
   gap: 10px;
   min-height: 58px;
@@ -1574,6 +1574,11 @@ select,
 .agent-pipeline-row em,
 .agent-pipeline-row > strong:last-of-type {
   justify-self: end;
+}
+
+.agent-pipeline-row .compact-action {
+  justify-self: end;
+  min-width: 58px;
 }
 
 .ingestion-pipeline-list {

@@ -13,15 +13,23 @@ public class AgentPipeline {
     public static final String NAME = "agent-pipeline-v1";
 
     private final List<AgentNode> nodes;
+    private final AgentPipelineNodeSettingService nodeSettingService;
 
-    public AgentPipeline(List<AgentNode> nodes) {
+    public AgentPipeline(List<AgentNode> nodes, AgentPipelineNodeSettingService nodeSettingService) {
         this.nodes = nodes.stream()
             .sorted(Comparator.comparingInt(AgentNode::order))
             .toList();
+        this.nodeSettingService = nodeSettingService;
     }
 
     public void execute(AgentPipelineContext context) {
         for (AgentNode node : nodes) {
+            if (!nodeSettingService.enabled(node)) {
+                handleDisabledNode(node, context);
+                context.recordTiming(node.type(), 0);
+                context.recordNodeSpan(node.type(), node.name(), node.order(), "SKIPPED", 0, "节点已在管理后台停用");
+                continue;
+            }
             Instant started = Instant.now();
             RuntimeException failure = null;
             try {
@@ -50,6 +58,12 @@ public class AgentPipeline {
 
     public List<AgentNode> nodes() {
         return nodes;
+    }
+
+    private void handleDisabledNode(AgentNode node, AgentPipelineContext context) {
+        if (node.type() == AgentNodeType.VERIFICATION) {
+            context.verifiedAnswer(context.generatedAnswer());
+        }
     }
 
     private int elapsedMs(Instant started) {

@@ -32,6 +32,7 @@ import com.frostwane.paperagent.agent.model.ModelCircuitBreaker;
 import com.frostwane.paperagent.agent.pipeline.AgentNode;
 import com.frostwane.paperagent.agent.pipeline.AgentNodeType;
 import com.frostwane.paperagent.agent.pipeline.AgentPipeline;
+import com.frostwane.paperagent.agent.pipeline.AgentPipelineNodeSettingService;
 import com.frostwane.paperagent.agent.retrieval.RetrievalChannel;
 import com.frostwane.paperagent.agent.retrieval.RetrievalPostProcessor;
 import com.frostwane.paperagent.agent.term.QueryTermMapping;
@@ -75,6 +76,7 @@ public class AdminService {
     private final AgentToolRegistry agentToolRegistry;
     private final AgentToolSettingService agentToolSettingService;
     private final AgentPipeline agentPipeline;
+    private final AgentPipelineNodeSettingService agentPipelineNodeSettingService;
     private final IngestionPipelineCatalog ingestionPipelineCatalog;
     private final List<RetrievalChannel> retrievalChannels;
     private final List<RetrievalPostProcessor> retrievalPostProcessors;
@@ -89,6 +91,7 @@ public class AdminService {
         AgentToolRegistry agentToolRegistry,
         AgentToolSettingService agentToolSettingService,
         AgentPipeline agentPipeline,
+        AgentPipelineNodeSettingService agentPipelineNodeSettingService,
         IngestionPipelineCatalog ingestionPipelineCatalog,
         List<RetrievalChannel> retrievalChannels,
         List<RetrievalPostProcessor> retrievalPostProcessors,
@@ -102,6 +105,7 @@ public class AdminService {
         this.agentToolRegistry = agentToolRegistry;
         this.agentToolSettingService = agentToolSettingService;
         this.agentPipeline = agentPipeline;
+        this.agentPipelineNodeSettingService = agentPipelineNodeSettingService;
         this.ingestionPipelineCatalog = ingestionPipelineCatalog;
         this.retrievalChannels = retrievalChannels.stream()
             .sorted(Comparator.comparingInt(RetrievalChannel::priority))
@@ -223,7 +227,7 @@ public class AdminService {
         return stats;
     }
 
-    private AgentPipelineNodeResponse agentPipelineNodeResponse(AgentNode node, AgentNodeStats stats) {
+    private AgentPipelineNodeResponse agentPipelineNodeResponse(AgentNode node, AgentNodeStats stats, boolean enabled) {
         AgentNodeStats safeStats = stats == null ? AgentNodeStats.empty() : stats;
         return new AgentPipelineNodeResponse(
             agentPipeline.name(),
@@ -232,10 +236,12 @@ public class AdminService {
             nodeLabel(node.type()),
             nodeDescription(node.type()),
             node.order(),
-            true,
+            enabled,
+            agentPipelineNodeSettingService.canDisable(node),
             safeStats.totalRuns(),
             safeStats.successRuns(),
             safeStats.failedRuns(),
+            safeStats.skippedRuns(),
             safeStats.averageLatencyMs(),
             safeStats.lastSeenAt()
         );
@@ -250,6 +256,7 @@ public class AdminService {
               count(*) as total_runs,
               sum(case when node.item->>'status' = 'SUCCESS' then 1 else 0 end) as success_runs,
               sum(case when node.item->>'status' = 'FAILED' then 1 else 0 end) as failed_runs,
+              sum(case when node.item->>'status' = 'SKIPPED' then 1 else 0 end) as skipped_runs,
               coalesce(round(avg(
                 case
                   when jsonb_typeof(node.item->'durationMs') = 'number'
@@ -268,6 +275,7 @@ public class AdminService {
                     rs.getLong("total_runs"),
                     rs.getLong("success_runs"),
                     rs.getLong("failed_runs"),
+                    rs.getLong("skipped_runs"),
                     rs.getInt("average_latency_ms"),
                     offsetDateTime(rs, "last_seen_at")
                 ));
@@ -604,9 +612,25 @@ public class AdminService {
     public List<AgentPipelineNodeResponse> agentPipelineNodes(User currentUser) {
         requireAdmin(currentUser);
         Map<String, AgentNodeStats> stats = agentNodeStats();
+        Map<String, Boolean> enabledByNodeName = agentPipelineNodeSettingService.enabledByNodeName();
         return agentPipeline.nodes().stream()
-            .map(node -> agentPipelineNodeResponse(node, stats.get(agentNodeKey(node))))
+            .map(node -> agentPipelineNodeResponse(
+                node,
+                stats.get(agentNodeKey(node)),
+                !agentPipelineNodeSettingService.canDisable(node) || enabledByNodeName.getOrDefault(node.name(), true)
+            ))
             .toList();
+    }
+
+    @Transactional
+    public AgentPipelineNodeResponse updateAgentPipelineNodeEnabled(String name, boolean enabled, User currentUser) {
+        requireAdmin(currentUser);
+        AgentNode node = agentPipeline.nodes().stream()
+            .filter(candidate -> candidate.name().equals(name))
+            .findFirst()
+            .orElseThrow(() -> new BusinessException("Agent Pipeline 节点不存在"));
+        boolean updated = agentPipelineNodeSettingService.updateEnabled(node, enabled);
+        return agentPipelineNodeResponse(node, agentNodeStats().get(agentNodeKey(node)), updated);
     }
 
     @Transactional(readOnly = true)
@@ -1372,11 +1396,12 @@ public class AdminService {
         long totalRuns,
         long successRuns,
         long failedRuns,
+        long skippedRuns,
         int averageLatencyMs,
         OffsetDateTime lastSeenAt
     ) {
         static AgentNodeStats empty() {
-            return new AgentNodeStats(0, 0, 0, 0, null);
+            return new AgentNodeStats(0, 0, 0, 0, 0, null);
         }
     }
 
