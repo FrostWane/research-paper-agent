@@ -2,10 +2,14 @@ package com.frostwane.paperagent.agent.tool;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+
+import com.frostwane.paperagent.user.UserRole;
 
 import java.time.OffsetDateTime;
 
@@ -19,6 +23,10 @@ public class AgentToolSetting {
 
     @Column(nullable = false)
     private Boolean enabled = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "minimum_role", nullable = false, length = 32)
+    private UserRole minimumRole = UserRole.USER;
 
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt = OffsetDateTime.now();
@@ -43,6 +51,14 @@ public class AgentToolSetting {
 
     public void setEnabled(Boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public UserRole getMinimumRole() {
+        return minimumRole;
+    }
+
+    public void setMinimumRole(UserRole minimumRole) {
+        this.minimumRole = minimumRole == null ? UserRole.USER : minimumRole;
     }
 
     public OffsetDateTime getUpdatedAt() {

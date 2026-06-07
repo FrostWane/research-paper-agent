@@ -1,6 +1,7 @@
 package com.frostwane.paperagent.admin.dto;
 
 import com.frostwane.paperagent.user.UserStatus;
+import com.frostwane.paperagent.user.UserRole;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -99,6 +100,7 @@ public final class AdminDtos {
         String triggerDescription,
         String source,
         boolean enabled,
+        String minimumRole,
         long totalCalls,
         long successCalls,
         long failedCalls,
@@ -109,6 +111,11 @@ public final class AdminDtos {
 
     public record AgentToolEnabledRequest(
         @NotNull Boolean enabled
+    ) {
+    }
+
+    public record AgentToolMinimumRoleRequest(
+        @NotNull UserRole minimumRole
     ) {
     }
 

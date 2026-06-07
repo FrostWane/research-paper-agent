@@ -33,6 +33,10 @@ export function updateAgentToolEnabled(name: string, enabled: boolean) {
   return unwrap<AdminAgentTool>(api.patch(`/api/admin/agent-tools/${encodeURIComponent(name)}/enabled`, { enabled }));
 }
 
+export function updateAgentToolMinimumRole(name: string, minimumRole: 'USER' | 'ADMIN') {
+  return unwrap<AdminAgentTool>(api.patch(`/api/admin/agent-tools/${encodeURIComponent(name)}/minimum-role`, { minimumRole }));
+}
+
 export function fetchAgentPipelineNodes() {
   return unwrap<AdminAgentPipelineNode[]>(api.get('/api/admin/agent-pipeline/nodes'));
 }

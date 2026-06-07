@@ -1,6 +1,7 @@
 package com.frostwane.paperagent.agent.tool;
 
 import com.frostwane.paperagent.agent.pipeline.AgentPipelineContext;
+import com.frostwane.paperagent.user.UserRole;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
@@ -20,8 +21,9 @@ public class AgentToolRegistry {
     }
 
     public List<AgentTool> matchingTools(AgentPipelineContext context) {
+        UserRole role = context == null || context.owner() == null ? UserRole.USER : context.owner().getRole();
         return tools.stream()
-            .filter(tool -> settingService.enabled(tool.name()))
+            .filter(tool -> settingService.available(tool.name(), role))
             .filter(tool -> tool.supports(context))
             .toList();
     }

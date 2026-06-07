@@ -7,6 +7,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolEnabledRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolMinimumRoleRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse;
@@ -122,6 +123,15 @@ public class AdminController {
         return ApiResponse.ok(adminService.updateAgentToolEnabled(
             name,
             request.enabled(),
+            currentUserService.getRequiredUser()
+        ));
+    }
+
+    @PatchMapping("/agent-tools/{name}/minimum-role")
+    public ApiResponse<AgentToolResponse> updateAgentToolMinimumRole(@PathVariable String name, @Valid @RequestBody AgentToolMinimumRoleRequest request) {
+        return ApiResponse.ok(adminService.updateAgentToolMinimumRole(
+            name,
+            request.minimumRole(),
             currentUserService.getRequiredUser()
         ));
     }

@@ -77,6 +77,7 @@ import {
   updateAdminUserStatus,
   updateAdminChunkEnabled,
   updateAgentToolEnabled,
+  updateAgentToolMinimumRole,
   updateRagSettings,
   updateQueryTermMapping
 } from './api/admin';
@@ -918,6 +919,20 @@ export default function App() {
     }
   }
 
+  async function handleAdminAgentToolMinimumRole(tool: AdminAgentTool, minimumRole: 'USER' | 'ADMIN') {
+    try {
+      setBusyText(minimumRole === 'ADMIN' ? '正在限制 Agent 工具权限...' : '正在开放 Agent 工具权限...');
+      const updated = await updateAgentToolMinimumRole(tool.name, minimumRole);
+      setAgentTools((current) => current.map((item) => (item.name === updated.name ? updated : item)));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice(minimumRole === 'ADMIN' ? 'Agent 工具已限制为仅管理员可调用。' : 'Agent 工具已开放给所有登录用户调用。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
   async function handleAdminAgentPipelineNodeEnabled(node: AdminAgentPipelineNode, enabled: boolean) {
     try {
       setBusyText(enabled ? '正在启用 Agent Pipeline 节点...' : '正在停用 Agent Pipeline 节点...');
@@ -1516,6 +1531,7 @@ export default function App() {
             onChunkEnabledChange={(chunk, enabled) => void handleAdminChunkEnabled(chunk, enabled)}
             onAgentPipelineNodeEnabledChange={(node, enabled) => void handleAdminAgentPipelineNodeEnabled(node, enabled)}
             onAgentToolEnabledChange={(tool, enabled) => void handleAdminAgentToolEnabled(tool, enabled)}
+            onAgentToolMinimumRoleChange={(tool, minimumRole) => void handleAdminAgentToolMinimumRole(tool, minimumRole)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
             onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
@@ -2206,6 +2222,7 @@ function AdminView({
   onChunkEnabledChange,
   onAgentPipelineNodeEnabledChange,
   onAgentToolEnabledChange,
+  onAgentToolMinimumRoleChange,
   onUserStatusChange,
   onCreateQueryMapping,
   onUpdateQueryMapping,
@@ -2255,6 +2272,7 @@ function AdminView({
   onChunkEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
   onAgentPipelineNodeEnabledChange: (node: AdminAgentPipelineNode, enabled: boolean) => void;
   onAgentToolEnabledChange: (tool: AdminAgentTool, enabled: boolean) => void;
+  onAgentToolMinimumRoleChange: (tool: AdminAgentTool, minimumRole: 'USER' | 'ADMIN') => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
   onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
@@ -2398,7 +2416,12 @@ function AdminView({
 
       <RetrievalCatalogPanel channels={retrievalChannels} processors={retrievalProcessors} />
 
-      <AgentToolPanel tools={agentTools} onEnabledChange={onAgentToolEnabledChange} loading={loading} />
+      <AgentToolPanel
+        tools={agentTools}
+        onEnabledChange={onAgentToolEnabledChange}
+        onMinimumRoleChange={onAgentToolMinimumRoleChange}
+        loading={loading}
+      />
 
       <ModelTargetPanel
         targets={modelTargets}
@@ -3314,10 +3337,12 @@ function RetrievalCatalogPanel({
 function AgentToolPanel({
   tools,
   onEnabledChange,
+  onMinimumRoleChange,
   loading
 }: {
   tools: AdminAgentTool[];
   onEnabledChange: (tool: AdminAgentTool, enabled: boolean) => void;
+  onMinimumRoleChange: (tool: AdminAgentTool, minimumRole: 'USER' | 'ADMIN') => void;
   loading: boolean;
 }) {
   return (
@@ -3345,8 +3370,18 @@ function AgentToolPanel({
               <em>{tool.totalCalls} 次</em>
               <em>{tool.successCalls} 成功</em>
               <em>{tool.failedCalls} 失败</em>
+              <em>{tool.minimumRole === 'ADMIN' ? '仅管理员' : '全员'}</em>
               <strong>{formatLatency(tool.averageLatencyMs)}</strong>
               <small>{tool.lastSeenAt ? formatTime(tool.lastSeenAt) : '尚未调用'}</small>
+              <button
+                className="secondary-button compact-action"
+                type="button"
+                disabled={loading}
+                title={tool.minimumRole === 'ADMIN' ? '开放给所有登录用户' : '限制为仅管理员调用'}
+                onClick={() => onMinimumRoleChange(tool, tool.minimumRole === 'ADMIN' ? 'USER' : 'ADMIN')}
+              >
+                {tool.minimumRole === 'ADMIN' ? '开放全员' : '限管理员'}
+              </button>
               <button
                 className={`secondary-button compact-action ${tool.enabled ? 'danger-action' : ''}`}
                 type="button"

@@ -1842,12 +1842,12 @@ select,
 }
 
 .agent-tool-list {
-  min-width: 1040px;
+  min-width: 1220px;
 }
 
 .agent-tool-row {
   display: grid;
-  grid-template-columns: 62px minmax(150px, 0.9fr) minmax(190px, 1.2fr) minmax(240px, 1.5fr) 66px 72px 72px 76px 130px 72px;
+  grid-template-columns: 62px minmax(150px, 0.85fr) minmax(190px, 1.05fr) minmax(230px, 1.35fr) 66px 72px 72px 78px 76px 130px 86px 72px;
   align-items: center;
   gap: 10px;
   min-height: 64px;

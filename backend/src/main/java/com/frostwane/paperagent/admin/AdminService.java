@@ -40,6 +40,7 @@ import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
 import com.frostwane.paperagent.agent.tool.AgentTool;
 import com.frostwane.paperagent.agent.tool.AgentToolRegistry;
 import com.frostwane.paperagent.agent.tool.AgentToolSettingService;
+import com.frostwane.paperagent.agent.tool.AgentToolSettingService.ToolSettingSnapshot;
 import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.common.PageResponse;
 import com.frostwane.paperagent.parse.IngestionPipelineCatalog;
@@ -176,15 +177,17 @@ public class AdminService {
         );
     }
 
-    private AgentToolResponse agentToolResponse(AgentTool tool, AgentToolStats stats, boolean enabled) {
+    private AgentToolResponse agentToolResponse(AgentTool tool, AgentToolStats stats, ToolSettingSnapshot setting) {
         AgentToolStats safeStats = stats == null ? AgentToolStats.empty() : stats;
+        ToolSettingSnapshot safeSetting = setting == null ? new ToolSettingSnapshot(true, UserRole.USER) : setting;
         return new AgentToolResponse(
             tool.name(),
             tool.label(),
             tool.description(),
             tool.triggerDescription(),
             "INTERNAL",
-            enabled,
+            safeSetting.enabled(),
+            safeSetting.minimumRole().name(),
             safeStats.totalCalls(),
             safeStats.successCalls(),
             safeStats.failedCalls(),
@@ -591,9 +594,13 @@ public class AdminService {
     public List<AgentToolResponse> agentTools(User currentUser) {
         requireAdmin(currentUser);
         Map<String, AgentToolStats> stats = agentToolStats();
-        Map<String, Boolean> enabledByToolName = agentToolSettingService.enabledByToolName();
+        Map<String, ToolSettingSnapshot> settingsByToolName = agentToolSettingService.settingsByToolName();
         return agentToolRegistry.tools().stream()
-            .map(tool -> agentToolResponse(tool, stats.get(tool.name()), enabledByToolName.getOrDefault(tool.name(), true)))
+            .map(tool -> agentToolResponse(
+                tool,
+                stats.get(tool.name()),
+                settingsByToolName.getOrDefault(tool.name(), new ToolSettingSnapshot(true, UserRole.USER))
+            ))
             .toList();
     }
 
@@ -605,7 +612,26 @@ public class AdminService {
             .findFirst()
             .orElseThrow(() -> new BusinessException("Agent 工具不存在"));
         boolean updated = agentToolSettingService.updateEnabled(tool.name(), enabled);
-        return agentToolResponse(tool, agentToolStats().get(tool.name()), updated);
+        return agentToolResponse(
+            tool,
+            agentToolStats().get(tool.name()),
+            new ToolSettingSnapshot(updated, agentToolSettingService.minimumRole(tool.name()))
+        );
+    }
+
+    @Transactional
+    public AgentToolResponse updateAgentToolMinimumRole(String name, UserRole minimumRole, User currentUser) {
+        requireAdmin(currentUser);
+        AgentTool tool = agentToolRegistry.tools().stream()
+            .filter(candidate -> candidate.name().equals(name))
+            .findFirst()
+            .orElseThrow(() -> new BusinessException("Agent 工具不存在"));
+        UserRole updated = agentToolSettingService.updateMinimumRole(tool.name(), minimumRole);
+        return agentToolResponse(
+            tool,
+            agentToolStats().get(tool.name()),
+            new ToolSettingSnapshot(agentToolSettingService.enabled(tool.name()), updated)
+        );
     }
 
     @Transactional(readOnly = true)

@@ -159,6 +159,7 @@ export interface AdminAgentTool {
   triggerDescription: string;
   source: string;
   enabled: boolean;
+  minimumRole: 'USER' | 'ADMIN' | string;
   totalCalls: number;
   successCalls: number;
   failedCalls: number;

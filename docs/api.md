@@ -130,6 +130,7 @@ GET   /api/admin/retrieval-channels
 GET   /api/admin/retrieval-processors
 GET   /api/admin/agent-tools
 PATCH /api/admin/agent-tools/{name}/enabled
+PATCH /api/admin/agent-tools/{name}/minimum-role
 GET   /api/admin/chunks?paperId=&keyword=&page=1&pageSize=12
 PATCH /api/admin/chunks/{id}/enabled
 PATCH /api/admin/users/{id}/status
@@ -169,7 +170,7 @@ DELETE /api/admin/sample-prompts/{id}
 
 `GET /api/admin/retrieval-processors` 返回当前注册的检索后处理器目录和运行画像。字段包含 `name`、`label`、`description`、`sortOrder`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`averageInputCount`、`averageOutputCount`、`averageLatencyMs` 和 `lastSeenAt`。后处理器定义来自 `RetrievalPostProcessor` Spring Bean，运行统计从历史 Trace 的 `retrievalProcessors` 聚合，用于观察通道融合、规则精排、模型重排、多样性重排和结果截断等环节的输入输出规模与耗时。
 
-`GET /api/admin/agent-tools` 返回当前 Pipeline 注册的内部工具目录和调用画像。字段包含 `name`、`label`、`description`、`triggerDescription`、`source`、`enabled`、`totalCalls`、`successCalls`、`failedCalls`、`averageLatencyMs` 和 `lastSeenAt`。工具定义来自 Spring Bean 注册表，启停状态来自 `agent_tool_settings`，调用统计从历史 `toolExecutions` Trace 聚合，用于运营侧观察哪些工具可用、如何触发、近期是否失败以及平均耗时。`PATCH /api/admin/agent-tools/{name}/enabled` 请求体为 `{"enabled": false}` 或 `{"enabled": true}`；停用后的工具仍保留在后台目录中，但 `AgentToolRegistry` 不会再把它交给问答链路执行。
+`GET /api/admin/agent-tools` 返回当前 Pipeline 注册的内部工具目录和调用画像。字段包含 `name`、`label`、`description`、`triggerDescription`、`source`、`enabled`、`minimumRole`、`totalCalls`、`successCalls`、`failedCalls`、`averageLatencyMs` 和 `lastSeenAt`。工具定义来自 Spring Bean 注册表，启停状态和最小调用角色来自 `agent_tool_settings`，调用统计从历史 `toolExecutions` Trace 聚合，用于运营侧观察哪些工具可用、如何触发、近期是否失败以及平均耗时。`PATCH /api/admin/agent-tools/{name}/enabled` 请求体为 `{"enabled": false}` 或 `{"enabled": true}`；停用后的工具仍保留在后台目录中，但 `AgentToolRegistry` 不会再把它交给问答链路执行。`PATCH /api/admin/agent-tools/{name}/minimum-role` 请求体为 `{"minimumRole": "ADMIN"}` 或 `{"minimumRole": "USER"}`；限制为 `ADMIN` 后，普通用户问答链路不会匹配该工具，管理员问答仍可调用。
 
 `GET /api/admin/chunks` 返回知识片段分页数据，支持按 `paperId` 和 `keyword` 过滤；`keyword` 会匹配片段正文、论文标题、作者、关键词和用户名。字段包含 `id`、`username`、`paperId`、`paperTitle`、`pageNumber`、`chunkIndex`、`contentPreview`、`contentLength`、`embedded`、`enabled` 和 `createdAt`，用于管理员排查 PDF 入库后的 chunk 内容、页码定位、向量化覆盖和是否参与检索。`PATCH /api/admin/chunks/{id}/enabled` 请求体为 `{"enabled": false}` 或 `{"enabled": true}`；禁用后的片段仍保留在库中和后台列表里，但关键词检索与向量检索都会跳过它。
 
