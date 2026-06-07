@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -27,6 +27,22 @@ export function fetchAdminUsers() {
 
 export function fetchAgentTools() {
   return unwrap<AdminAgentTool[]>(api.get('/api/admin/agent-tools'));
+}
+
+export function fetchAgentToolExecutions(query: {
+  toolName?: string;
+  status?: string;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const params = {
+    ...query,
+    toolName: query.toolName?.trim() || undefined,
+    status: query.status?.trim() || undefined,
+    keyword: query.keyword?.trim() || undefined
+  };
+  return unwrap<PageResponse<AdminAgentToolExecution>>(api.get('/api/admin/agent-tool-executions', { params }));
 }
 
 export function updateAgentToolEnabled(name: string, enabled: boolean) {

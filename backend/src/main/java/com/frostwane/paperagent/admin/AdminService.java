@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolExecutionAuditResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
@@ -604,6 +605,34 @@ public class AdminService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<AgentToolExecutionAuditResponse> agentToolExecutions(
+        User currentUser,
+        String toolName,
+        String status,
+        String keyword,
+        int page,
+        int pageSize
+    ) {
+        requireAdmin(currentUser);
+        int safePage = Math.max(1, page);
+        int safePageSize = Math.max(5, Math.min(80, pageSize));
+        int offset = (safePage - 1) * safePageSize;
+        List<Object> params = new ArrayList<>();
+        String where = agentToolExecutionWhere(toolName, status, keyword, params);
+        long total = numberValue("select count(*) " + agentToolExecutionFromSql() + where, params);
+        List<Object> rowParams = new ArrayList<>(params);
+        rowParams.add(safePageSize);
+        rowParams.add(offset);
+        List<AgentToolExecutionAuditResponse> items = jdbcTemplate.query(
+            agentToolExecutionSelectSql() + where + " order by t.created_at desc, t.id desc, tool.ordinal asc limit ? offset ?",
+            this::mapAgentToolExecution,
+            rowParams.toArray()
+        );
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
+        return new PageResponse<>(items, total, safePage, safePageSize, totalPages);
+    }
+
     @Transactional
     public AgentToolResponse updateAgentToolEnabled(String name, boolean enabled, User currentUser) {
         requireAdmin(currentUser);
@@ -1035,6 +1064,103 @@ public class AdminService {
             rs.getInt("content_length"),
             rs.getBoolean("embedded"),
             rs.getBoolean("enabled"),
+            offsetDateTime(rs, "created_at")
+        );
+    }
+
+    private String agentToolExecutionSelectSql() {
+        return """
+            select
+              t.id as trace_id,
+              u.username,
+              p.id as paper_id,
+              p.title as paper_title,
+              s.id as session_id,
+              s.title as session_title,
+              t.scope,
+              t.question,
+              t.status as trace_status,
+              tool.item->>'name' as name,
+              coalesce(tool.item->>'label', tool.item->>'name', '') as label,
+              coalesce(tool.item->>'status', 'UNKNOWN') as status,
+              coalesce(tool.item->>'summary', '') as summary,
+              coalesce(tool.item->>'details', '') as details,
+              coalesce(
+                case
+                  when jsonb_typeof(tool.item->'latencyMs') = 'number'
+                  then (tool.item->>'latencyMs')::integer
+                  else null
+                end,
+                0
+              ) as latency_ms,
+              tool.item->>'errorMessage' as error_message,
+              t.created_at
+            """ + agentToolExecutionFromSql();
+    }
+
+    private String agentToolExecutionFromSql() {
+        return """
+            from rag_traces t
+            join users u on u.id = t.owner_id
+            left join papers p on p.id = t.paper_id
+            left join chat_sessions s on s.id = t.session_id
+            cross join lateral jsonb_array_elements(coalesce(t.tool_executions_json, '[]'::jsonb)) with ordinality as tool(item, ordinal)
+            """;
+    }
+
+    private String agentToolExecutionWhere(String toolName, String status, String keyword, List<Object> params) {
+        StringBuilder where = new StringBuilder(" where coalesce(tool.item->>'name', '') <> ''");
+        String normalizedToolName = compact(toolName, 120);
+        if (normalizedToolName != null) {
+            where.append(" and lower(tool.item->>'name') = ?");
+            params.add(normalizedToolName.toLowerCase(Locale.ROOT));
+        }
+        String normalizedStatus = compact(status, 32);
+        if (normalizedStatus != null) {
+            where.append(" and upper(coalesce(tool.item->>'status', 'UNKNOWN')) = ?");
+            params.add(normalizedStatus.toUpperCase(Locale.ROOT));
+        }
+        String normalizedKeyword = compact(keyword, 160);
+        if (normalizedKeyword != null) {
+            String pattern = "%" + normalizedKeyword.toLowerCase(Locale.ROOT) + "%";
+            where.append("""
+                 and (
+                   lower(t.question) like ?
+                   or lower(coalesce(tool.item->>'summary', '')) like ?
+                   or lower(coalesce(tool.item->>'details', '')) like ?
+                   or lower(coalesce(tool.item->>'errorMessage', '')) like ?
+                   or lower(coalesce(tool.item->>'label', '')) like ?
+                   or lower(coalesce(tool.item->>'name', '')) like ?
+                   or lower(coalesce(s.title, '')) like ?
+                   or lower(coalesce(p.title, '')) like ?
+                   or lower(u.username) like ?
+                 )
+                """);
+            for (int i = 0; i < 9; i++) {
+                params.add(pattern);
+            }
+        }
+        return where.toString();
+    }
+
+    private AgentToolExecutionAuditResponse mapAgentToolExecution(ResultSet rs, int rowNum) throws SQLException {
+        return new AgentToolExecutionAuditResponse(
+            rs.getLong("trace_id"),
+            rs.getString("username"),
+            nullableLong(rs, "paper_id"),
+            rs.getString("paper_title"),
+            nullableLong(rs, "session_id"),
+            rs.getString("session_title"),
+            rs.getString("scope"),
+            rs.getString("question"),
+            rs.getString("trace_status"),
+            rs.getString("name"),
+            rs.getString("label"),
+            rs.getString("status"),
+            rs.getString("summary"),
+            rs.getString("details"),
+            rs.getInt("latency_ms"),
+            rs.getString("error_message"),
             offsetDateTime(rs, "created_at")
         );
     }

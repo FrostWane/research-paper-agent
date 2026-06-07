@@ -167,6 +167,26 @@ export interface AdminAgentTool {
   lastSeenAt?: string;
 }
 
+export interface AdminAgentToolExecution {
+  traceId: number;
+  username: string;
+  paperId?: number;
+  paperTitle?: string;
+  sessionId?: number;
+  sessionTitle?: string;
+  scope: 'PAPER' | 'LIBRARY' | string;
+  question: string;
+  traceStatus: 'SUCCESS' | 'FAILED' | string;
+  name: string;
+  label: string;
+  status: 'SUCCESS' | 'FAILED' | string;
+  summary?: string;
+  details?: string;
+  latencyMs: number;
+  errorMessage?: string;
+  createdAt: string;
+}
+
 export interface AdminAgentPipelineNode {
   pipelineName: string;
   type: string;

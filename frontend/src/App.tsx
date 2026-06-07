@@ -58,6 +58,7 @@ import {
   fetchAdminParseJobs,
   fetchAdminTraces,
   fetchAnswerPromptTemplates,
+  fetchAgentToolExecutions,
   fetchAgentPipelineNodes,
   fetchAgentTools,
   fetchIntentRoutes,
@@ -96,7 +97,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -225,6 +226,11 @@ type AdminTraceFilters = {
   sessionId: string;
   keyword: string;
 };
+type AdminAgentToolExecutionFilters = {
+  toolName: string;
+  status: string;
+  keyword: string;
+};
 type AdminChunkFilters = {
   paperId: string;
   keyword: string;
@@ -261,6 +267,11 @@ const defaultTraceFilters: AdminTraceFilters = {
   sessionId: '',
   keyword: ''
 };
+const defaultAgentToolExecutionFilters: AdminAgentToolExecutionFilters = {
+  toolName: '',
+  status: '',
+  keyword: ''
+};
 const defaultChunkFilters: AdminChunkFilters = {
   paperId: '',
   keyword: ''
@@ -293,6 +304,8 @@ export default function App() {
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminTracePage, setAdminTracePage] = useState<PageResponse<AdminTrace> | null>(null);
   const [adminTraceFilters, setAdminTraceFilters] = useState<AdminTraceFilters>(defaultTraceFilters);
+  const [agentToolExecutionPage, setAgentToolExecutionPage] = useState<PageResponse<AdminAgentToolExecution> | null>(null);
+  const [agentToolExecutionFilters, setAgentToolExecutionFilters] = useState<AdminAgentToolExecutionFilters>(defaultAgentToolExecutionFilters);
   const [adminChunkPage, setAdminChunkPage] = useState<PageResponse<AdminChunk> | null>(null);
   const [adminChunkFilters, setAdminChunkFilters] = useState<AdminChunkFilters>(defaultChunkFilters);
   const [adminParseJobPage, setAdminParseJobPage] = useState<PageResponse<AdminParseJob> | null>(null);
@@ -480,6 +493,8 @@ export default function App() {
     setAdminOverview(null);
     setAdminTracePage(null);
     setAdminTraceFilters(defaultTraceFilters);
+    setAgentToolExecutionPage(null);
+    setAgentToolExecutionFilters(defaultAgentToolExecutionFilters);
     setAdminChunkPage(null);
     setAdminChunkFilters(defaultChunkFilters);
     setAdminParseJobPage(null);
@@ -789,9 +804,10 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, chunks, parseJobs, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, toolExecutions, chunks, parseJobs, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
+        fetchAgentToolExecutions({ ...agentToolExecutionFilters, page: agentToolExecutionPage?.page ?? 1, pageSize: agentToolExecutionPage?.pageSize ?? 10 }),
         fetchAdminChunks({ ...adminChunkFilters, page: adminChunkPage?.page ?? 1, pageSize: adminChunkPage?.pageSize ?? 8 }),
         fetchAdminParseJobs({ ...adminParseJobFilters, page: adminParseJobPage?.page ?? 1, pageSize: adminParseJobPage?.pageSize ?? 10 }),
         fetchAdminUsers(),
@@ -809,6 +825,7 @@ export default function App() {
       ]);
       setAdminOverview(overview);
       setAdminTracePage(traces);
+      setAgentToolExecutionPage(toolExecutions);
       setAdminChunkPage(chunks);
       setAdminParseJobPage(parseJobs);
       setAdminUsers(users);
@@ -847,6 +864,25 @@ export default function App() {
     const nextFilters = { ...adminTraceFilters, ...patch };
     setAdminTraceFilters(nextFilters);
     await loadAdminTracePage(nextFilters, 1);
+  }
+
+  async function loadAgentToolExecutionPage(nextFilters = agentToolExecutionFilters, page = agentToolExecutionPage?.page ?? 1) {
+    try {
+      setAdminLoading(true);
+      setError('');
+      const executions = await fetchAgentToolExecutions({ ...nextFilters, page, pageSize: agentToolExecutionPage?.pageSize ?? 10 });
+      setAgentToolExecutionPage(executions);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleAgentToolExecutionFilterChange(patch: Partial<AdminAgentToolExecutionFilters>) {
+    const nextFilters = { ...agentToolExecutionFilters, ...patch };
+    setAgentToolExecutionFilters(nextFilters);
+    await loadAgentToolExecutionPage(nextFilters, 1);
   }
 
   async function loadAdminChunkPage(nextFilters = adminChunkFilters, page = adminChunkPage?.page ?? 1) {
@@ -1503,6 +1539,8 @@ export default function App() {
             overview={adminOverview}
             tracePage={adminTracePage}
             traceFilters={adminTraceFilters}
+            agentToolExecutionPage={agentToolExecutionPage}
+            agentToolExecutionFilters={agentToolExecutionFilters}
             chunkPage={adminChunkPage}
             chunkFilters={adminChunkFilters}
             parseJobPage={adminParseJobPage}
@@ -1524,6 +1562,8 @@ export default function App() {
             onRefresh={() => void loadAdminData()}
             onTraceFilterChange={(patch) => void handleAdminTraceFilterChange(patch)}
             onTracePageChange={(page) => void loadAdminTracePage(adminTraceFilters, page)}
+            onAgentToolExecutionFilterChange={(patch) => void handleAgentToolExecutionFilterChange(patch)}
+            onAgentToolExecutionPageChange={(page) => void loadAgentToolExecutionPage(agentToolExecutionFilters, page)}
             onChunkFilterChange={(patch) => void handleAdminChunkFilterChange(patch)}
             onChunkPageChange={(page) => void loadAdminChunkPage(adminChunkFilters, page)}
             onParseJobFilterChange={(patch) => void handleAdminParseJobFilterChange(patch)}
@@ -2194,6 +2234,8 @@ function AdminView({
   overview,
   tracePage,
   traceFilters,
+  agentToolExecutionPage,
+  agentToolExecutionFilters,
   chunkPage,
   chunkFilters,
   parseJobPage,
@@ -2215,6 +2257,8 @@ function AdminView({
   onRefresh,
   onTraceFilterChange,
   onTracePageChange,
+  onAgentToolExecutionFilterChange,
+  onAgentToolExecutionPageChange,
   onChunkFilterChange,
   onChunkPageChange,
   onParseJobFilterChange,
@@ -2244,6 +2288,8 @@ function AdminView({
   overview: AdminOverview | null;
   tracePage: PageResponse<AdminTrace> | null;
   traceFilters: AdminTraceFilters;
+  agentToolExecutionPage: PageResponse<AdminAgentToolExecution> | null;
+  agentToolExecutionFilters: AdminAgentToolExecutionFilters;
   chunkPage: PageResponse<AdminChunk> | null;
   chunkFilters: AdminChunkFilters;
   parseJobPage: PageResponse<AdminParseJob> | null;
@@ -2265,6 +2311,8 @@ function AdminView({
   onRefresh: () => void;
   onTraceFilterChange: (patch: Partial<AdminTraceFilters>) => void;
   onTracePageChange: (page: number) => void;
+  onAgentToolExecutionFilterChange: (patch: Partial<AdminAgentToolExecutionFilters>) => void;
+  onAgentToolExecutionPageChange: (page: number) => void;
   onChunkFilterChange: (patch: Partial<AdminChunkFilters>) => void;
   onChunkPageChange: (page: number) => void;
   onParseJobFilterChange: (patch: Partial<AdminParseJobFilters>) => void;
@@ -2421,6 +2469,15 @@ function AdminView({
         onEnabledChange={onAgentToolEnabledChange}
         onMinimumRoleChange={onAgentToolMinimumRoleChange}
         loading={loading}
+      />
+
+      <AgentToolExecutionPanel
+        page={agentToolExecutionPage}
+        filters={agentToolExecutionFilters}
+        tools={agentTools}
+        loading={loading}
+        onFilterChange={onAgentToolExecutionFilterChange}
+        onPageChange={onAgentToolExecutionPageChange}
       />
 
       <ModelTargetPanel
@@ -3393,6 +3450,128 @@ function AgentToolPanel({
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function AgentToolExecutionPanel({
+  page,
+  filters,
+  tools,
+  loading,
+  onFilterChange,
+  onPageChange
+}: {
+  page: PageResponse<AdminAgentToolExecution> | null;
+  filters: AdminAgentToolExecutionFilters;
+  tools: AdminAgentTool[];
+  loading: boolean;
+  onFilterChange: (patch: Partial<AdminAgentToolExecutionFilters>) => void;
+  onPageChange: (page: number) => void;
+}) {
+  const [draft, setDraft] = useState<AdminAgentToolExecutionFilters>(filters);
+  const executions = page?.items ?? [];
+  const currentPage = page?.page ?? 1;
+  const totalPages = page?.totalPages ?? 0;
+  const total = page?.total ?? 0;
+
+  useEffect(() => {
+    setDraft(filters);
+  }, [filters.toolName, filters.status, filters.keyword]);
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onFilterChange(draft);
+  }
+
+  return (
+    <div className="admin-panel admin-agent-tool-execution-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>Agent 工具调用审计</h3>
+          <p>按工具、状态和关键词追踪最近工具调用，定位触发问题、失败原因和耗时。</p>
+        </div>
+        <History size={18} />
+      </div>
+      <form className="admin-trace-filter agent-tool-execution-filter" onSubmit={submit}>
+        <label>
+          <span>工具</span>
+          <select value={draft.toolName} onChange={(event) => setDraft((current) => ({ ...current, toolName: event.target.value }))}>
+            <option value="">全部</option>
+            {tools.map((tool) => (
+              <option value={tool.name} key={`audit-tool-${tool.name}`}>
+                {tool.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>状态</span>
+          <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}>
+            <option value="">全部</option>
+            <option value="SUCCESS">成功</option>
+            <option value="FAILED">失败</option>
+          </select>
+        </label>
+        <label className="trace-filter-keyword">
+          <span>关键词</span>
+          <input value={draft.keyword} placeholder="问题、摘要、详情、错误、用户" onChange={(event) => setDraft((current) => ({ ...current, keyword: event.target.value }))} />
+        </label>
+        <button className="secondary-button compact-action" type="submit" disabled={loading}>
+          查询
+        </button>
+        <button
+          className="secondary-button compact-action"
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            setDraft(defaultAgentToolExecutionFilters);
+            onFilterChange(defaultAgentToolExecutionFilters);
+          }}
+        >
+          重置
+        </button>
+      </form>
+      <div className="admin-trace-explorer-meta agent-tool-execution-meta">
+        <span>{total} 条工具调用</span>
+        <span>第 {totalPages === 0 ? 0 : currentPage} / {totalPages} 页</span>
+      </div>
+      <div className="agent-tool-execution-list">
+        {executions.length === 0 ? (
+          <EmptyState compact title="暂无工具调用" detail="触发一次带工具结果的问答后会显示在这里。" />
+        ) : (
+          executions.map((execution) => (
+            <div className={`agent-tool-execution-row ${execution.status === 'FAILED' ? 'is-failed' : ''}`} key={`${execution.traceId}-${execution.name}-${execution.createdAt}`}>
+              <strong className={`admin-trace-status ${execution.status === 'SUCCESS' ? 'is-success' : 'is-failed'}`}>
+                {execution.status === 'SUCCESS' ? '成功' : '失败'}
+              </strong>
+              <span className="agent-tool-execution-main">
+                <b>{execution.label || execution.name}</b>
+                <small>{execution.name} · Trace #{execution.traceId} · {traceStatusLabel(execution.traceStatus)}</small>
+              </span>
+              <span className="agent-tool-execution-question">
+                <b>{compactText(execution.question, 96)}</b>
+                <small>
+                  {execution.username} · {scopeLabel(execution.scope)} · {execution.sessionTitle ? `会话：${execution.sessionTitle} · ` : ''}{execution.paperTitle || '全库知识库'} · {formatTime(execution.createdAt)}
+                </small>
+              </span>
+              <span className="agent-tool-execution-summary" title={execution.errorMessage || execution.details || execution.summary || ''}>
+                <b>{execution.status === 'SUCCESS' ? compactText(execution.summary || '已执行', 72) : compactText(execution.errorMessage || '执行失败', 72)}</b>
+                <small>{execution.details ? compactText(execution.details, 96) : execution.errorMessage ? compactText(execution.errorMessage, 96) : '-'}</small>
+              </span>
+              <strong>{formatLatency(execution.latencyMs)}</strong>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="admin-trace-pagination agent-tool-execution-pagination">
+        <button className="secondary-button compact-action" type="button" disabled={loading || currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+          上一页
+        </button>
+        <button className="secondary-button compact-action" type="button" disabled={loading || totalPages === 0 || currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          下一页
+        </button>
       </div>
     </div>
   );

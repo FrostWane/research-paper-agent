@@ -7,6 +7,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolEnabledRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolExecutionAuditResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolMinimumRoleRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
@@ -116,6 +117,24 @@ public class AdminController {
     @GetMapping("/agent-tools")
     public ApiResponse<List<AgentToolResponse>> agentTools() {
         return ApiResponse.ok(adminService.agentTools(currentUserService.getRequiredUser()));
+    }
+
+    @GetMapping("/agent-tool-executions")
+    public ApiResponse<PageResponse<AgentToolExecutionAuditResponse>> agentToolExecutions(
+        @RequestParam(defaultValue = "") String toolName,
+        @RequestParam(defaultValue = "") String status,
+        @RequestParam(defaultValue = "") String keyword,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "12") int pageSize
+    ) {
+        return ApiResponse.ok(adminService.agentToolExecutions(
+            currentUserService.getRequiredUser(),
+            toolName,
+            status,
+            keyword,
+            page,
+            pageSize
+        ));
     }
 
     @PatchMapping("/agent-tools/{name}/enabled")

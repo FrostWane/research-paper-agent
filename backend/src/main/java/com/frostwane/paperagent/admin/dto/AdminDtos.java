@@ -119,6 +119,27 @@ public final class AdminDtos {
     ) {
     }
 
+    public record AgentToolExecutionAuditResponse(
+        Long traceId,
+        String username,
+        Long paperId,
+        String paperTitle,
+        Long sessionId,
+        String sessionTitle,
+        String scope,
+        String question,
+        String traceStatus,
+        String name,
+        String label,
+        String status,
+        String summary,
+        String details,
+        int latencyMs,
+        String errorMessage,
+        OffsetDateTime createdAt
+    ) {
+    }
+
     public record AgentPipelineNodeResponse(
         String pipelineName,
         String type,

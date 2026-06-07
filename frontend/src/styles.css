@@ -1332,6 +1332,7 @@ select,
 .ingestion-pipeline-list,
 .retrieval-catalog-list,
 .agent-tool-list,
+.agent-tool-execution-list,
 .admin-chunk-list,
 .admin-recent-list,
 .admin-user-table,
@@ -1503,6 +1504,7 @@ select,
 .admin-ingestion-pipeline-panel,
 .admin-retrieval-catalog-panel,
 .admin-agent-tool-panel,
+.admin-agent-tool-execution-panel,
 .admin-chunk-panel {
   overflow-x: auto;
 }
@@ -1915,6 +1917,82 @@ select,
 .agent-tool-row > strong:last-of-type,
 .agent-tool-row .secondary-button {
   justify-self: end;
+}
+
+.agent-tool-execution-filter {
+  grid-template-columns: minmax(150px, .8fr) minmax(120px, .45fr) minmax(280px, 1.8fr) auto auto;
+  min-width: 980px;
+  padding: 14px 14px 0;
+  margin-bottom: 8px;
+}
+
+.agent-tool-execution-meta {
+  min-width: 980px;
+  padding: 0 14px;
+}
+
+.agent-tool-execution-list {
+  display: grid;
+  gap: 8px;
+  min-width: 980px;
+}
+
+.agent-tool-execution-row {
+  display: grid;
+  grid-template-columns: 62px minmax(150px, .7fr) minmax(280px, 1.3fr) minmax(300px, 1.5fr) 76px;
+  align-items: center;
+  gap: 10px;
+  min-height: 66px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.agent-tool-execution-row.is-failed {
+  background: #fff7f7;
+  border-color: #fecaca;
+}
+
+.agent-tool-execution-row > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agent-tool-execution-row b,
+.agent-tool-execution-row small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-tool-execution-row b {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.agent-tool-execution-row small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-tool-execution-row > strong:last-child {
+  justify-self: end;
+}
+
+.agent-tool-execution-summary b {
+  color: #334155;
+}
+
+.agent-tool-execution-row.is-failed .agent-tool-execution-summary b {
+  color: var(--red);
+}
+
+.agent-tool-execution-pagination {
+  min-width: 980px;
+  padding: 10px 14px 0;
 }
 
 .admin-query-mapping-panel {
