@@ -8,6 +8,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolExecutionAuditRespo
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AdminDailyTrendResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ChatRateLimitResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.GuidanceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IngestionPipelineNodeResponse;
@@ -163,6 +164,7 @@ public class AdminService {
             count("select count(*) from parse_jobs"),
             count("select count(*) from parse_jobs where status = 'FAILED'"),
             intValue("select coalesce(round(avg(duration_ms)), 0) from parse_jobs where finished_at is not null"),
+            dailyTrends(),
             processStatuses(),
             modelUsage(),
             modelHealth(),
@@ -940,6 +942,105 @@ public class AdminService {
             group by process_status
             order by total desc, process_status asc
             """, (rs, rowNum) -> new StatusCountResponse(rs.getString("process_status"), rs.getLong("total")));
+    }
+
+    private List<AdminDailyTrendResponse> dailyTrends() {
+        return jdbcTemplate.query("""
+            with days as (
+              select generate_series(current_date - interval '6 days', current_date, interval '1 day')::date as day
+            ),
+            new_users as (
+              select date_trunc('day', created_at)::date as day, count(*) as total
+              from users
+              where created_at >= current_date - interval '6 days'
+              group by date_trunc('day', created_at)::date
+            ),
+            new_papers as (
+              select date_trunc('day', created_at)::date as day, count(*) as total
+              from papers
+              where created_at >= current_date - interval '6 days'
+              group by date_trunc('day', created_at)::date
+            ),
+            new_chats as (
+              select date_trunc('day', created_at)::date as day, count(*) as total
+              from chat_records
+              where created_at >= current_date - interval '6 days'
+              group by date_trunc('day', created_at)::date
+            ),
+            successful_traces as (
+              select date_trunc('day', created_at)::date as day, count(*) as total
+              from rag_traces
+              where created_at >= current_date - interval '6 days'
+                and status = 'SUCCESS'
+              group by date_trunc('day', created_at)::date
+            ),
+            failed_traces as (
+              select date_trunc('day', created_at)::date as day, count(*) as total
+              from rag_traces
+              where created_at >= current_date - interval '6 days'
+                and status = 'FAILED'
+              group by date_trunc('day', created_at)::date
+            ),
+            trace_latency as (
+              select date_trunc('day', created_at)::date as day, coalesce(round(avg(total_ms)), 0) as average_ms
+              from rag_traces
+              where created_at >= current_date - interval '6 days'
+              group by date_trunc('day', created_at)::date
+            ),
+            parse_jobs_daily as (
+              select date_trunc('day', started_at)::date as day, count(*) as total
+              from parse_jobs
+              where started_at >= current_date - interval '6 days'
+              group by date_trunc('day', started_at)::date
+            ),
+            failed_parse_jobs as (
+              select date_trunc('day', started_at)::date as day, count(*) as total
+              from parse_jobs
+              where started_at >= current_date - interval '6 days'
+                and status = 'FAILED'
+              group by date_trunc('day', started_at)::date
+            ),
+            parse_latency as (
+              select date_trunc('day', started_at)::date as day, coalesce(round(avg(duration_ms)), 0) as average_ms
+              from parse_jobs
+              where started_at >= current_date - interval '6 days'
+                and finished_at is not null
+              group by date_trunc('day', started_at)::date
+            )
+            select
+              to_char(days.day, 'YYYY-MM-DD') as day,
+              coalesce(new_users.total, 0) as new_users,
+              coalesce(new_papers.total, 0) as new_papers,
+              coalesce(new_chats.total, 0) as new_chats,
+              coalesce(successful_traces.total, 0) as successful_traces,
+              coalesce(failed_traces.total, 0) as failed_traces,
+              coalesce(parse_jobs_daily.total, 0) as parse_jobs,
+              coalesce(failed_parse_jobs.total, 0) as failed_parse_jobs,
+              coalesce(trace_latency.average_ms, 0) as average_trace_ms,
+              coalesce(parse_latency.average_ms, 0) as average_parse_ms
+            from days
+            left join new_users on new_users.day = days.day
+            left join new_papers on new_papers.day = days.day
+            left join new_chats on new_chats.day = days.day
+            left join successful_traces on successful_traces.day = days.day
+            left join failed_traces on failed_traces.day = days.day
+            left join trace_latency on trace_latency.day = days.day
+            left join parse_jobs_daily on parse_jobs_daily.day = days.day
+            left join failed_parse_jobs on failed_parse_jobs.day = days.day
+            left join parse_latency on parse_latency.day = days.day
+            order by days.day asc
+            """, (rs, rowNum) -> new AdminDailyTrendResponse(
+            rs.getString("day"),
+            rs.getLong("new_users"),
+            rs.getLong("new_papers"),
+            rs.getLong("new_chats"),
+            rs.getLong("successful_traces"),
+            rs.getLong("failed_traces"),
+            rs.getLong("parse_jobs"),
+            rs.getLong("failed_parse_jobs"),
+            rs.getInt("average_trace_ms"),
+            rs.getInt("average_parse_ms")
+        ));
     }
 
     private List<ModelUsageResponse> modelUsage() {

@@ -142,6 +142,19 @@ export interface AdminStatusCount {
   count: number;
 }
 
+export interface AdminDailyTrend {
+  day: string;
+  newUsers: number;
+  newPapers: number;
+  newChats: number;
+  successfulTraces: number;
+  failedTraces: number;
+  parseJobs: number;
+  failedParseJobs: number;
+  averageTraceMs: number;
+  averageParseMs: number;
+}
+
 export interface AdminModelUsage {
   modelName: string;
   count: number;
@@ -462,6 +475,7 @@ export interface AdminOverview {
   totalParseJobs: number;
   failedParseJobs: number;
   averageParseMs: number;
+  dailyTrends: AdminDailyTrend[];
   processStatuses: AdminStatusCount[];
   modelUsage: AdminModelUsage[];
   modelHealth: AdminModelHealth[];

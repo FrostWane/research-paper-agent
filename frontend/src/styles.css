@@ -1301,6 +1301,104 @@ select,
   font-style: normal;
 }
 
+.admin-trend-panel {
+  min-width: 0;
+}
+
+.admin-trend-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+}
+
+.admin-trend-card {
+  display: grid;
+  grid-template-rows: auto 88px auto;
+  gap: 10px;
+  min-width: 0;
+  min-height: 176px;
+  padding: 13px;
+  background: #ffffff;
+  border: 1px solid #dbe7ef;
+  border-radius: 8px;
+}
+
+.admin-trend-card.is-risk {
+  background: #fffafa;
+  border-color: #fecaca;
+}
+
+.admin-trend-card.is-latency {
+  background: #f8fbff;
+  border-color: #bfdbfe;
+}
+
+.admin-trend-card-head {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-trend-card-head span,
+.admin-trend-card-head em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-trend-card-head strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 22px;
+}
+
+.admin-trend-bars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(8px, 1fr));
+  align-items: end;
+  gap: 5px;
+  min-height: 88px;
+}
+
+.admin-trend-bars span {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  height: 88px;
+  overflow: hidden;
+  background: #edf2f7;
+  border-radius: 999px;
+}
+
+.admin-trend-bars i {
+  width: 100%;
+  min-height: 5px;
+  background: linear-gradient(180deg, #14b8a6, #2563eb);
+  border-radius: inherit;
+}
+
+.admin-trend-card.is-risk .admin-trend-bars i {
+  background: linear-gradient(180deg, #fb7185, #dc2626);
+}
+
+.admin-trend-card.is-latency .admin-trend-bars i {
+  background: linear-gradient(180deg, #60a5fa, #4f46e5);
+}
+
+.admin-trend-axis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -3459,6 +3557,10 @@ select,
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .admin-trend-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .admin-grid,
   .admin-grid.wide {
     grid-template-columns: 1fr;
@@ -3577,6 +3679,7 @@ select,
 
   .metrics,
   .admin-stat-grid,
+  .admin-trend-grid,
   .library-chat-prompts,
   .library-scope-grid,
   .paper-list,

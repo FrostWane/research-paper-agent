@@ -34,6 +34,7 @@ import {
   SlidersHorizontal,
   ThumbsDown,
   ThumbsUp,
+  TrendingUp,
   Trash2,
   UserCog,
   Users,
@@ -99,7 +100,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChatRateLimit, AdminChunk, AdminDailyTrend, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -2425,6 +2426,8 @@ function AdminView({
         <AdminStat icon={CircleStop} label="流式任务" value={overview?.activeStreamTasks?.length ?? 0} detail={(overview?.activeStreamTasks?.length ?? 0) > 0 ? '运行中或排队中' : '暂无活跃任务'} />
         <AdminStat icon={CheckCircle2} label="质量均分" value={overview?.averageAnswerQualityScore ?? 0} detail="成功 Trace 的评估分" />
       </div>
+
+      <AdminDailyTrendPanel trends={overview?.dailyTrends ?? []} />
 
       <div className="admin-grid">
         <div className="admin-panel">
@@ -4875,6 +4878,79 @@ function AdminStat({ icon: Icon, label, value, detail }: { icon: LucideIcon; lab
   );
 }
 
+function AdminDailyTrendPanel({ trends }: { trends: AdminDailyTrend[] }) {
+  const safeTrends = trends.length > 0 ? trends : emptyDailyTrends();
+  const chatTotal = trendSum(safeTrends, 'newChats');
+  const paperTotal = trendSum(safeTrends, 'newPapers');
+  const userTotal = trendSum(safeTrends, 'newUsers');
+  const failedTraceTotal = trendSum(safeTrends, 'failedTraces');
+  const latestLatency = latestTrendValue(safeTrends, 'averageTraceMs');
+
+  return (
+    <div className="admin-panel admin-trend-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>运营趋势</h3>
+          <p>最近 7 天新增、问答、失败链路和响应耗时。</p>
+        </div>
+        <TrendingUp size={18} />
+      </div>
+      <div className="admin-trend-grid">
+        <AdminTrendCard label="新增用户" value={userTotal} detail="7 天累计" trends={safeTrends} field="newUsers" />
+        <AdminTrendCard label="新增文献" value={paperTotal} detail="7 天累计" trends={safeTrends} field="newPapers" />
+        <AdminTrendCard label="问答量" value={chatTotal} detail="7 天累计" trends={safeTrends} field="newChats" />
+        <AdminTrendCard label="失败 Trace" value={failedTraceTotal} detail="需要排查" trends={safeTrends} field="failedTraces" tone="risk" />
+        <AdminTrendCard label="链路耗时" value={formatLatency(latestLatency)} detail="最近一天均值" trends={safeTrends} field="averageTraceMs" formatter={formatLatency} tone="latency" />
+      </div>
+    </div>
+  );
+}
+
+function AdminTrendCard({
+  label,
+  value,
+  detail,
+  trends,
+  field,
+  formatter = (item: number) => String(item),
+  tone = 'normal'
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  trends: AdminDailyTrend[];
+  field: keyof AdminDailyTrend;
+  formatter?: (value: number) => string;
+  tone?: 'normal' | 'risk' | 'latency';
+}) {
+  const values = trends.map((item) => Number(item[field]) || 0);
+  const maxValue = Math.max(...values, 1);
+
+  return (
+    <div className={`admin-trend-card is-${tone}`}>
+      <div className="admin-trend-card-head">
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <em>{detail}</em>
+      </div>
+      <div className="admin-trend-bars" aria-hidden="true">
+        {trends.map((item) => {
+          const rawValue = Number(item[field]) || 0;
+          return (
+            <span key={`${label}-${item.day}`} title={`${shortTrendDate(item.day)} ${formatter(rawValue)}`}>
+              <i style={{ height: `${trendBarHeight(rawValue, maxValue)}%` }} />
+            </span>
+          );
+        })}
+      </div>
+      <div className="admin-trend-axis">
+        <span>{shortTrendDate(trends[0]?.day)}</span>
+        <span>{shortTrendDate(trends[trends.length - 1]?.day)}</span>
+      </div>
+    </div>
+  );
+}
+
 function Field({
   label,
   value,
@@ -5140,6 +5216,60 @@ function modelCircuitStateLabel(state: string) {
 
 function modelCircuitCanReset(model: AdminModelHealth) {
   return model.circuitState !== 'CLOSED' || model.consecutiveFailures > 0;
+}
+
+function emptyDailyTrends(): AdminDailyTrend[] {
+  const today = new Date();
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - 6 + index);
+    return {
+      day: localDateKey(date),
+      newUsers: 0,
+      newPapers: 0,
+      newChats: 0,
+      successfulTraces: 0,
+      failedTraces: 0,
+      parseJobs: 0,
+      failedParseJobs: 0,
+      averageTraceMs: 0,
+      averageParseMs: 0
+    };
+  });
+}
+
+function trendSum(trends: AdminDailyTrend[], field: keyof AdminDailyTrend) {
+  return trends.reduce((sum, item) => sum + (Number(item[field]) || 0), 0);
+}
+
+function latestTrendValue(trends: AdminDailyTrend[], field: keyof AdminDailyTrend) {
+  const latest = trends[trends.length - 1];
+  return latest ? Number(latest[field]) || 0 : 0;
+}
+
+function trendBarHeight(value: number, maxValue: number) {
+  if (value <= 0 || maxValue <= 0) {
+    return 6;
+  }
+  return Math.max(16, Math.round((value / maxValue) * 100));
+}
+
+function shortTrendDate(day?: string) {
+  if (!day) {
+    return '';
+  }
+  const parts = day.split('-');
+  if (parts.length !== 3) {
+    return day;
+  }
+  return `${Number(parts[1])}/${Number(parts[2])}`;
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function parseJobStatusLabel(status: string) {

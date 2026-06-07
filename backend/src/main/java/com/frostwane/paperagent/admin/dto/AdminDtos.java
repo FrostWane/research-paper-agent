@@ -54,6 +54,7 @@ public final class AdminDtos {
         long totalParseJobs,
         long failedParseJobs,
         int averageParseMs,
+        List<AdminDailyTrendResponse> dailyTrends,
         List<StatusCountResponse> processStatuses,
         List<ModelUsageResponse> modelUsage,
         List<ModelHealthResponse> modelHealth,
@@ -66,6 +67,20 @@ public final class AdminDtos {
     public record StatusCountResponse(
         String status,
         long count
+    ) {
+    }
+
+    public record AdminDailyTrendResponse(
+        String day,
+        long newUsers,
+        long newPapers,
+        long newChats,
+        long successfulTraces,
+        long failedTraces,
+        long parseJobs,
+        long failedParseJobs,
+        int averageTraceMs,
+        int averageParseMs
     ) {
     }
 
