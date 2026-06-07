@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatStreamTask, EvaluationCase, EvaluationDataset, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatStreamTask, EvaluationCase, EvaluationCaseResult, EvaluationDataset, EvaluationRun, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -322,6 +322,28 @@ export function createEvaluationCaseFromTrace(input: {
   enabled?: boolean;
 }) {
   return unwrap<EvaluationCase>(api.post('/api/admin/evaluation-cases/from-trace', input));
+}
+
+export function fetchEvaluationRuns(query: {
+  datasetId?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const params = {
+    ...query,
+    datasetId: query.datasetId?.trim() || undefined,
+    status: query.status?.trim() || undefined
+  };
+  return unwrap<PageResponse<EvaluationRun>>(api.get('/api/admin/evaluation-runs', { params }));
+}
+
+export function startEvaluationRun(input: { datasetId: number; runName?: string }) {
+  return unwrap<EvaluationRun>(api.post('/api/admin/evaluation-runs', input));
+}
+
+export function fetchEvaluationRunResults(runId: number, query: { page?: number; pageSize?: number }) {
+  return unwrap<PageResponse<EvaluationCaseResult>>(api.get(`/api/admin/evaluation-runs/${runId}/results`, { params: query }));
 }
 
 export function resetModelCircuit(targetName: string) {

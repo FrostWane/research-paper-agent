@@ -630,6 +630,56 @@ public final class AdminDtos {
     ) {
     }
 
+    public record EvaluationRunResponse(
+        Long id,
+        Long datasetId,
+        String datasetCode,
+        String datasetName,
+        String triggeredBy,
+        String runName,
+        String status,
+        int caseCount,
+        int completedCount,
+        int passedCount,
+        double averageScore,
+        OffsetDateTime startedAt,
+        OffsetDateTime finishedAt,
+        int durationMs,
+        String errorMessage,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record EvaluationRunRequest(
+        @NotNull Long datasetId,
+        @Size(max = 180) String runName
+    ) {
+    }
+
+    public record EvaluationCaseResultResponse(
+        Long id,
+        Long runId,
+        Long caseId,
+        String question,
+        String datasetCode,
+        String status,
+        int score,
+        double answerSimilarity,
+        double sourceCoverage,
+        int matchedSources,
+        int expectedSources,
+        String expectedAnswer,
+        String actualAnswer,
+        String expectedSourcesJson,
+        String actualSourcesJson,
+        int latencyMs,
+        String modelName,
+        String errorMessage,
+        OffsetDateTime createdAt
+    ) {
+    }
+
     public record RagSettingsResponse(
         int candidateLimit,
         int resultLimit,

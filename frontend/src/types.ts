@@ -261,6 +261,48 @@ export interface EvaluationCase {
   updatedAt: string;
 }
 
+export interface EvaluationRun {
+  id: number;
+  datasetId: number;
+  datasetCode: string;
+  datasetName: string;
+  triggeredBy?: string;
+  runName?: string;
+  status: 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED' | string;
+  caseCount: number;
+  completedCount: number;
+  passedCount: number;
+  averageScore: number;
+  startedAt?: string;
+  finishedAt?: string;
+  durationMs: number;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EvaluationCaseResult {
+  id: number;
+  runId: number;
+  caseId?: number;
+  question?: string;
+  datasetCode?: string;
+  status: 'PASS' | 'REVIEW' | 'FAIL' | 'ERROR' | string;
+  score: number;
+  answerSimilarity: number;
+  sourceCoverage: number;
+  matchedSources: number;
+  expectedSources: number;
+  expectedAnswer?: string;
+  actualAnswer?: string;
+  expectedSourcesJson: string;
+  actualSourcesJson: string;
+  latencyMs: number;
+  modelName?: string;
+  errorMessage?: string;
+  createdAt: string;
+}
+
 export interface AdminAgentPipelineNode {
   pipelineName: string;
   type: string;

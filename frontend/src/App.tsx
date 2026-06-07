@@ -66,6 +66,8 @@ import {
   fetchAnswerPromptTemplates,
   fetchEvaluationCases,
   fetchEvaluationDatasets,
+  fetchEvaluationRunResults,
+  fetchEvaluationRuns,
   fetchAgentToolExecutions,
   fetchAgentPipelineNodes,
   fetchAgentTools,
@@ -79,6 +81,7 @@ import {
   fetchAdminUsers,
   fetchQueryTermMappings,
   resetModelCircuit,
+  startEvaluationRun,
   updateAgentPipelineNodeEnabled,
   updateAnswerPromptTemplate,
   updateEvaluationDataset,
@@ -107,7 +110,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChatRateLimit, AdminChunk, AdminDailyTrend, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, EvaluationCase, EvaluationDataset, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChatRateLimit, AdminChunk, AdminDailyTrend, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, EvaluationCase, EvaluationCaseResult, EvaluationDataset, EvaluationRun, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -260,6 +263,10 @@ type EvaluationCaseFilters = {
   enabled: string;
   keyword: string;
 };
+type EvaluationRunFilters = {
+  datasetId: string;
+  status: string;
+};
 type EvaluationDatasetInput = {
   code: string;
   name: string;
@@ -327,6 +334,10 @@ const defaultEvaluationCaseFilters: EvaluationCaseFilters = {
   enabled: '',
   keyword: ''
 };
+const defaultEvaluationRunFilters: EvaluationRunFilters = {
+  datasetId: '',
+  status: ''
+};
 const adminAuditActions = [
   'UPDATE_RAG_SETTINGS',
   'UPDATE_USER_STATUS',
@@ -357,7 +368,8 @@ const adminAuditActions = [
   'CREATE_EVALUATION_CASE',
   'CREATE_EVALUATION_CASE_FROM_TRACE',
   'UPDATE_EVALUATION_CASE',
-  'DELETE_EVALUATION_CASE'
+  'DELETE_EVALUATION_CASE',
+  'START_EVALUATION_RUN'
 ];
 const adminAuditResourceTypes = [
   'RAG_SETTINGS',
@@ -372,7 +384,8 @@ const adminAuditResourceTypes = [
   'QUERY_TERM_MAPPING',
   'SAMPLE_PROMPT',
   'EVALUATION_DATASET',
-  'EVALUATION_CASE'
+  'EVALUATION_CASE',
+  'EVALUATION_RUN'
 ];
 
 export default function App() {
@@ -409,6 +422,10 @@ export default function App() {
   const [evaluationDatasets, setEvaluationDatasets] = useState<EvaluationDataset[]>([]);
   const [evaluationCasePage, setEvaluationCasePage] = useState<PageResponse<EvaluationCase> | null>(null);
   const [evaluationCaseFilters, setEvaluationCaseFilters] = useState<EvaluationCaseFilters>(defaultEvaluationCaseFilters);
+  const [evaluationRunPage, setEvaluationRunPage] = useState<PageResponse<EvaluationRun> | null>(null);
+  const [evaluationRunFilters, setEvaluationRunFilters] = useState<EvaluationRunFilters>(defaultEvaluationRunFilters);
+  const [selectedEvaluationRunId, setSelectedEvaluationRunId] = useState<number | null>(null);
+  const [evaluationResultPage, setEvaluationResultPage] = useState<PageResponse<EvaluationCaseResult> | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [agentPipelineNodes, setAgentPipelineNodes] = useState<AdminAgentPipelineNode[]>([]);
   const [ingestionPipelineNodes, setIngestionPipelineNodes] = useState<AdminIngestionPipelineNode[]>([]);
@@ -598,6 +615,13 @@ export default function App() {
     setAdminChunkFilters(defaultChunkFilters);
     setAdminParseJobPage(null);
     setAdminParseJobFilters(defaultParseJobFilters);
+    setEvaluationDatasets([]);
+    setEvaluationCasePage(null);
+    setEvaluationCaseFilters(defaultEvaluationCaseFilters);
+    setEvaluationRunPage(null);
+    setEvaluationRunFilters(defaultEvaluationRunFilters);
+    setSelectedEvaluationRunId(null);
+    setEvaluationResultPage(null);
     setAdminUsers([]);
     setAgentPipelineNodes([]);
     setIngestionPipelineNodes([]);
@@ -915,7 +939,7 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, toolExecutions, auditLogs, chunks, parseJobs, datasets, evaluationCases, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, toolExecutions, auditLogs, chunks, parseJobs, datasets, evaluationCases, evaluationRuns, evaluationResults, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
         fetchAgentToolExecutions({ ...agentToolExecutionFilters, page: agentToolExecutionPage?.page ?? 1, pageSize: agentToolExecutionPage?.pageSize ?? 10 }),
@@ -924,6 +948,8 @@ export default function App() {
         fetchAdminParseJobs({ ...adminParseJobFilters, page: adminParseJobPage?.page ?? 1, pageSize: adminParseJobPage?.pageSize ?? 10 }),
         fetchEvaluationDatasets(),
         fetchEvaluationCases({ ...evaluationCaseFilters, page: evaluationCasePage?.page ?? 1, pageSize: evaluationCasePage?.pageSize ?? 10 }),
+        fetchEvaluationRuns({ ...evaluationRunFilters, page: evaluationRunPage?.page ?? 1, pageSize: evaluationRunPage?.pageSize ?? 8 }),
+        selectedEvaluationRunId ? fetchEvaluationRunResults(selectedEvaluationRunId, { page: evaluationResultPage?.page ?? 1, pageSize: evaluationResultPage?.pageSize ?? 6 }) : Promise.resolve(null),
         fetchAdminUsers(),
         fetchAgentPipelineNodes(),
         fetchIngestionPipelineNodes(),
@@ -945,6 +971,8 @@ export default function App() {
       setAdminParseJobPage(parseJobs);
       setEvaluationDatasets(datasets);
       setEvaluationCasePage(evaluationCases);
+      setEvaluationRunPage(evaluationRuns);
+      setEvaluationResultPage(evaluationResults);
       setAdminUsers(users);
       setAgentPipelineNodes(pipelineNodes);
       setIngestionPipelineNodes(ingestionNodes);
@@ -1078,6 +1106,43 @@ export default function App() {
     await loadEvaluationCasePage(nextFilters, 1);
   }
 
+  async function loadEvaluationRunPage(nextFilters = evaluationRunFilters, page = evaluationRunPage?.page ?? 1) {
+    try {
+      setAdminLoading(true);
+      setError('');
+      const result = await fetchEvaluationRuns({ ...nextFilters, page, pageSize: evaluationRunPage?.pageSize ?? 8 });
+      setEvaluationRunPage(result);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleEvaluationRunFilterChange(patch: Partial<EvaluationRunFilters>) {
+    const nextFilters = { ...evaluationRunFilters, ...patch };
+    setEvaluationRunFilters(nextFilters);
+    await loadEvaluationRunPage(nextFilters, 1);
+  }
+
+  async function loadEvaluationResultPage(runId = selectedEvaluationRunId, page = evaluationResultPage?.page ?? 1) {
+    if (!runId) {
+      setEvaluationResultPage(null);
+      return;
+    }
+    try {
+      setAdminLoading(true);
+      setError('');
+      const result = await fetchEvaluationRunResults(runId, { page, pageSize: evaluationResultPage?.pageSize ?? 6 });
+      setSelectedEvaluationRunId(runId);
+      setEvaluationResultPage(result);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
   async function handleCreateEvaluationDataset(input: EvaluationDatasetInput) {
     try {
       setBusyText('正在创建 Agent 评测集...');
@@ -1143,6 +1208,27 @@ export default function App() {
       setEvaluationDatasets(await fetchEvaluationDatasets());
       await loadEvaluationCasePage(evaluationCaseFilters, 1);
       showNotice('评测样本已从 Trace 沉淀。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleStartEvaluationRun(dataset: EvaluationDataset, runName: string) {
+    try {
+      setBusyText('正在启动 Agent 评测运行...');
+      const run = await startEvaluationRun({
+        datasetId: dataset.id,
+        runName: runName.trim() || `${dataset.name} 回归运行`
+      });
+      setEvaluationRunPage((current) => current
+        ? { ...current, items: [run, ...current.items], total: current.total + 1 }
+        : current);
+      setSelectedEvaluationRunId(run.id);
+      setEvaluationResultPage(null);
+      showNotice('Agent 评测运行已启动，后台会逐条生成结果。');
+      await loadEvaluationRunPage(evaluationRunFilters, 1);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -1589,64 +1675,114 @@ export default function App() {
     );
   }
 
+  const isAdminConsole = activeView === 'admin' && user.role === 'ADMIN';
+  const shellTitle = isAdminConsole ? '后台管理控制台' : '科研文献阅读 Agent';
+  const shellDescription = isAdminConsole
+    ? '独立管理用户、模型、评测、审计和知识库治理，不打扰日常阅读工作流。'
+    : '管理论文 PDF，解析正文片段，并用多 Agent Lite 辅助摘要、实验解读和引用核查。';
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell ${isAdminConsole ? 'admin-shell' : 'user-shell'}`}>
+      <aside className={`sidebar ${isAdminConsole ? 'admin-sidebar' : 'user-sidebar'}`}>
         <div className="brand">
           <div className="brand-mark">
-            <Bot size={22} />
+            {isAdminConsole ? <ServerCog size={22} /> : <Bot size={22} />}
           </div>
           <div>
-            <strong>Research Paper Agent</strong>
-            <span>Spring AI 科研阅读工作台</span>
+            <strong>{isAdminConsole ? 'Admin Console' : 'Research Paper Agent'}</strong>
+            <span>{isAdminConsole ? '系统治理与质量评测' : 'Spring AI 科研阅读工作台'}</span>
           </div>
         </div>
 
-        <nav className="nav-list" aria-label="主导航">
-          <NavButton icon={BookOpen} label="文献库" active={activeView === 'library'} onClick={() => setActiveView('library')} />
-          <NavButton icon={UploadCloud} label="上传文献" active={activeView === 'upload'} onClick={() => setActiveView('upload')} />
-          <NavButton
-            icon={MessageSquareText}
-            label="Agent 阅读"
-            active={activeView === 'reader'}
-            onClick={() => {
-              setReaderScope('paper');
-              setActiveView('reader');
-            }}
-          />
-          <NavButton
-            icon={Brain}
-            label="全库问答"
-            active={activeView === 'libraryChat'}
-            onClick={() => {
-              setReaderScope('library');
-              setActiveView('libraryChat');
-            }}
-          />
-          <NavButton icon={History} label="问答历史" active={activeView === 'history'} onClick={() => setActiveView('history')} />
-          {user.role === 'ADMIN' && (
-            <NavButton icon={UserCog} label="管理后台" active={activeView === 'admin'} onClick={() => setActiveView('admin')} />
+        <nav className="nav-list" aria-label={isAdminConsole ? '后台导航' : '主导航'}>
+          {isAdminConsole ? (
+            <>
+              <NavButton icon={ChevronLeft} label="返回工作台" active={false} onClick={() => setActiveView('library')} />
+              <NavButton icon={ServerCog} label="控制台总览" active onClick={() => setActiveView('admin')} />
+              <NavButton
+                icon={BarChart3}
+                label="评测与审计"
+                active={false}
+                onClick={() => document.querySelector('.evaluation-dataset-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              />
+              <NavButton
+                icon={SlidersHorizontal}
+                label="模型与策略"
+                active={false}
+                onClick={() => document.querySelector('.admin-model-target-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              />
+            </>
+          ) : (
+            <>
+              <NavButton icon={BookOpen} label="文献库" active={activeView === 'library'} onClick={() => setActiveView('library')} />
+              <NavButton icon={UploadCloud} label="上传文献" active={activeView === 'upload'} onClick={() => setActiveView('upload')} />
+              <NavButton
+                icon={MessageSquareText}
+                label="Agent 阅读"
+                active={activeView === 'reader'}
+                onClick={() => {
+                  setReaderScope('paper');
+                  setActiveView('reader');
+                }}
+              />
+              <NavButton
+                icon={Brain}
+                label="全库问答"
+                active={activeView === 'libraryChat'}
+                onClick={() => {
+                  setReaderScope('library');
+                  setActiveView('libraryChat');
+                }}
+              />
+              <NavButton icon={History} label="问答历史" active={activeView === 'history'} onClick={() => setActiveView('history')} />
+            </>
           )}
         </nav>
 
-        <div className="system-panel">
-          <span><ShieldCheck size={15} /> 登录用户</span>
-          <strong>{user.username}</strong>
-          <span><Database size={15} /> 数据库</span>
-          <strong>PostgreSQL + pgvector</strong>
-          <span><Brain size={15} /> Agent</span>
-          <strong>Spring AI Lite</strong>
-        </div>
+        {isAdminConsole ? (
+          <div className="system-panel admin-system-panel">
+            <span><ShieldCheck size={15} /> 当前身份</span>
+            <strong>{user.username} · ADMIN</strong>
+            <span><Database size={15} /> 数据层</span>
+            <strong>PostgreSQL + pgvector</strong>
+            <span><Activity size={15} /> 质量基线</span>
+            <strong>{evaluationDatasets.length} 个评测集</strong>
+          </div>
+        ) : (
+          <>
+            {user.role === 'ADMIN' && (
+              <button className="admin-entry-card" type="button" onClick={() => setActiveView('admin')}>
+                <span><UserCog size={15} /> 管理员入口</span>
+                <strong>打开后台管理</strong>
+                <em>用户、模型、评测与审计集中在独立控制台。</em>
+              </button>
+            )}
+            <div className="system-panel">
+              <span><ShieldCheck size={15} /> 登录用户</span>
+              <strong>{user.username}</strong>
+              <span><Database size={15} /> 数据库</span>
+              <strong>PostgreSQL + pgvector</strong>
+              <span><Brain size={15} /> Agent</span>
+              <strong>Spring AI Lite</strong>
+            </div>
+          </>
+        )}
       </aside>
 
-      <main className="workspace">
-        <header className="topbar">
+      <main className={`workspace ${isAdminConsole ? 'admin-workspace' : 'user-workspace'}`}>
+        <header className={`topbar ${isAdminConsole ? 'admin-topbar' : 'user-topbar'}`}>
           <div>
-            <h1>科研文献阅读 Agent</h1>
-            <p>管理论文 PDF，解析正文片段，并用多 Agent Lite 辅助摘要、实验解读和引用核查。</p>
+            <h1>{shellTitle}</h1>
+            <p>{shellDescription}</p>
           </div>
           <div className="topbar-actions">
-            <button className="icon-button" type="button" title="刷新" onClick={() => void handleSearch()}>
+            {isAdminConsole && (
+              <button className="secondary-button shell-switch-button" type="button" onClick={() => setActiveView('library')}>
+                <ChevronLeft size={17} />
+                工作台
+              </button>
+            )}
+            <button className="icon-button" type="button" title="刷新" onClick={() => void (isAdminConsole ? loadAdminData() : handleSearch())}>
               <RefreshCw size={18} />
             </button>
             <button className="icon-button" type="button" title="退出登录" onClick={signOut}>
@@ -1808,6 +1944,10 @@ export default function App() {
             evaluationDatasets={evaluationDatasets}
             evaluationCasePage={evaluationCasePage}
             evaluationCaseFilters={evaluationCaseFilters}
+            evaluationRunPage={evaluationRunPage}
+            evaluationRunFilters={evaluationRunFilters}
+            selectedEvaluationRunId={selectedEvaluationRunId}
+            evaluationResultPage={evaluationResultPage}
             users={adminUsers}
             agentPipelineNodes={agentPipelineNodes}
             ingestionPipelineNodes={ingestionPipelineNodes}
@@ -1835,6 +1975,9 @@ export default function App() {
             onParseJobPageChange={(page) => void loadAdminParseJobPage(adminParseJobFilters, page)}
             onEvaluationCaseFilterChange={(patch) => void handleEvaluationCaseFilterChange(patch)}
             onEvaluationCasePageChange={(page) => void loadEvaluationCasePage(evaluationCaseFilters, page)}
+            onEvaluationRunFilterChange={(patch) => void handleEvaluationRunFilterChange(patch)}
+            onEvaluationRunPageChange={(page) => void loadEvaluationRunPage(evaluationRunFilters, page)}
+            onEvaluationResultPageChange={(runId, page) => void loadEvaluationResultPage(runId, page)}
             onChunkEnabledChange={(chunk, enabled) => void handleAdminChunkEnabled(chunk, enabled)}
             onAgentPipelineNodeEnabledChange={(node, enabled) => void handleAdminAgentPipelineNodeEnabled(node, enabled)}
             onResetModelCircuit={(model) => void handleResetModelCircuit(model)}
@@ -1858,6 +2001,7 @@ export default function App() {
             onUpdateEvaluationDataset={(dataset, patch) => void handleUpdateEvaluationDataset(dataset, patch)}
             onDeleteEvaluationDataset={(dataset) => void handleDeleteEvaluationDataset(dataset)}
             onCreateEvaluationCaseFromTrace={(input) => void handleCreateEvaluationCaseFromTrace(input)}
+            onStartEvaluationRun={(dataset, runName) => void handleStartEvaluationRun(dataset, runName)}
             onCreateSamplePrompt={(input) => void handleCreateSamplePrompt(input)}
             onUpdateSamplePrompt={(prompt, patch) => void handleUpdateSamplePrompt(prompt, patch)}
             onDeleteSamplePrompt={(prompt) => void handleDeleteSamplePrompt(prompt)}
@@ -2518,6 +2662,10 @@ function AdminView({
   evaluationDatasets,
   evaluationCasePage,
   evaluationCaseFilters,
+  evaluationRunPage,
+  evaluationRunFilters,
+  selectedEvaluationRunId,
+  evaluationResultPage,
   users,
   agentPipelineNodes,
   ingestionPipelineNodes,
@@ -2545,6 +2693,9 @@ function AdminView({
   onParseJobPageChange,
   onEvaluationCaseFilterChange,
   onEvaluationCasePageChange,
+  onEvaluationRunFilterChange,
+  onEvaluationRunPageChange,
+  onEvaluationResultPageChange,
   onChunkEnabledChange,
   onAgentPipelineNodeEnabledChange,
   onResetModelCircuit,
@@ -2568,6 +2719,7 @@ function AdminView({
   onUpdateEvaluationDataset,
   onDeleteEvaluationDataset,
   onCreateEvaluationCaseFromTrace,
+  onStartEvaluationRun,
   onCreateSamplePrompt,
   onUpdateSamplePrompt,
   onDeleteSamplePrompt,
@@ -2587,6 +2739,10 @@ function AdminView({
   evaluationDatasets: EvaluationDataset[];
   evaluationCasePage: PageResponse<EvaluationCase> | null;
   evaluationCaseFilters: EvaluationCaseFilters;
+  evaluationRunPage: PageResponse<EvaluationRun> | null;
+  evaluationRunFilters: EvaluationRunFilters;
+  selectedEvaluationRunId: number | null;
+  evaluationResultPage: PageResponse<EvaluationCaseResult> | null;
   users: AdminUser[];
   agentPipelineNodes: AdminAgentPipelineNode[];
   ingestionPipelineNodes: AdminIngestionPipelineNode[];
@@ -2614,6 +2770,9 @@ function AdminView({
   onParseJobPageChange: (page: number) => void;
   onEvaluationCaseFilterChange: (patch: Partial<EvaluationCaseFilters>) => void;
   onEvaluationCasePageChange: (page: number) => void;
+  onEvaluationRunFilterChange: (patch: Partial<EvaluationRunFilters>) => void;
+  onEvaluationRunPageChange: (page: number) => void;
+  onEvaluationResultPageChange: (runId: number, page: number) => void;
   onChunkEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
   onAgentPipelineNodeEnabledChange: (node: AdminAgentPipelineNode, enabled: boolean) => void;
   onResetModelCircuit: (model: AdminModelHealth) => void;
@@ -2637,6 +2796,7 @@ function AdminView({
   onUpdateEvaluationDataset: (dataset: EvaluationDataset, patch: Partial<EvaluationDatasetInput>) => void;
   onDeleteEvaluationDataset: (dataset: EvaluationDataset) => void;
   onCreateEvaluationCaseFromTrace: (input: EvaluationCaseFromTraceInput) => void;
+  onStartEvaluationRun: (dataset: EvaluationDataset, runName: string) => void;
   onCreateSamplePrompt: (input: SamplePromptInput) => void;
   onUpdateSamplePrompt: (prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) => void;
   onDeleteSamplePrompt: (prompt: SamplePrompt) => void;
@@ -2815,6 +2975,10 @@ function AdminView({
         datasets={evaluationDatasets}
         casePage={evaluationCasePage}
         filters={evaluationCaseFilters}
+        runPage={evaluationRunPage}
+        runFilters={evaluationRunFilters}
+        selectedRunId={selectedEvaluationRunId}
+        resultPage={evaluationResultPage}
         loading={loading}
         onCreateDataset={onCreateEvaluationDataset}
         onUpdateDataset={onUpdateEvaluationDataset}
@@ -2822,6 +2986,10 @@ function AdminView({
         onCreateCaseFromTrace={onCreateEvaluationCaseFromTrace}
         onFilterChange={onEvaluationCaseFilterChange}
         onPageChange={onEvaluationCasePageChange}
+        onRunFilterChange={onEvaluationRunFilterChange}
+        onRunPageChange={onEvaluationRunPageChange}
+        onResultPageChange={onEvaluationResultPageChange}
+        onStartRun={onStartEvaluationRun}
       />
 
       <RagSettingsPanel settings={ragSettings} rateLimit={overview?.chatRateLimit} onUpdate={onUpdateRagSettings} />
@@ -4258,17 +4426,29 @@ function EvaluationDatasetPanel({
   datasets,
   casePage,
   filters,
+  runPage,
+  runFilters,
+  selectedRunId,
+  resultPage,
   loading,
   onCreateDataset,
   onUpdateDataset,
   onDeleteDataset,
   onCreateCaseFromTrace,
   onFilterChange,
-  onPageChange
+  onPageChange,
+  onRunFilterChange,
+  onRunPageChange,
+  onResultPageChange,
+  onStartRun
 }: {
   datasets: EvaluationDataset[];
   casePage: PageResponse<EvaluationCase> | null;
   filters: EvaluationCaseFilters;
+  runPage: PageResponse<EvaluationRun> | null;
+  runFilters: EvaluationRunFilters;
+  selectedRunId: number | null;
+  resultPage: PageResponse<EvaluationCaseResult> | null;
   loading: boolean;
   onCreateDataset: (input: EvaluationDatasetInput) => void;
   onUpdateDataset: (dataset: EvaluationDataset, patch: Partial<EvaluationDatasetInput>) => void;
@@ -4276,6 +4456,10 @@ function EvaluationDatasetPanel({
   onCreateCaseFromTrace: (input: EvaluationCaseFromTraceInput) => void;
   onFilterChange: (patch: Partial<EvaluationCaseFilters>) => void;
   onPageChange: (page: number) => void;
+  onRunFilterChange: (patch: Partial<EvaluationRunFilters>) => void;
+  onRunPageChange: (page: number) => void;
+  onResultPageChange: (runId: number, page: number) => void;
+  onStartRun: (dataset: EvaluationDataset, runName: string) => void;
 }) {
   const [datasetForm, setDatasetForm] = useState<EvaluationDatasetInput>({
     code: '',
@@ -4293,10 +4477,16 @@ function EvaluationDatasetPanel({
     difficulty: 'MEDIUM',
     enabled: true
   });
+  const [runForm, setRunForm] = useState({ datasetId: '', runName: '' });
   const totalCases = datasets.reduce((sum, item) => sum + item.caseCount, 0);
   const enabledCases = datasets.reduce((sum, item) => sum + item.enabledCaseCount, 0);
   const currentPage = casePage?.page ?? 1;
   const totalPages = casePage?.totalPages ?? 0;
+  const runCurrentPage = runPage?.page ?? 1;
+  const runTotalPages = runPage?.totalPages ?? 0;
+  const resultCurrentPage = resultPage?.page ?? 1;
+  const resultTotalPages = resultPage?.totalPages ?? 0;
+  const selectedRun = runPage?.items.find((run) => run.id === selectedRunId) ?? null;
 
   function submitDataset(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -4329,6 +4519,17 @@ function EvaluationDatasetPanel({
       enabled: caseForm.enabled
     });
     setCaseForm((current) => ({ ...current, traceId: '', expectedAnswer: '', expectedSourcesJson: '', tags: '' }));
+  }
+
+  function submitRun(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const datasetId = Number.parseInt(runForm.datasetId, 10);
+    const dataset = datasets.find((item) => item.id === datasetId);
+    if (!dataset || dataset.enabledCaseCount <= 0) {
+      return;
+    }
+    onStartRun(dataset, runForm.runName);
+    setRunForm((current) => ({ ...current, runName: '' }));
   }
 
   function renameDataset(dataset: EvaluationDataset) {
@@ -4415,6 +4616,118 @@ function EvaluationDatasetPanel({
           ))
         )}
       </div>
+
+      <form className="evaluation-run-form" onSubmit={submitRun}>
+        <label>
+          <span>运行评测集</span>
+          <select value={runForm.datasetId} onChange={(event) => setRunForm((current) => ({ ...current, datasetId: event.target.value }))}>
+            <option value="">选择有启用样本的评测集</option>
+            {datasets.map((dataset) => (
+              <option value={dataset.id} key={dataset.id} disabled={!dataset.enabled || dataset.enabledCaseCount <= 0}>
+                {dataset.name} · {dataset.enabledCaseCount} 条启用
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>运行名称</span>
+          <input value={runForm.runName} maxLength={180} placeholder="例如：Prompt v2 回归" onChange={(event) => setRunForm((current) => ({ ...current, runName: event.target.value }))} />
+        </label>
+        <div className="evaluation-dataset-actions">
+          <button className="primary-button" type="submit" disabled={!runForm.datasetId || loading}>
+            <Activity size={17} />
+            启动评测运行
+          </button>
+        </div>
+      </form>
+
+      <form className="admin-trace-filter evaluation-run-filter" onSubmit={(event) => event.preventDefault()}>
+        <label>
+          <span>运行评测集</span>
+          <select value={runFilters.datasetId} onChange={(event) => onRunFilterChange({ datasetId: event.target.value })}>
+            <option value="">全部</option>
+            {datasets.map((dataset) => (
+              <option value={dataset.id} key={dataset.id}>{dataset.name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>运行状态</span>
+          <select value={runFilters.status} onChange={(event) => onRunFilterChange({ status: event.target.value })}>
+            <option value="">全部</option>
+            <option value="QUEUED">排队</option>
+            <option value="RUNNING">运行中</option>
+            <option value="SUCCESS">完成</option>
+            <option value="FAILED">失败</option>
+          </select>
+        </label>
+        <button className="secondary-button" type="button" onClick={() => onRunFilterChange({ ...defaultEvaluationRunFilters })}>重置</button>
+      </form>
+
+      <div className="evaluation-run-list">
+        {(runPage?.items ?? []).length === 0 ? (
+          <EmptyState compact title="暂无评测运行" detail="启动一次评测后，会在这里展示运行进度和平均得分。" />
+        ) : (
+          runPage!.items.map((run) => (
+            <div className={`evaluation-run-row ${run.id === selectedRunId ? 'is-selected' : ''}`} key={run.id}>
+              <strong className={`evaluation-run-status is-${run.status.toLowerCase()}`}>{evaluationRunStatusLabel(run.status)}</strong>
+              <span>
+                <b>{run.runName || `${run.datasetName} 回归运行`}</b>
+                <small>{run.datasetCode} · {run.completedCount}/{run.caseCount} 条 · 通过 {run.passedCount} 条 · {run.triggeredBy || 'system'}</small>
+              </span>
+              <em>{Math.round(run.averageScore)} 分 · {formatLatency(run.durationMs)} · {run.finishedAt ? formatTime(run.finishedAt) : '等待完成'}</em>
+              <button className="secondary-button compact-action" type="button" onClick={() => onResultPageChange(run.id, 1)}>
+                结果
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="admin-trace-pagination evaluation-run-pagination">
+        <span>共 {runPage?.total ?? 0} 次 · 第 {runCurrentPage} / {runTotalPages || 1} 页</span>
+        <button className="secondary-button compact-action" type="button" disabled={loading || runCurrentPage <= 1} onClick={() => onRunPageChange(runCurrentPage - 1)}>
+          上一页
+        </button>
+        <button className="secondary-button compact-action" type="button" disabled={loading || runTotalPages === 0 || runCurrentPage >= runTotalPages} onClick={() => onRunPageChange(runCurrentPage + 1)}>
+          下一页
+        </button>
+      </div>
+
+      {selectedRunId && (
+        <div className="evaluation-result-section">
+          <div className="evaluation-result-head">
+            <span>{selectedRun ? `${selectedRun.datasetCode} · ${selectedRun.runName || '回归运行'}` : `运行 #${selectedRunId}`}</span>
+            <button className="secondary-button compact-action" type="button" disabled={loading} onClick={() => onResultPageChange(selectedRunId, resultCurrentPage)}>
+              刷新结果
+            </button>
+          </div>
+          <div className="evaluation-result-list">
+            {(resultPage?.items ?? []).length === 0 ? (
+              <EmptyState compact title="暂无运行结果" detail="运行开始后，样本结果会逐条写入。" />
+            ) : (
+              resultPage!.items.map((item) => (
+                <div className={`evaluation-result-row is-${item.status.toLowerCase()}`} key={item.id}>
+                  <strong>{evaluationResultStatusLabel(item.status)}</strong>
+                  <span>
+                    <b>{item.question || `样本 #${item.caseId ?? '-'}`}</b>
+                    <small>{item.score} 分 · 相似度 {Math.round(item.answerSimilarity)}% · 来源覆盖 {Math.round(item.sourceCoverage)}% · {formatLatency(item.latencyMs)} · {item.modelName || 'agent'}</small>
+                  </span>
+                  <p>{item.errorMessage || item.actualAnswer || '暂无答案'}</p>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="admin-trace-pagination evaluation-result-pagination">
+            <span>共 {resultPage?.total ?? 0} 条 · 第 {resultCurrentPage} / {resultTotalPages || 1} 页</span>
+            <button className="secondary-button compact-action" type="button" disabled={loading || resultCurrentPage <= 1} onClick={() => onResultPageChange(selectedRunId, resultCurrentPage - 1)}>
+              上一页
+            </button>
+            <button className="secondary-button compact-action" type="button" disabled={loading || resultTotalPages === 0 || resultCurrentPage >= resultTotalPages} onClick={() => onResultPageChange(selectedRunId, resultCurrentPage + 1)}>
+              下一页
+            </button>
+          </div>
+        </div>
+      )}
 
       <form className="evaluation-case-form" onSubmit={submitCaseFromTrace}>
         <label>
@@ -5818,6 +6131,26 @@ function traceStatusLabel(status: string) {
   return labels[status] || status;
 }
 
+function evaluationRunStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    QUEUED: '排队',
+    RUNNING: '运行中',
+    SUCCESS: '完成',
+    FAILED: '失败'
+  };
+  return labels[status] || status;
+}
+
+function evaluationResultStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    PASS: '通过',
+    REVIEW: '复核',
+    FAIL: '失败',
+    ERROR: '异常'
+  };
+  return labels[status] || status;
+}
+
 function modelHealthStatusLabel(status: string) {
   const labels: Record<string, string> = {
     SUCCESS: '健康',
@@ -5889,6 +6222,14 @@ function adminAuditActionLabel(action: string) {
     CREATE_QUERY_TERM_MAPPING: '新建术语',
     UPDATE_QUERY_TERM_MAPPING: '更新术语',
     DELETE_QUERY_TERM_MAPPING: '删除术语',
+    CREATE_EVALUATION_DATASET: '新建评测集',
+    UPDATE_EVALUATION_DATASET: '更新评测集',
+    DELETE_EVALUATION_DATASET: '删除评测集',
+    CREATE_EVALUATION_CASE: '新建样本',
+    CREATE_EVALUATION_CASE_FROM_TRACE: 'Trace 转样本',
+    UPDATE_EVALUATION_CASE: '更新样本',
+    DELETE_EVALUATION_CASE: '删除样本',
+    START_EVALUATION_RUN: '启动评测',
     CREATE_SAMPLE_PROMPT: '新建示例',
     UPDATE_SAMPLE_PROMPT: '更新示例',
     DELETE_SAMPLE_PROMPT: '删除示例'
@@ -5908,6 +6249,9 @@ function adminAuditResourceLabel(resourceType: string) {
     INTENT_ROUTE: '意图路由',
     ANSWER_PROMPT_TEMPLATE: '回答模板',
     QUERY_TERM_MAPPING: '术语映射',
+    EVALUATION_DATASET: '评测集',
+    EVALUATION_CASE: '评测样本',
+    EVALUATION_RUN: '评测运行',
     SAMPLE_PROMPT: '示例问题'
   };
   return labels[resourceType] || resourceType;

@@ -15,9 +15,12 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationCaseFromTraceRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationCaseRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationCaseResultResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationCaseResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationDatasetRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationDatasetResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationRunRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationRunResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IngestionPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteResponse;
@@ -37,6 +40,7 @@ import com.frostwane.paperagent.agent.dto.AgentDtos.ChatStreamTaskResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.intent.IntentRouteService;
+import com.frostwane.paperagent.agent.evaluation.AgentEvaluationRunService;
 import com.frostwane.paperagent.agent.evaluation.AgentEvaluationService;
 import com.frostwane.paperagent.agent.model.ModelTargetService;
 import com.frostwane.paperagent.agent.prompt.AnswerPromptTemplateService;
@@ -72,6 +76,7 @@ public class AdminController {
     private final AnswerPromptTemplateService answerPromptTemplateService;
     private final ModelTargetService modelTargetService;
     private final AgentEvaluationService agentEvaluationService;
+    private final AgentEvaluationRunService agentEvaluationRunService;
     private final CurrentUserService currentUserService;
 
     public AdminController(
@@ -82,6 +87,7 @@ public class AdminController {
         AnswerPromptTemplateService answerPromptTemplateService,
         ModelTargetService modelTargetService,
         AgentEvaluationService agentEvaluationService,
+        AgentEvaluationRunService agentEvaluationRunService,
         CurrentUserService currentUserService
     ) {
         this.adminService = adminService;
@@ -91,6 +97,7 @@ public class AdminController {
         this.answerPromptTemplateService = answerPromptTemplateService;
         this.modelTargetService = modelTargetService;
         this.agentEvaluationService = agentEvaluationService;
+        this.agentEvaluationRunService = agentEvaluationRunService;
         this.currentUserService = currentUserService;
     }
 
@@ -523,6 +530,44 @@ public class AdminController {
         return ApiResponse.empty();
     }
 
+    @GetMapping("/evaluation-runs")
+    public ApiResponse<PageResponse<EvaluationRunResponse>> evaluationRuns(
+        @RequestParam(required = false) Long datasetId,
+        @RequestParam(defaultValue = "") String status,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "10") int pageSize
+    ) {
+        return ApiResponse.ok(agentEvaluationRunService.runs(
+            currentUserService.getRequiredUser(),
+            datasetId,
+            status,
+            page,
+            pageSize
+        ));
+    }
+
+    @PostMapping("/evaluation-runs")
+    public ApiResponse<EvaluationRunResponse> startEvaluationRun(@Valid @RequestBody EvaluationRunRequest request) {
+        User admin = currentAdmin();
+        EvaluationRunResponse response = agentEvaluationRunService.startRun(request, admin);
+        audit(admin, "START_EVALUATION_RUN", "EVALUATION_RUN", response.id(), "启动 Agent 评测运行", evaluationRunDetail(response));
+        return ApiResponse.ok(response);
+    }
+
+    @GetMapping("/evaluation-runs/{id}/results")
+    public ApiResponse<PageResponse<EvaluationCaseResultResponse>> evaluationRunResults(
+        @PathVariable Long id,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "10") int pageSize
+    ) {
+        return ApiResponse.ok(agentEvaluationRunService.results(
+            currentUserService.getRequiredUser(),
+            id,
+            page,
+            pageSize
+        ));
+    }
+
     @PostMapping("/query-term-mappings")
     public ApiResponse<QueryTermMappingResponse> createQueryTermMapping(@Valid @RequestBody QueryTermMappingRequest request) {
         User admin = currentAdmin();
@@ -660,6 +705,19 @@ public class AdminController {
             "difficulty", item.difficulty(),
             "tags", item.tags(),
             "enabled", item.enabled()
+        );
+    }
+
+    private Map<String, Object> evaluationRunDetail(EvaluationRunResponse run) {
+        return detail(
+            "id", run.id(),
+            "datasetId", run.datasetId(),
+            "datasetCode", run.datasetCode(),
+            "runName", run.runName(),
+            "status", run.status(),
+            "caseCount", run.caseCount(),
+            "completedCount", run.completedCount(),
+            "averageScore", run.averageScore()
         );
     }
 

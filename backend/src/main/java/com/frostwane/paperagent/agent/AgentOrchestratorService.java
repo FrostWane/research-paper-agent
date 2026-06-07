@@ -153,6 +153,25 @@ public class AgentOrchestratorService {
         }
     }
 
+    @Transactional
+    public ChatResponse evaluate(ChatRequest request, User owner) {
+        Instant started = Instant.now();
+        AgentPipelineContext context = new AgentPipelineContext(request, owner);
+        try (AgentRateLimitPermit ignored = agentRateLimiterService.acquire(owner)) {
+            agentPipeline.execute(context);
+            int latencyMs = elapsedMs(started);
+            return new ChatResponse(
+                context.formattedAnswer(),
+                context.sources(),
+                null,
+                null,
+                null,
+                context.modelName(),
+                latencyMs
+            );
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<ChatRecordResponse> listChats(Long paperId, User owner) {
         paperService.requireOwnedPaper(paperId, owner.getId());
