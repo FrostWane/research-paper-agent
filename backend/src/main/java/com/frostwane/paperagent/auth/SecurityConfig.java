@@ -1,6 +1,7 @@
 package com.frostwane.paperagent.auth;
 
 import com.frostwane.paperagent.config.PaperAgentProperties;
+import com.frostwane.paperagent.common.IdempotencyService;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,7 +46,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.getCors().getAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", IdempotencyService.HEADER));
         configuration.setExposedHeaders(List.of("Content-Disposition"));
         configuration.setAllowCredentials(false);
 

@@ -59,3 +59,9 @@ paper-agent:
     provider: ${AI_PROVIDER:fallback}
     embedding-provider: ${AI_EMBEDDING_PROVIDER:local}
     chat-model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+  bootstrap-admin:
+    enabled: ${BOOTSTRAP_ADMIN_ENABLED:true}
+    username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
+    email: ${BOOTSTRAP_ADMIN_EMAIL:admin@example.local}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:Admin@123456}
+    reset-password: ${BOOTSTRAP_ADMIN_RESET_PASSWORD:false}

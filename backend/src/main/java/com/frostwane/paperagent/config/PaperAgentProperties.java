@@ -11,6 +11,7 @@ public class PaperAgentProperties {
     private Jwt jwt = new Jwt();
     private Minio minio = new Minio();
     private Ai ai = new Ai();
+    private BootstrapAdmin bootstrapAdmin = new BootstrapAdmin();
 
     public Cors getCors() {
         return cors;
@@ -42,6 +43,14 @@ public class PaperAgentProperties {
 
     public void setAi(Ai ai) {
         this.ai = ai;
+    }
+
+    public BootstrapAdmin getBootstrapAdmin() {
+        return bootstrapAdmin;
+    }
+
+    public void setBootstrapAdmin(BootstrapAdmin bootstrapAdmin) {
+        this.bootstrapAdmin = bootstrapAdmin;
     }
 
     public static class Cors {
@@ -143,6 +152,54 @@ public class PaperAgentProperties {
 
         public void setChatModel(String chatModel) {
             this.chatModel = chatModel;
+        }
+    }
+
+    public static class BootstrapAdmin {
+        private boolean enabled = true;
+        private String username = "admin";
+        private String email = "admin@example.local";
+        private String password = "Admin@123456";
+        private boolean resetPassword = false;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public boolean isResetPassword() {
+            return resetPassword;
+        }
+
+        public void setResetPassword(boolean resetPassword) {
+            this.resetPassword = resetPassword;
         }
     }
 }
