@@ -28,6 +28,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalProcessorCatalogRes
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ToolExecutionResponse;
 import com.frostwane.paperagent.agent.AgentStreamService;
+import com.frostwane.paperagent.agent.dto.AgentDtos.ChatStreamTaskResponse;
 import com.frostwane.paperagent.agent.limit.AgentRateLimitStatus;
 import com.frostwane.paperagent.agent.limit.AgentRateLimiterService;
 import com.frostwane.paperagent.agent.model.ModelCircuitBreaker;
@@ -846,6 +847,11 @@ public class AdminService {
             .filter(item -> item.id().equals(userId))
             .findFirst()
             .orElseThrow(() -> new BusinessException("用户不存在"));
+    }
+
+    public ChatStreamTaskResponse cancelStreamTask(String taskId, User currentUser) {
+        requireAdmin(currentUser);
+        return agentStreamService.cancelAny(taskId);
     }
 
     @Transactional(readOnly = true)

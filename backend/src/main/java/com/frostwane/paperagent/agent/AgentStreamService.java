@@ -90,6 +90,18 @@ public class AgentStreamService {
         if (task == null || !Objects.equals(task.ownerId(), owner.getId())) {
             throw new BusinessException("流式任务不存在或已结束");
         }
+        return cancelTask(task);
+    }
+
+    public ChatStreamTaskResponse cancelAny(String taskId) {
+        StreamTask task = tasks.get(taskId);
+        if (task == null) {
+            throw new BusinessException("流式任务不存在或已结束");
+        }
+        return cancelTask(task);
+    }
+
+    private ChatStreamTaskResponse cancelTask(StreamTask task) {
         task.cancelled().set(true);
         task.phase("cancelled");
         cancel(task.futureRef().get());

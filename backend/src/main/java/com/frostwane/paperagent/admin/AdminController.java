@@ -26,6 +26,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.RagSettingsResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalChannelCatalogResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalProcessorCatalogResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.UserStatusUpdateRequest;
+import com.frostwane.paperagent.agent.dto.AgentDtos.ChatStreamTaskResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.intent.IntentRouteService;
@@ -82,6 +83,11 @@ public class AdminController {
     @GetMapping("/overview")
     public ApiResponse<AdminOverviewResponse> overview() {
         return ApiResponse.ok(adminService.overview(currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/stream-tasks/{taskId}/cancel")
+    public ApiResponse<ChatStreamTaskResponse> cancelStreamTask(@PathVariable String taskId) {
+        return ApiResponse.ok(adminService.cancelStreamTask(taskId, currentUserService.getRequiredUser()));
     }
 
     @GetMapping("/rag-traces")

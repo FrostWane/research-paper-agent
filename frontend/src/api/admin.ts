@@ -1,8 +1,12 @@
 import { api, unwrap } from './request';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
+}
+
+export function cancelAdminStreamTask(taskId: string) {
+  return unwrap<ChatStreamTask>(api.post(`/api/admin/stream-tasks/${encodeURIComponent(taskId)}/cancel`));
 }
 
 export function fetchAdminTraces(query: {

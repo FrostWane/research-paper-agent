@@ -1512,12 +1512,12 @@ select,
 }
 
 .admin-stream-task-list {
-  min-width: 900px;
+  min-width: 980px;
 }
 
 .admin-stream-task-row {
   display: grid;
-  grid-template-columns: 78px 118px minmax(240px, 1fr) 90px 84px 168px;
+  grid-template-columns: 78px 118px minmax(240px, 1fr) 90px 84px 168px 44px;
   align-items: center;
   gap: 10px;
   min-height: 48px;
@@ -1568,6 +1568,10 @@ select,
 .admin-stream-task-row span:nth-child(3) {
   color: var(--ink);
   font-size: 13px;
+}
+
+.admin-stream-task-row > button {
+  justify-self: end;
 }
 
 .agent-pipeline-list {
@@ -3620,6 +3624,10 @@ select,
   .admin-stream-task-row strong {
     width: fit-content;
     padding: 0 8px;
+  }
+
+  .admin-stream-task-row > button {
+    justify-self: start;
   }
 
   .admin-model-health-row > em,

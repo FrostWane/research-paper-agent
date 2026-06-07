@@ -48,6 +48,7 @@ import {
   createModelTarget,
   createSamplePrompt,
   createQueryTermMapping,
+  cancelAdminStreamTask,
   deleteAnswerPromptTemplate,
   deleteIntentRoute,
   deleteModelTarget,
@@ -1010,6 +1011,23 @@ export default function App() {
     }
   }
 
+  async function handleAdminCancelStreamTask(task: ChatStreamTask) {
+    const confirmed = window.confirm(`确定要停止 ${task.ownerUsername || '未知用户'} 的流式问答任务吗？`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setBusyText('正在停止流式问答任务...');
+      await cancelAdminStreamTask(task.taskId);
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('流式问答任务已停止。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
   async function handleCreateQueryMapping(input: { term: string; expansions: string }) {
     try {
       setBusyText('正在保存术语映射...');
@@ -1587,6 +1605,7 @@ export default function App() {
             onAgentToolEnabledChange={(tool, enabled) => void handleAdminAgentToolEnabled(tool, enabled)}
             onAgentToolMinimumRoleChange={(tool, minimumRole) => void handleAdminAgentToolMinimumRole(tool, minimumRole)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
+            onCancelStreamTask={(task) => void handleAdminCancelStreamTask(task)}
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
             onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
             onDeleteQueryMapping={(mapping) => void handleDeleteQueryMapping(mapping)}
@@ -2282,6 +2301,7 @@ function AdminView({
   onAgentToolEnabledChange,
   onAgentToolMinimumRoleChange,
   onUserStatusChange,
+  onCancelStreamTask,
   onCreateQueryMapping,
   onUpdateQueryMapping,
   onDeleteQueryMapping,
@@ -2336,6 +2356,7 @@ function AdminView({
   onAgentToolEnabledChange: (tool: AdminAgentTool, enabled: boolean) => void;
   onAgentToolMinimumRoleChange: (tool: AdminAgentTool, minimumRole: 'USER' | 'ADMIN') => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
+  onCancelStreamTask: (task: ChatStreamTask) => void;
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
   onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
   onDeleteQueryMapping: (mapping: QueryTermMapping) => void;
@@ -2475,7 +2496,7 @@ function AdminView({
         </div>
       </div>
 
-      <ActiveStreamTaskPanel tasks={overview?.activeStreamTasks ?? []} />
+      <ActiveStreamTaskPanel tasks={overview?.activeStreamTasks ?? []} loading={loading} onCancelTask={onCancelStreamTask} />
 
       <AgentPipelinePanel nodes={agentPipelineNodes} onEnabledChange={onAgentPipelineNodeEnabledChange} loading={loading} />
 
@@ -2790,7 +2811,15 @@ function AdminView({
   );
 }
 
-function ActiveStreamTaskPanel({ tasks }: { tasks: ChatStreamTask[] }) {
+function ActiveStreamTaskPanel({
+  tasks,
+  loading,
+  onCancelTask
+}: {
+  tasks: ChatStreamTask[];
+  loading: boolean;
+  onCancelTask: (task: ChatStreamTask) => void;
+}) {
   return (
     <div className="admin-panel admin-stream-task-panel">
       <div className="admin-panel-head">
@@ -2812,6 +2841,7 @@ function ActiveStreamTaskPanel({ tasks }: { tasks: ChatStreamTask[] }) {
               <span>范围</span>
               <span>会话</span>
               <span>开始时间</span>
+              <span>操作</span>
             </div>
             {tasks.map((task) => (
               <div className={`admin-stream-task-row ${task.cancelled ? 'is-cancelled' : ''}`} key={task.taskId}>
@@ -2821,6 +2851,9 @@ function ActiveStreamTaskPanel({ tasks }: { tasks: ChatStreamTask[] }) {
                 <em>{task.paperId ? `单篇 #${task.paperId}` : '全库'}</em>
                 <em>{task.sessionId ? `#${task.sessionId}` : '新会话'}</em>
                 <small>{formatTime(task.startedAt)}</small>
+                <button className="icon-button small danger" type="button" title="停止流式任务" disabled={loading || task.cancelled} onClick={() => onCancelTask(task)}>
+                  <CircleStop size={15} />
+                </button>
               </div>
             ))}
           </>

@@ -77,6 +77,23 @@ class AgentStreamServiceTest {
             .containsExactlyInAnyOrder("user-21", "user-22");
     }
 
+    @Test
+    void cancelAnyAllowsAdminStyleCancellationAcrossOwners() {
+        QueuedAsyncTaskExecutor executor = new QueuedAsyncTaskExecutor();
+        AgentStreamService service = new AgentStreamService(mock(AgentOrchestratorService.class), executor);
+        User owner = user(31L);
+
+        service.stream(new ChatRequest(null, null, "需要管理员终止的问题", true), owner);
+        String taskId = service.activeTasks(owner).get(0).taskId();
+
+        ChatStreamTaskResponse cancelled = service.cancelAny(taskId);
+
+        assertThat(cancelled.cancelled()).isTrue();
+        assertThat(cancelled.ownerUsername()).isEqualTo("user-31");
+        assertThat(service.allActiveTasks()).isEmpty();
+        assertThat(executor.futures().get(0).isCancelled()).isTrue();
+    }
+
     private User user(Long id) {
         try {
             User user = new User();
