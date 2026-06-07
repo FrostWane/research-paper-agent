@@ -51,7 +51,7 @@ AgentOrchestratorService
 
 示例问题作为轻量运营配置保存在 `sample_prompts`，按 `PAPER` / `LIBRARY` 范围分发给阅读页和全库问答页。前端保留默认提示作为兜底，但登录后会优先使用后端启用的推荐问法，让管理员可以持续调整用户入口问题，而无需重新发布前端。
 
-流式问答采用轻量 HTTP SSE 包装：`AgentStreamService` 在独立 `agentStreamExecutor` 中调用现有 `AgentOrchestratorService.chat`，向前端发送 `started`、`running`、`final`、`done` 和 `error` 事件。`final` 事件携带完整 `ChatResponse`，表示问答记录、来源片段、Trace 和会话摘要等现有事务链路已经完成；前端在读取流期间展示临时回答和停止等待按钮，完成后再刷新会话列表。同步和流式入口都会经过 `AgentRateLimiterService`，该服务从 `rag_settings` 读取限流开关、全局并发、单用户并发和单用户每分钟请求上限，使用进程内计数器保护模型调用入口；被拒绝的请求返回 HTTP 429，并通过 `AgentOrchestratorService` 写入失败 Trace。这个设计先提供 ragent 式流式交互体验和基础并发护栏，但不改变当前 Pipeline 的事务边界，也不引入独立工作流引擎。
+流式问答采用轻量 HTTP SSE 包装：`AgentStreamService` 会为每个流式问答分配 `taskId`，在进程内登记当前用户的活跃任务，然后通过独立 `agentStreamExecutor` 调用现有 `AgentOrchestratorService.chat`，向前端发送 `started`、`running`、`final`、`cancelled`、`done` 和 `error` 事件。`started` / `running` 事件会带回 `taskId`；`final` 事件携带完整 `ChatResponse`，表示问答记录、来源片段、Trace 和会话摘要等现有事务链路已经完成；前端在读取流期间展示临时回答和停止按钮，停止时先调用服务端取消接口，再中断本地 fetch。后端提供当前用户活跃流式任务查询和取消接口，取消会尝试中断后台 Future、发送 `cancelled` / `done` 并从运行态任务表移除；如果连接已经断开，SSE 完成回调也会清理任务并尝试取消后台执行。同步和流式入口都会经过 `AgentRateLimiterService`，该服务从 `rag_settings` 读取限流开关、全局并发、单用户并发和单用户每分钟请求上限，使用进程内计数器保护模型调用入口；被拒绝的请求返回 HTTP 429，并通过 `AgentOrchestratorService` 写入失败 Trace。这个设计先提供 ragent 式流式交互体验、基础并发护栏和单实例任务取消能力，但不改变当前 Pipeline 的事务边界，也不引入独立工作流引擎。
 
 ## Runtime Observability
 

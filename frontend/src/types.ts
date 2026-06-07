@@ -90,10 +90,23 @@ export interface ChatResponse {
 }
 
 export interface ChatStreamEvent {
-  phase: 'started' | 'running' | 'final' | 'done' | 'error' | string;
+  taskId?: string;
+  phase: 'started' | 'running' | 'final' | 'done' | 'cancelled' | 'error' | string;
   message?: string;
   response?: ChatResponse;
   errorMessage?: string;
+  cancelled?: boolean;
+}
+
+export interface ChatStreamTask {
+  taskId: string;
+  phase: string;
+  question: string;
+  paperId?: number | null;
+  sessionId?: number | null;
+  cancelled: boolean;
+  startedAt: string;
+  updatedAt: string;
 }
 
 export interface ChatRecord {

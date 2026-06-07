@@ -7,6 +7,7 @@ import com.frostwane.paperagent.agent.dto.AgentDtos.ChatResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionCreateRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.ChatSessionUpdateRequest;
+import com.frostwane.paperagent.agent.dto.AgentDtos.ChatStreamTaskResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.auth.CurrentUserService;
@@ -53,6 +54,16 @@ public class AgentController {
     @PostMapping(value = "/api/agent/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chatStream(@Valid @RequestBody ChatRequest request) {
         return agentStreamService.stream(request, currentUserService.getRequiredUser());
+    }
+
+    @GetMapping("/api/agent/chat/stream/tasks")
+    public ApiResponse<List<ChatStreamTaskResponse>> activeStreamTasks() {
+        return ApiResponse.ok(agentStreamService.activeTasks(currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/api/agent/chat/stream/tasks/{taskId}/cancel")
+    public ApiResponse<ChatStreamTaskResponse> cancelStreamTask(@PathVariable String taskId) {
+        return ApiResponse.ok(agentStreamService.cancel(taskId, currentUserService.getRequiredUser()));
     }
 
     @GetMapping("/api/papers/{paperId}/chats")

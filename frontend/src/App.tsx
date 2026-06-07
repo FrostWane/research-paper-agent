@@ -602,6 +602,7 @@ export default function App() {
     const paperId = isLibraryQuestion ? null : selectedPaper!.id;
     const pendingId = -Date.now();
     const finalResponseRef: { current: ChatResponse | null } = { current: null };
+    let cancelledByServer = false;
     try {
       setError('');
       setQuestion('');
@@ -615,6 +616,9 @@ export default function App() {
       const stream = streamAskAgent(paperId, promptText, true, selectedSessionId, {
         onEvent: (eventName, payload) => {
           const nextMessage = payload.message || streamEventMessage(eventName);
+          if (eventName === 'cancelled' || payload.phase === 'cancelled' || payload.cancelled) {
+            cancelledByServer = true;
+          }
           if (payload.response) {
             finalResponseRef.current = payload.response;
           }
@@ -638,6 +642,14 @@ export default function App() {
       await stream.done;
       const finalResponse = finalResponseRef.current;
       if (!finalResponse) {
+        if (cancelledByServer) {
+          const message = '已停止等待本次流式回答。';
+          setChats((current) =>
+            current.map((chat) => (chat.id === pendingId ? { ...chat, answer: streamChatContent(message) } : chat))
+          );
+          showNotice(message);
+          return;
+        }
         const message = '流式问答结束，但没有返回最终回答。';
         setError(message);
         setChats((current) =>

@@ -38,6 +38,8 @@ GET  /api/files/papers/{fileId}/preview
 ```http
 POST /api/agent/chat
 POST /api/agent/chat/stream
+GET  /api/agent/chat/stream/tasks
+POST /api/agent/chat/stream/tasks/{taskId}/cancel
 GET  /api/agent/sessions?paperId=1
 POST /api/agent/sessions
 PATCH /api/agent/sessions/{id}
@@ -72,7 +74,9 @@ PATCH /api/agent/chats/{id}/feedback
 
 `sessionId` 可为空；为空时后端会为当前单篇或全库范围复用最近的未归档会话，没有会话时自动创建。响应会返回 `recordId`、`sessionId`、`sessionTitle`、`modelName`、`latencyMs` 和 `sources`，其中 `sources` 包含命中的论文 ID、标题、来源页码和片段。`GET /api/agent/chats` 返回全库问答历史，`GET /api/papers/{paperId}/chats` 返回单篇问答历史，`GET /api/agent/sessions/{id}/chats` 返回某个会话内的消息。
 
-`POST /api/agent/chat/stream` 使用同一份请求体和鉴权规则，返回 `text/event-stream`。前端使用 `fetch` 读取流式响应，并在请求头携带 `Authorization: Bearer <token>`；不直接用 `EventSource`，因为浏览器原生 `EventSource` 不方便附带 JWT。事件名包含 `started`、`running`、`final`、`done` 和 `error`：`started` / `running` 用于展示运行阶段，`final` 的 `response` 字段包含完整 `ChatResponse`，并且后端已经保存问答记录和来源片段；`done` 表示流结束；`error` 会返回 `errorMessage`。同步和流式问答都会经过聊天入口限流；超过全局并发、单用户并发或单用户每分钟次数时，非流式接口返回 HTTP 429，流式接口返回 `error` 事件。
+`POST /api/agent/chat/stream` 使用同一份请求体和鉴权规则，返回 `text/event-stream`。前端使用 `fetch` 读取流式响应，并在请求头携带 `Authorization: Bearer <token>`；不直接用 `EventSource`，因为浏览器原生 `EventSource` 不方便附带 JWT。事件名包含 `started`、`running`、`final`、`cancelled`、`done` 和 `error`：`started` / `running` 用于展示运行阶段，事件载荷会带 `taskId`；`final` 的 `response` 字段包含完整 `ChatResponse`，并且后端已经保存问答记录和来源片段；`cancelled` 表示服务端已接收取消；`done` 表示流结束；`error` 会返回 `errorMessage`。同步和流式问答都会经过聊天入口限流；超过全局并发、单用户并发或单用户每分钟次数时，非流式接口返回 HTTP 429，流式接口返回 `error` 事件。
+
+`GET /api/agent/chat/stream/tasks` 返回当前用户仍在运行或排队的流式问答任务，字段包含 `taskId`、`phase`、`question`、`paperId`、`sessionId`、`cancelled`、`startedAt` 和 `updatedAt`。`POST /api/agent/chat/stream/tasks/{taskId}/cancel` 只允许取消当前用户自己的任务；成功后会尝试中断后台执行、向 SSE 发送 `cancelled` 和 `done`，并从运行态任务表移除。
 
 会话创建请求：
 

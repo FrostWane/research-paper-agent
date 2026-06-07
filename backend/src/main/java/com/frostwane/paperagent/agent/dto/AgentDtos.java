@@ -40,10 +40,24 @@ public final class AgentDtos {
     }
 
     public record ChatStreamEvent(
+        String taskId,
         String phase,
         String message,
         ChatResponse response,
-        String errorMessage
+        String errorMessage,
+        boolean cancelled
+    ) {
+    }
+
+    public record ChatStreamTaskResponse(
+        String taskId,
+        String phase,
+        String question,
+        Long paperId,
+        Long sessionId,
+        boolean cancelled,
+        OffsetDateTime startedAt,
+        OffsetDateTime updatedAt
     ) {
     }
 

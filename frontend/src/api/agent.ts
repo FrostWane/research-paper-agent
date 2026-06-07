@@ -1,5 +1,5 @@
 import { api, getToken, unwrap } from './request';
-import type { ChatRecord, ChatResponse, ChatSession, ChatStreamEvent, SamplePrompt } from '../types';
+import type { ChatRecord, ChatResponse, ChatSession, ChatStreamEvent, ChatStreamTask, SamplePrompt } from '../types';
 
 type StreamHandlers = {
   onEvent?: (eventName: string, payload: ChatStreamEvent) => void;
@@ -17,11 +17,37 @@ export function streamAskAgent(
   handlers: StreamHandlers = {}
 ) {
   const controller = new AbortController();
-  const done = readAgentStream({ sessionId, paperId, question, useRag }, handlers, controller.signal);
+  let taskId: string | null = null;
+  const done = readAgentStream(
+    { sessionId, paperId, question, useRag },
+    {
+      onEvent: (eventName, payload) => {
+        if (payload.taskId) {
+          taskId = payload.taskId;
+        }
+        handlers.onEvent?.(eventName, payload);
+      }
+    },
+    controller.signal
+  );
   return {
-    abort: () => controller.abort(),
+    abort: () => {
+      const currentTaskId = taskId;
+      if (currentTaskId) {
+        void cancelAgentStream(currentTaskId).catch(() => undefined);
+      }
+      controller.abort();
+    },
     done
   };
+}
+
+export function listAgentStreamTasks() {
+  return unwrap<ChatStreamTask[]>(api.get('/api/agent/chat/stream/tasks'));
+}
+
+export function cancelAgentStream(taskId: string) {
+  return unwrap<ChatStreamTask>(api.post(`/api/agent/chat/stream/tasks/${encodeURIComponent(taskId)}/cancel`));
 }
 
 export function listChats(paperId: number) {

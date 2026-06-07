@@ -34,6 +34,8 @@
   - `GET /api/files/papers/{fileId}/preview`
   - `POST /api/agent/chat`
   - `POST /api/agent/chat/stream`
+  - `GET /api/agent/chat/stream/tasks`
+  - `POST /api/agent/chat/stream/tasks/{taskId}/cancel`
   - `GET /api/agent/sessions`
   - `POST /api/agent/sessions`
   - `PATCH /api/agent/sessions/{id}`
@@ -53,6 +55,7 @@
   - `ConversationMemoryNode`：优先按当前会话读取长期摘要和最近历史，生成“摘要 + 近期对话”的压缩记忆并注入回答 Prompt。
   - `ConversationSummaryService`：按阈值把超出近期窗口的旧轮次压缩为长期摘要，模型不可用时启发式兜底。
   - `AgentRateLimiterService`：保护同步和流式聊天入口，支持全局并发、用户并发和用户每分钟请求限流。
+  - `AgentStreamService`：为 SSE 问答分配 taskId，提供当前用户活跃任务查询和服务端取消能力。
   - `QueryRewriteNode`：参考 ragent 的问题改写与拆分，把用户问题转换为更适合检索的查询和子问题。
   - `QueryPlanningNode`：识别问题意图，生成检索式，标记跨文献比较需求，并把意图路由绑定的工具名传给后续节点。
   - `ToolExecutionNode`：通过内部 `AgentToolRegistry` 按工具触发规则或意图路由绑定匹配业务工具，当前支持文献库统计和单篇解析状态工具结果注入。
@@ -91,7 +94,7 @@
   - 管理员可配置 RAG 候选召回数、最终来源数、来源摘录长度、向量通道权重、关键词通道权重、记忆轮数、记忆字符上限、查询改写开关、子问题上限、模型质量评审开关、模型重排开关和重排候选窗口。
   - 新增轻量任务感知模型路由、模型调用日志和三态熔断，管理员可查看并维护目标模型，按任务观察最近状态、成功 / 失败 / fallback / 跳过次数、熔断状态、连续失败次数、冷却时间和平均延迟。
   - 新增聊天入口限流设置和运行态概览，管理员可配置全局并发、单用户并发和单用户每分钟请求上限，限流拒绝返回 429 并写入失败 Trace。
-  - 新增轻量 SSE 问答流，前端可展示 Agent 连接、运行、最终保存和停止等待状态，同时保留非流式问答接口兼容调用方。
+  - 新增轻量 SSE 问答流，前端可展示 Agent 连接、运行、最终保存和停止等待状态；每个流式问答有 taskId，停止按钮会请求服务端取消任务，同时保留非流式问答接口兼容调用方。
   - 管理员可启用 / 禁用普通用户。
   - 新增简化 RAG Trace，记录会话、问答范围、问题意图、检索式、改写查询、子问题、业务工具执行、意图引导、回答策略、输出契约、检索通道、检索后处理器、会话记忆轮数、会话记忆字符数、长期摘要使用情况、摘要轮数、摘要字符数、摘要方法、摘要模型、来源数量、答案质量分、质量标签、质量方法、评审模型、评审置信度、质量解释、Pipeline 节点 span、检索耗时、生成耗时、校验耗时、评估耗时、格式化耗时、总耗时和失败信息，并提供后台 Trace Explorer 支持状态、范围、会话 ID 和关键词分页检索历史链路。
   - 新增解析任务日志和 Explorer，记录 PDF 入库状态、页数、片段数、耗时、失败信息和入库节点 span，并支持按状态或关键词分页追查历史入库任务。
