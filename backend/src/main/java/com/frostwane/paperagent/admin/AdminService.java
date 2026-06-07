@@ -38,6 +38,7 @@ import com.frostwane.paperagent.agent.term.QueryTermMapping;
 import com.frostwane.paperagent.agent.term.QueryTermMappingRepository;
 import com.frostwane.paperagent.agent.tool.AgentTool;
 import com.frostwane.paperagent.agent.tool.AgentToolRegistry;
+import com.frostwane.paperagent.agent.tool.AgentToolSettingService;
 import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.common.PageResponse;
 import com.frostwane.paperagent.parse.IngestionPipelineCatalog;
@@ -72,6 +73,7 @@ public class AdminService {
     private final AgentRateLimiterService agentRateLimiterService;
     private final ModelCircuitBreaker modelCircuitBreaker;
     private final AgentToolRegistry agentToolRegistry;
+    private final AgentToolSettingService agentToolSettingService;
     private final AgentPipeline agentPipeline;
     private final IngestionPipelineCatalog ingestionPipelineCatalog;
     private final List<RetrievalChannel> retrievalChannels;
@@ -85,6 +87,7 @@ public class AdminService {
         AgentRateLimiterService agentRateLimiterService,
         ModelCircuitBreaker modelCircuitBreaker,
         AgentToolRegistry agentToolRegistry,
+        AgentToolSettingService agentToolSettingService,
         AgentPipeline agentPipeline,
         IngestionPipelineCatalog ingestionPipelineCatalog,
         List<RetrievalChannel> retrievalChannels,
@@ -97,6 +100,7 @@ public class AdminService {
         this.agentRateLimiterService = agentRateLimiterService;
         this.modelCircuitBreaker = modelCircuitBreaker;
         this.agentToolRegistry = agentToolRegistry;
+        this.agentToolSettingService = agentToolSettingService;
         this.agentPipeline = agentPipeline;
         this.ingestionPipelineCatalog = ingestionPipelineCatalog;
         this.retrievalChannels = retrievalChannels.stream()
@@ -168,7 +172,7 @@ public class AdminService {
         );
     }
 
-    private AgentToolResponse agentToolResponse(AgentTool tool, AgentToolStats stats) {
+    private AgentToolResponse agentToolResponse(AgentTool tool, AgentToolStats stats, boolean enabled) {
         AgentToolStats safeStats = stats == null ? AgentToolStats.empty() : stats;
         return new AgentToolResponse(
             tool.name(),
@@ -176,7 +180,7 @@ public class AdminService {
             tool.description(),
             tool.triggerDescription(),
             "INTERNAL",
-            true,
+            enabled,
             safeStats.totalCalls(),
             safeStats.successCalls(),
             safeStats.failedCalls(),
@@ -579,9 +583,21 @@ public class AdminService {
     public List<AgentToolResponse> agentTools(User currentUser) {
         requireAdmin(currentUser);
         Map<String, AgentToolStats> stats = agentToolStats();
+        Map<String, Boolean> enabledByToolName = agentToolSettingService.enabledByToolName();
         return agentToolRegistry.tools().stream()
-            .map(tool -> agentToolResponse(tool, stats.get(tool.name())))
+            .map(tool -> agentToolResponse(tool, stats.get(tool.name()), enabledByToolName.getOrDefault(tool.name(), true)))
             .toList();
+    }
+
+    @Transactional
+    public AgentToolResponse updateAgentToolEnabled(String name, boolean enabled, User currentUser) {
+        requireAdmin(currentUser);
+        AgentTool tool = agentToolRegistry.tools().stream()
+            .filter(candidate -> candidate.name().equals(name))
+            .findFirst()
+            .orElseThrow(() -> new BusinessException("Agent 工具不存在"));
+        boolean updated = agentToolSettingService.updateEnabled(tool.name(), enabled);
+        return agentToolResponse(tool, agentToolStats().get(tool.name()), updated);
     }
 
     @Transactional(readOnly = true)

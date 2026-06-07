@@ -29,6 +29,10 @@ export function fetchAgentTools() {
   return unwrap<AdminAgentTool[]>(api.get('/api/admin/agent-tools'));
 }
 
+export function updateAgentToolEnabled(name: string, enabled: boolean) {
+  return unwrap<AdminAgentTool>(api.patch(`/api/admin/agent-tools/${encodeURIComponent(name)}/enabled`, { enabled }));
+}
+
 export function fetchAgentPipelineNodes() {
   return unwrap<AdminAgentPipelineNode[]>(api.get('/api/admin/agent-pipeline/nodes'));
 }

@@ -5,6 +5,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse;
@@ -113,6 +114,15 @@ public class AdminController {
     @GetMapping("/agent-tools")
     public ApiResponse<List<AgentToolResponse>> agentTools() {
         return ApiResponse.ok(adminService.agentTools(currentUserService.getRequiredUser()));
+    }
+
+    @PatchMapping("/agent-tools/{name}/enabled")
+    public ApiResponse<AgentToolResponse> updateAgentToolEnabled(@PathVariable String name, @Valid @RequestBody AgentToolEnabledRequest request) {
+        return ApiResponse.ok(adminService.updateAgentToolEnabled(
+            name,
+            request.enabled(),
+            currentUserService.getRequiredUser()
+        ));
     }
 
     @GetMapping("/agent-pipeline/nodes")

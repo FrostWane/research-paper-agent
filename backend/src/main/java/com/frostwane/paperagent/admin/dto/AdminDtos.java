@@ -107,6 +107,11 @@ public final class AdminDtos {
     ) {
     }
 
+    public record AgentToolEnabledRequest(
+        @NotNull Boolean enabled
+    ) {
+    }
+
     public record AgentPipelineNodeResponse(
         String pipelineName,
         String type,

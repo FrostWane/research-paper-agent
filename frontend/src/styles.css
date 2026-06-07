@@ -1842,7 +1842,7 @@ select,
 
 .agent-tool-row {
   display: grid;
-  grid-template-columns: 62px minmax(150px, 0.9fr) minmax(190px, 1.2fr) minmax(240px, 1.5fr) 66px 72px 72px 76px 130px;
+  grid-template-columns: 62px minmax(150px, 0.9fr) minmax(190px, 1.2fr) minmax(240px, 1.5fr) 66px 72px 72px 76px 130px 72px;
   align-items: center;
   gap: 10px;
   min-height: 64px;
@@ -1854,6 +1854,12 @@ select,
 
 .agent-tool-row.is-disabled {
   opacity: .62;
+}
+
+.agent-tool-row.is-disabled .agent-tool-status {
+  color: #475569;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .agent-tool-status {
@@ -1901,7 +1907,8 @@ select,
 }
 
 .agent-tool-row em,
-.agent-tool-row > strong:last-of-type {
+.agent-tool-row > strong:last-of-type,
+.agent-tool-row .secondary-button {
   justify-self: end;
 }
 

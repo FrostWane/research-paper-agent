@@ -75,6 +75,7 @@ import {
   updateSamplePrompt,
   updateAdminUserStatus,
   updateAdminChunkEnabled,
+  updateAgentToolEnabled,
   updateRagSettings,
   updateQueryTermMapping
 } from './api/admin';
@@ -902,6 +903,20 @@ export default function App() {
     }
   }
 
+  async function handleAdminAgentToolEnabled(tool: AdminAgentTool, enabled: boolean) {
+    try {
+      setBusyText(enabled ? '正在启用 Agent 工具...' : '正在停用 Agent 工具...');
+      const updated = await updateAgentToolEnabled(tool.name, enabled);
+      setAgentTools((current) => current.map((item) => (item.name === updated.name ? updated : item)));
+      setAdminOverview(await fetchAdminOverview());
+      showNotice(enabled ? 'Agent 工具已启用，会重新参与问答链路。' : 'Agent 工具已停用，后续问答会跳过它。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
   async function handleAdminUserStatus(userItem: AdminUser, status: 'NORMAL' | 'DISABLED') {
     try {
       setBusyText(status === 'DISABLED' ? '正在禁用用户...' : '正在恢复用户...');
@@ -1484,6 +1499,7 @@ export default function App() {
             onParseJobFilterChange={(patch) => void handleAdminParseJobFilterChange(patch)}
             onParseJobPageChange={(page) => void loadAdminParseJobPage(adminParseJobFilters, page)}
             onChunkEnabledChange={(chunk, enabled) => void handleAdminChunkEnabled(chunk, enabled)}
+            onAgentToolEnabledChange={(tool, enabled) => void handleAdminAgentToolEnabled(tool, enabled)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
             onCreateQueryMapping={(input) => void handleCreateQueryMapping(input)}
             onUpdateQueryMapping={(mapping, patch) => void handleUpdateQueryMapping(mapping, patch)}
@@ -2172,6 +2188,7 @@ function AdminView({
   onParseJobFilterChange,
   onParseJobPageChange,
   onChunkEnabledChange,
+  onAgentToolEnabledChange,
   onUserStatusChange,
   onCreateQueryMapping,
   onUpdateQueryMapping,
@@ -2219,6 +2236,7 @@ function AdminView({
   onParseJobFilterChange: (patch: Partial<AdminParseJobFilters>) => void;
   onParseJobPageChange: (page: number) => void;
   onChunkEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
+  onAgentToolEnabledChange: (tool: AdminAgentTool, enabled: boolean) => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
   onCreateQueryMapping: (input: { term: string; expansions: string }) => void;
   onUpdateQueryMapping: (mapping: QueryTermMapping, patch: Partial<Pick<QueryTermMapping, 'term' | 'expansions' | 'enabled'>>) => void;
@@ -2362,7 +2380,7 @@ function AdminView({
 
       <RetrievalCatalogPanel channels={retrievalChannels} processors={retrievalProcessors} />
 
-      <AgentToolPanel tools={agentTools} />
+      <AgentToolPanel tools={agentTools} onEnabledChange={onAgentToolEnabledChange} loading={loading} />
 
       <ModelTargetPanel
         targets={modelTargets}
@@ -3257,7 +3275,15 @@ function RetrievalCatalogPanel({
   );
 }
 
-function AgentToolPanel({ tools }: { tools: AdminAgentTool[] }) {
+function AgentToolPanel({
+  tools,
+  onEnabledChange,
+  loading
+}: {
+  tools: AdminAgentTool[];
+  onEnabledChange: (tool: AdminAgentTool, enabled: boolean) => void;
+  loading: boolean;
+}) {
   return (
     <div className="admin-panel admin-agent-tool-panel">
       <div className="admin-panel-head">
@@ -3285,6 +3311,14 @@ function AgentToolPanel({ tools }: { tools: AdminAgentTool[] }) {
               <em>{tool.failedCalls} 失败</em>
               <strong>{formatLatency(tool.averageLatencyMs)}</strong>
               <small>{tool.lastSeenAt ? formatTime(tool.lastSeenAt) : '尚未调用'}</small>
+              <button
+                className={`secondary-button compact-action ${tool.enabled ? 'danger-action' : ''}`}
+                type="button"
+                disabled={loading}
+                onClick={() => onEnabledChange(tool, !tool.enabled)}
+              >
+                {tool.enabled ? '停用' : '启用'}
+              </button>
             </div>
           ))
         )}

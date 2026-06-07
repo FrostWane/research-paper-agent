@@ -10,15 +10,18 @@ import java.util.List;
 public class AgentToolRegistry {
 
     private final List<AgentTool> tools;
+    private final AgentToolSettingService settingService;
 
-    public AgentToolRegistry(List<AgentTool> tools) {
+    public AgentToolRegistry(List<AgentTool> tools, AgentToolSettingService settingService) {
         this.tools = tools.stream()
             .sorted(Comparator.comparing(AgentTool::name))
             .toList();
+        this.settingService = settingService;
     }
 
     public List<AgentTool> matchingTools(AgentPipelineContext context) {
         return tools.stream()
+            .filter(tool -> settingService.enabled(tool.name()))
             .filter(tool -> tool.supports(context))
             .toList();
     }
