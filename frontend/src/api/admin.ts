@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -47,6 +47,22 @@ export function fetchAgentToolExecutions(query: {
     keyword: query.keyword?.trim() || undefined
   };
   return unwrap<PageResponse<AdminAgentToolExecution>>(api.get('/api/admin/agent-tool-executions', { params }));
+}
+
+export function fetchAdminAuditLogs(query: {
+  action?: string;
+  resourceType?: string;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const params = {
+    ...query,
+    action: query.action?.trim() || undefined,
+    resourceType: query.resourceType?.trim() || undefined,
+    keyword: query.keyword?.trim() || undefined
+  };
+  return unwrap<PageResponse<AdminAuditLog>>(api.get('/api/admin/audit-logs', { params }));
 }
 
 export function updateAgentToolEnabled(name: string, enabled: boolean) {

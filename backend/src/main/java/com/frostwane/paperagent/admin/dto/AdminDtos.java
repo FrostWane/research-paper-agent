@@ -165,6 +165,19 @@ public final class AdminDtos {
     ) {
     }
 
+    public record AdminAuditLogResponse(
+        Long id,
+        Long actorId,
+        String actorUsername,
+        String action,
+        String resourceType,
+        String resourceId,
+        String summary,
+        String detailJson,
+        OffsetDateTime createdAt
+    ) {
+    }
+
     public record AgentPipelineNodeResponse(
         String pipelineName,
         String type,

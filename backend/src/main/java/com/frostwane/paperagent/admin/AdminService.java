@@ -1,10 +1,12 @@
 package com.frostwane.paperagent.admin;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolExecutionAuditResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AdminAuditLogResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
@@ -642,6 +644,50 @@ public class AdminService {
         return new PageResponse<>(items, total, safePage, safePageSize, totalPages);
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<AdminAuditLogResponse> adminAuditLogs(
+        User currentUser,
+        String action,
+        String resourceType,
+        String keyword,
+        int page,
+        int pageSize
+    ) {
+        requireAdmin(currentUser);
+        int safePage = Math.max(1, page);
+        int safePageSize = Math.max(5, Math.min(80, pageSize));
+        int offset = (safePage - 1) * safePageSize;
+        List<Object> params = new ArrayList<>();
+        String where = adminAuditLogWhere(action, resourceType, keyword, params);
+        long total = numberValue("select count(*) " + adminAuditLogFromSql() + where, params);
+        List<Object> rowParams = new ArrayList<>(params);
+        rowParams.add(safePageSize);
+        rowParams.add(offset);
+        List<AdminAuditLogResponse> items = jdbcTemplate.query(
+            adminAuditLogSelectSql() + where + " order by a.created_at desc, a.id desc limit ? offset ?",
+            this::mapAdminAuditLog,
+            rowParams.toArray()
+        );
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
+        return new PageResponse<>(items, total, safePage, safePageSize, totalPages);
+    }
+
+    public void recordAudit(User currentUser, String action, String resourceType, String resourceId, String summary, Object detail) {
+        requireAdmin(currentUser);
+        jdbcTemplate.update("""
+            insert into admin_audit_logs(actor_id, actor_username, action, resource_type, resource_id, summary, detail_json)
+            values (?, ?, ?, ?, ?, ?, ?::jsonb)
+            """,
+            currentUser.getId(),
+            defaultText(currentUser.getUsername(), "unknown"),
+            defaultText(compact(action, 80), "ADMIN_ACTION"),
+            defaultText(compact(resourceType, 80), "UNKNOWN"),
+            compact(resourceId, 160),
+            defaultText(compact(summary, 500), "管理员操作"),
+            detailJson(detail)
+        );
+    }
+
     @Transactional
     public AgentToolResponse updateAgentToolEnabled(String name, boolean enabled, User currentUser) {
         requireAdmin(currentUser);
@@ -1271,6 +1317,73 @@ public class AdminService {
         return where.toString();
     }
 
+    private String adminAuditLogSelectSql() {
+        return """
+            select
+              a.id,
+              a.actor_id,
+              a.actor_username,
+              a.action,
+              a.resource_type,
+              a.resource_id,
+              a.summary,
+              a.detail_json::text as detail_json,
+              a.created_at
+            """ + adminAuditLogFromSql();
+    }
+
+    private String adminAuditLogFromSql() {
+        return """
+            from admin_audit_logs a
+            """;
+    }
+
+    private String adminAuditLogWhere(String action, String resourceType, String keyword, List<Object> params) {
+        StringBuilder where = new StringBuilder(" where 1 = 1");
+        String normalizedAction = compact(action, 80);
+        if (normalizedAction != null) {
+            where.append(" and upper(a.action) = ?");
+            params.add(normalizedAction.toUpperCase(Locale.ROOT));
+        }
+        String normalizedResourceType = compact(resourceType, 80);
+        if (normalizedResourceType != null) {
+            where.append(" and upper(a.resource_type) = ?");
+            params.add(normalizedResourceType.toUpperCase(Locale.ROOT));
+        }
+        String normalizedKeyword = compact(keyword, 160);
+        if (normalizedKeyword != null) {
+            String pattern = "%" + normalizedKeyword.toLowerCase(Locale.ROOT) + "%";
+            where.append("""
+                 and (
+                   lower(a.actor_username) like ?
+                   or lower(a.action) like ?
+                   or lower(a.resource_type) like ?
+                   or lower(coalesce(a.resource_id, '')) like ?
+                   or lower(a.summary) like ?
+                   or lower(a.detail_json::text) like ?
+                 )
+                """);
+            for (int i = 0; i < 6; i++) {
+                params.add(pattern);
+            }
+        }
+        return where.toString();
+    }
+
+    private AdminAuditLogResponse mapAdminAuditLog(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminAuditLogResponse(
+            rs.getLong("id"),
+            nullableLong(rs, "actor_id"),
+            rs.getString("actor_username"),
+            rs.getString("action"),
+            rs.getString("resource_type"),
+            rs.getString("resource_id"),
+            rs.getString("summary"),
+            rs.getString("detail_json"),
+            offsetDateTime(rs, "created_at")
+        );
+    }
+
     private AgentToolExecutionAuditResponse mapAgentToolExecution(ResultSet rs, int rowNum) throws SQLException {
         return new AgentToolExecutionAuditResponse(
             rs.getLong("trace_id"),
@@ -1658,6 +1771,17 @@ public class AdminService {
 
     private String defaultText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private String detailJson(Object detail) {
+        if (detail == null) {
+            return "{}";
+        }
+        try {
+            return objectMapper.writeValueAsString(detail);
+        } catch (JsonProcessingException ex) {
+            return "{\"error\":\"审计详情序列化失败\"}";
+        }
     }
 
     private record AgentToolStats(

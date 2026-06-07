@@ -1605,6 +1605,7 @@ select,
 .admin-retrieval-catalog-panel,
 .admin-agent-tool-panel,
 .admin-agent-tool-execution-panel,
+.admin-audit-log-panel,
 .admin-stream-task-panel,
 .admin-chunk-panel {
   overflow-x: auto;
@@ -2155,6 +2156,70 @@ select,
 }
 
 .agent-tool-execution-pagination {
+  min-width: 980px;
+  padding: 10px 14px 0;
+}
+
+.admin-audit-log-filter {
+  grid-template-columns: minmax(150px, .6fr) minmax(150px, .6fr) minmax(280px, 1.8fr) auto auto;
+  min-width: 980px;
+  padding: 14px 14px 0;
+  margin-bottom: 8px;
+}
+
+.admin-audit-log-meta {
+  min-width: 980px;
+  padding: 0 14px;
+}
+
+.admin-audit-log-list {
+  display: grid;
+  gap: 8px;
+  min-width: 980px;
+  padding: 14px;
+}
+
+.admin-audit-log-row {
+  display: grid;
+  grid-template-columns: 112px minmax(240px, 1.1fr) minmax(160px, .7fr) minmax(280px, 1.2fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 9px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.admin-audit-log-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-audit-log-row b,
+.admin-audit-log-row small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-audit-log-row b {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.admin-audit-log-row small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-audit-log-detail b {
+  color: #334155;
+}
+
+.admin-audit-log-pagination {
   min-width: 980px;
   padding: 10px 14px 0;
 }

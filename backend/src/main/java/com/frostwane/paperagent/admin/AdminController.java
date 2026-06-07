@@ -1,6 +1,7 @@
 package com.frostwane.paperagent.admin;
 
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminOverviewResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.AdminAuditLogResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminChunkEnabledRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
@@ -38,6 +39,7 @@ import com.frostwane.paperagent.agent.settings.RagSettingsService;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
 import com.frostwane.paperagent.common.PageResponse;
+import com.frostwane.paperagent.user.User;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,7 +51,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -88,12 +92,29 @@ public class AdminController {
 
     @PostMapping("/stream-tasks/{taskId}/cancel")
     public ApiResponse<ChatStreamTaskResponse> cancelStreamTask(@PathVariable String taskId) {
-        return ApiResponse.ok(adminService.cancelStreamTask(taskId, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        ChatStreamTaskResponse response = adminService.cancelStreamTask(taskId, admin);
+        audit(admin, "CANCEL_STREAM_TASK", "STREAM_TASK", response.taskId(), "强制停止流式问答任务", detail(
+            "phase", response.phase(),
+            "ownerUsername", response.ownerUsername(),
+            "question", response.question(),
+            "paperId", response.paperId(),
+            "sessionId", response.sessionId()
+        ));
+        return ApiResponse.ok(response);
     }
 
     @PostMapping("/model-circuits/reset")
     public ApiResponse<ModelCircuitResetResponse> resetModelCircuit(@RequestParam String targetName) {
-        return ApiResponse.ok(adminService.resetModelCircuit(targetName, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        ModelCircuitResetResponse response = adminService.resetModelCircuit(targetName, admin);
+        audit(admin, "RESET_MODEL_CIRCUIT", "MODEL_TARGET", response.targetName(), "复位模型目标熔断状态", detail(
+            "targetName", response.targetName(),
+            "circuitState", response.circuitState(),
+            "consecutiveFailures", response.consecutiveFailures(),
+            "circuitOpenUntil", response.circuitOpenUntil()
+        ));
+        return ApiResponse.ok(response);
     }
 
     @GetMapping("/rag-traces")
@@ -126,6 +147,24 @@ public class AdminController {
         return ApiResponse.ok(adminService.users(currentUserService.getRequiredUser()));
     }
 
+    @GetMapping("/audit-logs")
+    public ApiResponse<PageResponse<AdminAuditLogResponse>> adminAuditLogs(
+        @RequestParam(defaultValue = "") String action,
+        @RequestParam(defaultValue = "") String resourceType,
+        @RequestParam(defaultValue = "") String keyword,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(adminService.adminAuditLogs(
+            currentUserService.getRequiredUser(),
+            action,
+            resourceType,
+            keyword,
+            page,
+            pageSize
+        ));
+    }
+
     @GetMapping("/agent-tools")
     public ApiResponse<List<AgentToolResponse>> agentTools() {
         return ApiResponse.ok(adminService.agentTools(currentUserService.getRequiredUser()));
@@ -151,20 +190,36 @@ public class AdminController {
 
     @PatchMapping("/agent-tools/{name}/enabled")
     public ApiResponse<AgentToolResponse> updateAgentToolEnabled(@PathVariable String name, @Valid @RequestBody AgentToolEnabledRequest request) {
-        return ApiResponse.ok(adminService.updateAgentToolEnabled(
+        User admin = currentAdmin();
+        AgentToolResponse response = adminService.updateAgentToolEnabled(
             name,
             request.enabled(),
-            currentUserService.getRequiredUser()
+            admin
+        );
+        audit(admin, "UPDATE_AGENT_TOOL_ENABLED", "AGENT_TOOL", response.name(), (response.enabled() ? "启用" : "停用") + " Agent 工具", detail(
+            "name", response.name(),
+            "label", response.label(),
+            "enabled", response.enabled(),
+            "minimumRole", response.minimumRole()
         ));
+        return ApiResponse.ok(response);
     }
 
     @PatchMapping("/agent-tools/{name}/minimum-role")
     public ApiResponse<AgentToolResponse> updateAgentToolMinimumRole(@PathVariable String name, @Valid @RequestBody AgentToolMinimumRoleRequest request) {
-        return ApiResponse.ok(adminService.updateAgentToolMinimumRole(
+        User admin = currentAdmin();
+        AgentToolResponse response = adminService.updateAgentToolMinimumRole(
             name,
             request.minimumRole(),
-            currentUserService.getRequiredUser()
+            admin
+        );
+        audit(admin, "UPDATE_AGENT_TOOL_ROLE", "AGENT_TOOL", response.name(), "调整 Agent 工具最小调用角色", detail(
+            "name", response.name(),
+            "label", response.label(),
+            "enabled", response.enabled(),
+            "minimumRole", response.minimumRole()
         ));
+        return ApiResponse.ok(response);
     }
 
     @GetMapping("/agent-pipeline/nodes")
@@ -174,11 +229,20 @@ public class AdminController {
 
     @PatchMapping("/agent-pipeline/nodes/{name}/enabled")
     public ApiResponse<AgentPipelineNodeResponse> updateAgentPipelineNodeEnabled(@PathVariable String name, @Valid @RequestBody AgentPipelineNodeEnabledRequest request) {
-        return ApiResponse.ok(adminService.updateAgentPipelineNodeEnabled(
+        User admin = currentAdmin();
+        AgentPipelineNodeResponse response = adminService.updateAgentPipelineNodeEnabled(
             name,
             request.enabled(),
-            currentUserService.getRequiredUser()
+            admin
+        );
+        audit(admin, "UPDATE_AGENT_PIPELINE_NODE", "AGENT_PIPELINE_NODE", response.name(), (response.enabled() ? "启用" : "停用") + " Agent Pipeline 节点", detail(
+            "pipelineName", response.pipelineName(),
+            "type", response.type(),
+            "name", response.name(),
+            "label", response.label(),
+            "enabled", response.enabled()
         ));
+        return ApiResponse.ok(response);
     }
 
     @GetMapping("/ingestion-pipeline/nodes")
@@ -230,16 +294,33 @@ public class AdminController {
 
     @PatchMapping("/chunks/{id}/enabled")
     public ApiResponse<AdminChunkResponse> updateChunkEnabled(@PathVariable Long id, @Valid @RequestBody AdminChunkEnabledRequest request) {
-        return ApiResponse.ok(adminService.updateChunkEnabled(
+        User admin = currentAdmin();
+        AdminChunkResponse response = adminService.updateChunkEnabled(
             id,
             request.enabled(),
-            currentUserService.getRequiredUser()
+            admin
+        );
+        audit(admin, "UPDATE_CHUNK_ENABLED", "PAPER_CHUNK", response.id(), (response.enabled() ? "启用" : "禁用") + "知识片段检索", detail(
+            "paperId", response.paperId(),
+            "paperTitle", response.paperTitle(),
+            "pageNumber", response.pageNumber(),
+            "chunkIndex", response.chunkIndex(),
+            "enabled", response.enabled()
         ));
+        return ApiResponse.ok(response);
     }
 
     @PatchMapping("/users/{id}/status")
     public ApiResponse<AdminUserResponse> updateUserStatus(@PathVariable Long id, @Valid @RequestBody UserStatusUpdateRequest request) {
-        return ApiResponse.ok(adminService.updateUserStatus(id, request.status(), currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        AdminUserResponse response = adminService.updateUserStatus(id, request.status(), admin);
+        audit(admin, "UPDATE_USER_STATUS", "USER", response.id(), "更新用户账号状态", detail(
+            "username", response.username(),
+            "email", response.email(),
+            "status", response.status(),
+            "role", response.role()
+        ));
+        return ApiResponse.ok(response);
     }
 
     @GetMapping("/query-term-mappings")
@@ -254,7 +335,17 @@ public class AdminController {
 
     @PatchMapping("/rag-settings")
     public ApiResponse<RagSettingsResponse> updateRagSettings(@Valid @RequestBody RagSettingsRequest request) {
-        return ApiResponse.ok(ragSettingsService.update(request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        RagSettingsResponse response = ragSettingsService.update(request, admin);
+        audit(admin, "UPDATE_RAG_SETTINGS", "RAG_SETTINGS", "global", "更新 RAG 运行时设置", detail(
+            "candidateLimit", response.candidateLimit(),
+            "resultLimit", response.resultLimit(),
+            "queryRewriteEnabled", response.queryRewriteEnabled(),
+            "answerQualityJudgeEnabled", response.answerQualityJudgeEnabled(),
+            "rerankModelEnabled", response.rerankModelEnabled(),
+            "chatRateLimitEnabled", response.chatRateLimitEnabled()
+        ));
+        return ApiResponse.ok(response);
     }
 
     @GetMapping("/intent-routes")
@@ -264,17 +355,25 @@ public class AdminController {
 
     @PostMapping("/intent-routes")
     public ApiResponse<IntentRouteResponse> createIntentRoute(@Valid @RequestBody IntentRouteRequest request) {
-        return ApiResponse.ok(intentRouteService.create(request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        IntentRouteResponse response = intentRouteService.create(request, admin);
+        audit(admin, "CREATE_INTENT_ROUTE", "INTENT_ROUTE", response.id(), "创建意图路由", intentRouteDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @PatchMapping("/intent-routes/{id}")
     public ApiResponse<IntentRouteResponse> updateIntentRoute(@PathVariable Long id, @Valid @RequestBody IntentRouteRequest request) {
-        return ApiResponse.ok(intentRouteService.update(id, request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        IntentRouteResponse response = intentRouteService.update(id, request, admin);
+        audit(admin, "UPDATE_INTENT_ROUTE", "INTENT_ROUTE", response.id(), "更新意图路由", intentRouteDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @DeleteMapping("/intent-routes/{id}")
     public ApiResponse<Void> deleteIntentRoute(@PathVariable Long id) {
-        intentRouteService.delete(id, currentUserService.getRequiredUser());
+        User admin = currentAdmin();
+        intentRouteService.delete(id, admin);
+        audit(admin, "DELETE_INTENT_ROUTE", "INTENT_ROUTE", id, "删除意图路由", detail("id", id));
         return ApiResponse.empty();
     }
 
@@ -285,17 +384,25 @@ public class AdminController {
 
     @PostMapping("/answer-prompt-templates")
     public ApiResponse<AnswerPromptTemplateResponse> createAnswerPromptTemplate(@Valid @RequestBody AnswerPromptTemplateRequest request) {
-        return ApiResponse.ok(answerPromptTemplateService.create(request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        AnswerPromptTemplateResponse response = answerPromptTemplateService.create(request, admin);
+        audit(admin, "CREATE_ANSWER_PROMPT_TEMPLATE", "ANSWER_PROMPT_TEMPLATE", response.id(), "创建回答 Prompt 模板", answerPromptTemplateDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @PatchMapping("/answer-prompt-templates/{id}")
     public ApiResponse<AnswerPromptTemplateResponse> updateAnswerPromptTemplate(@PathVariable Long id, @Valid @RequestBody AnswerPromptTemplateRequest request) {
-        return ApiResponse.ok(answerPromptTemplateService.update(id, request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        AnswerPromptTemplateResponse response = answerPromptTemplateService.update(id, request, admin);
+        audit(admin, "UPDATE_ANSWER_PROMPT_TEMPLATE", "ANSWER_PROMPT_TEMPLATE", response.id(), "更新回答 Prompt 模板", answerPromptTemplateDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @DeleteMapping("/answer-prompt-templates/{id}")
     public ApiResponse<Void> deleteAnswerPromptTemplate(@PathVariable Long id) {
-        answerPromptTemplateService.delete(id, currentUserService.getRequiredUser());
+        User admin = currentAdmin();
+        answerPromptTemplateService.delete(id, admin);
+        audit(admin, "DELETE_ANSWER_PROMPT_TEMPLATE", "ANSWER_PROMPT_TEMPLATE", id, "删除回答 Prompt 模板", detail("id", id));
         return ApiResponse.empty();
     }
 
@@ -306,33 +413,49 @@ public class AdminController {
 
     @PostMapping("/model-targets")
     public ApiResponse<ModelTargetResponse> createModelTarget(@Valid @RequestBody ModelTargetRequest request) {
-        return ApiResponse.ok(modelTargetService.create(request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        ModelTargetResponse response = modelTargetService.create(request, admin);
+        audit(admin, "CREATE_MODEL_TARGET", "MODEL_TARGET", response.id(), "创建模型路由目标", modelTargetDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @PatchMapping("/model-targets/{id}")
     public ApiResponse<ModelTargetResponse> updateModelTarget(@PathVariable Long id, @Valid @RequestBody ModelTargetRequest request) {
-        return ApiResponse.ok(modelTargetService.update(id, request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        ModelTargetResponse response = modelTargetService.update(id, request, admin);
+        audit(admin, "UPDATE_MODEL_TARGET", "MODEL_TARGET", response.id(), "更新模型路由目标", modelTargetDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @DeleteMapping("/model-targets/{id}")
     public ApiResponse<Void> deleteModelTarget(@PathVariable Long id) {
-        modelTargetService.delete(id, currentUserService.getRequiredUser());
+        User admin = currentAdmin();
+        modelTargetService.delete(id, admin);
+        audit(admin, "DELETE_MODEL_TARGET", "MODEL_TARGET", id, "删除模型路由目标", detail("id", id));
         return ApiResponse.empty();
     }
 
     @PostMapping("/query-term-mappings")
     public ApiResponse<QueryTermMappingResponse> createQueryTermMapping(@Valid @RequestBody QueryTermMappingRequest request) {
-        return ApiResponse.ok(adminService.createQueryTermMapping(request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        QueryTermMappingResponse response = adminService.createQueryTermMapping(request, admin);
+        audit(admin, "CREATE_QUERY_TERM_MAPPING", "QUERY_TERM_MAPPING", response.id(), "创建查询术语映射", queryTermMappingDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @PatchMapping("/query-term-mappings/{id}")
     public ApiResponse<QueryTermMappingResponse> updateQueryTermMapping(@PathVariable Long id, @Valid @RequestBody QueryTermMappingRequest request) {
-        return ApiResponse.ok(adminService.updateQueryTermMapping(id, request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        QueryTermMappingResponse response = adminService.updateQueryTermMapping(id, request, admin);
+        audit(admin, "UPDATE_QUERY_TERM_MAPPING", "QUERY_TERM_MAPPING", response.id(), "更新查询术语映射", queryTermMappingDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @DeleteMapping("/query-term-mappings/{id}")
     public ApiResponse<Void> deleteQueryTermMapping(@PathVariable Long id) {
-        adminService.deleteQueryTermMapping(id, currentUserService.getRequiredUser());
+        User admin = currentAdmin();
+        adminService.deleteQueryTermMapping(id, admin);
+        audit(admin, "DELETE_QUERY_TERM_MAPPING", "QUERY_TERM_MAPPING", id, "删除查询术语映射", detail("id", id));
         return ApiResponse.empty();
     }
 
@@ -343,17 +466,104 @@ public class AdminController {
 
     @PostMapping("/sample-prompts")
     public ApiResponse<SamplePromptResponse> createSamplePrompt(@Valid @RequestBody SamplePromptRequest request) {
-        return ApiResponse.ok(samplePromptService.create(request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        SamplePromptResponse response = samplePromptService.create(request, admin);
+        audit(admin, "CREATE_SAMPLE_PROMPT", "SAMPLE_PROMPT", response.id(), "创建示例问题", samplePromptDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @PatchMapping("/sample-prompts/{id}")
     public ApiResponse<SamplePromptResponse> updateSamplePrompt(@PathVariable Long id, @Valid @RequestBody SamplePromptRequest request) {
-        return ApiResponse.ok(samplePromptService.update(id, request, currentUserService.getRequiredUser()));
+        User admin = currentAdmin();
+        SamplePromptResponse response = samplePromptService.update(id, request, admin);
+        audit(admin, "UPDATE_SAMPLE_PROMPT", "SAMPLE_PROMPT", response.id(), "更新示例问题", samplePromptDetail(response));
+        return ApiResponse.ok(response);
     }
 
     @DeleteMapping("/sample-prompts/{id}")
     public ApiResponse<Void> deleteSamplePrompt(@PathVariable Long id) {
-        samplePromptService.delete(id, currentUserService.getRequiredUser());
+        User admin = currentAdmin();
+        samplePromptService.delete(id, admin);
+        audit(admin, "DELETE_SAMPLE_PROMPT", "SAMPLE_PROMPT", id, "删除示例问题", detail("id", id));
         return ApiResponse.empty();
+    }
+
+    private User currentAdmin() {
+        return currentUserService.getRequiredUser();
+    }
+
+    private void audit(User admin, String action, String resourceType, Object resourceId, String summary, Object detail) {
+        adminService.recordAudit(
+            admin,
+            action,
+            resourceType,
+            resourceId == null ? null : String.valueOf(resourceId),
+            summary,
+            detail
+        );
+    }
+
+    private Map<String, Object> intentRouteDetail(IntentRouteResponse route) {
+        return detail(
+            "id", route.id(),
+            "intentCode", route.intentCode(),
+            "label", route.label(),
+            "answerStrategy", route.answerStrategy(),
+            "boundToolName", route.boundToolName(),
+            "comparisonEnabled", route.comparisonEnabled(),
+            "enabled", route.enabled()
+        );
+    }
+
+    private Map<String, Object> answerPromptTemplateDetail(AnswerPromptTemplateResponse template) {
+        return detail(
+            "id", template.id(),
+            "code", template.code(),
+            "name", template.name(),
+            "enabled", template.enabled(),
+            "defaultTemplate", template.defaultTemplate(),
+            "sortOrder", template.sortOrder()
+        );
+    }
+
+    private Map<String, Object> modelTargetDetail(ModelTargetResponse target) {
+        return detail(
+            "id", target.id(),
+            "code", target.code(),
+            "provider", target.provider(),
+            "taskType", target.taskType(),
+            "modelName", target.modelName(),
+            "baseUrl", target.baseUrl(),
+            "apiKeyConfigured", target.apiKeyConfigured(),
+            "enabled", target.enabled(),
+            "priority", target.priority(),
+            "timeoutSeconds", target.timeoutSeconds()
+        );
+    }
+
+    private Map<String, Object> queryTermMappingDetail(QueryTermMappingResponse mapping) {
+        return detail(
+            "id", mapping.id(),
+            "term", mapping.term(),
+            "enabled", mapping.enabled()
+        );
+    }
+
+    private Map<String, Object> samplePromptDetail(SamplePromptResponse prompt) {
+        return detail(
+            "id", prompt.id(),
+            "scope", prompt.scope(),
+            "title", prompt.title(),
+            "sortOrder", prompt.sortOrder(),
+            "enabled", prompt.enabled()
+        );
+    }
+
+    private Map<String, Object> detail(Object... entries) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < entries.length; i += 2) {
+            result.put(String.valueOf(entries[i]), entries[i + 1]);
+        }
+        return result;
     }
 }

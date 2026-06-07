@@ -214,6 +214,18 @@ export interface AdminAgentToolExecution {
   createdAt: string;
 }
 
+export interface AdminAuditLog {
+  id: number;
+  actorId?: number;
+  actorUsername: string;
+  action: string;
+  resourceType: string;
+  resourceId?: string;
+  summary: string;
+  detailJson: string;
+  createdAt: string;
+}
+
 export interface AdminAgentPipelineNode {
   pipelineName: string;
   type: string;

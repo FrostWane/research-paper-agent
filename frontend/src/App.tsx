@@ -55,6 +55,7 @@ import {
   deleteModelTarget,
   deleteSamplePrompt,
   deleteQueryTermMapping,
+  fetchAdminAuditLogs,
   fetchAdminChunks,
   fetchAdminOverview,
   fetchAdminParseJobs,
@@ -100,7 +101,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChatRateLimit, AdminChunk, AdminDailyTrend, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChatRateLimit, AdminChunk, AdminDailyTrend, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -235,6 +236,11 @@ type AdminAgentToolExecutionFilters = {
   status: string;
   keyword: string;
 };
+type AdminAuditLogFilters = {
+  action: string;
+  resourceType: string;
+  keyword: string;
+};
 type AdminChunkFilters = {
   paperId: string;
   keyword: string;
@@ -276,6 +282,11 @@ const defaultAgentToolExecutionFilters: AdminAgentToolExecutionFilters = {
   status: '',
   keyword: ''
 };
+const defaultAdminAuditLogFilters: AdminAuditLogFilters = {
+  action: '',
+  resourceType: '',
+  keyword: ''
+};
 const defaultChunkFilters: AdminChunkFilters = {
   paperId: '',
   keyword: ''
@@ -284,6 +295,44 @@ const defaultParseJobFilters: AdminParseJobFilters = {
   status: '',
   keyword: ''
 };
+const adminAuditActions = [
+  'UPDATE_RAG_SETTINGS',
+  'UPDATE_USER_STATUS',
+  'UPDATE_AGENT_PIPELINE_NODE',
+  'UPDATE_AGENT_TOOL_ENABLED',
+  'UPDATE_AGENT_TOOL_ROLE',
+  'UPDATE_CHUNK_ENABLED',
+  'RESET_MODEL_CIRCUIT',
+  'CANCEL_STREAM_TASK',
+  'CREATE_MODEL_TARGET',
+  'UPDATE_MODEL_TARGET',
+  'DELETE_MODEL_TARGET',
+  'CREATE_INTENT_ROUTE',
+  'UPDATE_INTENT_ROUTE',
+  'DELETE_INTENT_ROUTE',
+  'CREATE_ANSWER_PROMPT_TEMPLATE',
+  'UPDATE_ANSWER_PROMPT_TEMPLATE',
+  'DELETE_ANSWER_PROMPT_TEMPLATE',
+  'CREATE_QUERY_TERM_MAPPING',
+  'UPDATE_QUERY_TERM_MAPPING',
+  'DELETE_QUERY_TERM_MAPPING',
+  'CREATE_SAMPLE_PROMPT',
+  'UPDATE_SAMPLE_PROMPT',
+  'DELETE_SAMPLE_PROMPT'
+];
+const adminAuditResourceTypes = [
+  'RAG_SETTINGS',
+  'USER',
+  'AGENT_PIPELINE_NODE',
+  'AGENT_TOOL',
+  'PAPER_CHUNK',
+  'MODEL_TARGET',
+  'STREAM_TASK',
+  'INTENT_ROUTE',
+  'ANSWER_PROMPT_TEMPLATE',
+  'QUERY_TERM_MAPPING',
+  'SAMPLE_PROMPT'
+];
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -310,6 +359,8 @@ export default function App() {
   const [adminTraceFilters, setAdminTraceFilters] = useState<AdminTraceFilters>(defaultTraceFilters);
   const [agentToolExecutionPage, setAgentToolExecutionPage] = useState<PageResponse<AdminAgentToolExecution> | null>(null);
   const [agentToolExecutionFilters, setAgentToolExecutionFilters] = useState<AdminAgentToolExecutionFilters>(defaultAgentToolExecutionFilters);
+  const [adminAuditLogPage, setAdminAuditLogPage] = useState<PageResponse<AdminAuditLog> | null>(null);
+  const [adminAuditLogFilters, setAdminAuditLogFilters] = useState<AdminAuditLogFilters>(defaultAdminAuditLogFilters);
   const [adminChunkPage, setAdminChunkPage] = useState<PageResponse<AdminChunk> | null>(null);
   const [adminChunkFilters, setAdminChunkFilters] = useState<AdminChunkFilters>(defaultChunkFilters);
   const [adminParseJobPage, setAdminParseJobPage] = useState<PageResponse<AdminParseJob> | null>(null);
@@ -820,10 +871,11 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, toolExecutions, chunks, parseJobs, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, toolExecutions, auditLogs, chunks, parseJobs, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
         fetchAgentToolExecutions({ ...agentToolExecutionFilters, page: agentToolExecutionPage?.page ?? 1, pageSize: agentToolExecutionPage?.pageSize ?? 10 }),
+        fetchAdminAuditLogs({ ...adminAuditLogFilters, page: adminAuditLogPage?.page ?? 1, pageSize: adminAuditLogPage?.pageSize ?? 12 }),
         fetchAdminChunks({ ...adminChunkFilters, page: adminChunkPage?.page ?? 1, pageSize: adminChunkPage?.pageSize ?? 8 }),
         fetchAdminParseJobs({ ...adminParseJobFilters, page: adminParseJobPage?.page ?? 1, pageSize: adminParseJobPage?.pageSize ?? 10 }),
         fetchAdminUsers(),
@@ -842,6 +894,7 @@ export default function App() {
       setAdminOverview(overview);
       setAdminTracePage(traces);
       setAgentToolExecutionPage(toolExecutions);
+      setAdminAuditLogPage(auditLogs);
       setAdminChunkPage(chunks);
       setAdminParseJobPage(parseJobs);
       setAdminUsers(users);
@@ -899,6 +952,25 @@ export default function App() {
     const nextFilters = { ...agentToolExecutionFilters, ...patch };
     setAgentToolExecutionFilters(nextFilters);
     await loadAgentToolExecutionPage(nextFilters, 1);
+  }
+
+  async function loadAdminAuditLogPage(nextFilters = adminAuditLogFilters, page = adminAuditLogPage?.page ?? 1) {
+    try {
+      setAdminLoading(true);
+      setError('');
+      const auditLogs = await fetchAdminAuditLogs({ ...nextFilters, page, pageSize: adminAuditLogPage?.pageSize ?? 12 });
+      setAdminAuditLogPage(auditLogs);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleAdminAuditLogFilterChange(patch: Partial<AdminAuditLogFilters>) {
+    const nextFilters = { ...adminAuditLogFilters, ...patch };
+    setAdminAuditLogFilters(nextFilters);
+    await loadAdminAuditLogPage(nextFilters, 1);
   }
 
   async function loadAdminChunkPage(nextFilters = adminChunkFilters, page = adminChunkPage?.page ?? 1) {
@@ -1588,6 +1660,8 @@ export default function App() {
             traceFilters={adminTraceFilters}
             agentToolExecutionPage={agentToolExecutionPage}
             agentToolExecutionFilters={agentToolExecutionFilters}
+            auditLogPage={adminAuditLogPage}
+            auditLogFilters={adminAuditLogFilters}
             chunkPage={adminChunkPage}
             chunkFilters={adminChunkFilters}
             parseJobPage={adminParseJobPage}
@@ -1611,6 +1685,8 @@ export default function App() {
             onTracePageChange={(page) => void loadAdminTracePage(adminTraceFilters, page)}
             onAgentToolExecutionFilterChange={(patch) => void handleAgentToolExecutionFilterChange(patch)}
             onAgentToolExecutionPageChange={(page) => void loadAgentToolExecutionPage(agentToolExecutionFilters, page)}
+            onAuditLogFilterChange={(patch) => void handleAdminAuditLogFilterChange(patch)}
+            onAuditLogPageChange={(page) => void loadAdminAuditLogPage(adminAuditLogFilters, page)}
             onChunkFilterChange={(patch) => void handleAdminChunkFilterChange(patch)}
             onChunkPageChange={(page) => void loadAdminChunkPage(adminChunkFilters, page)}
             onParseJobFilterChange={(patch) => void handleAdminParseJobFilterChange(patch)}
@@ -2285,6 +2361,8 @@ function AdminView({
   traceFilters,
   agentToolExecutionPage,
   agentToolExecutionFilters,
+  auditLogPage,
+  auditLogFilters,
   chunkPage,
   chunkFilters,
   parseJobPage,
@@ -2308,6 +2386,8 @@ function AdminView({
   onTracePageChange,
   onAgentToolExecutionFilterChange,
   onAgentToolExecutionPageChange,
+  onAuditLogFilterChange,
+  onAuditLogPageChange,
   onChunkFilterChange,
   onChunkPageChange,
   onParseJobFilterChange,
@@ -2341,6 +2421,8 @@ function AdminView({
   traceFilters: AdminTraceFilters;
   agentToolExecutionPage: PageResponse<AdminAgentToolExecution> | null;
   agentToolExecutionFilters: AdminAgentToolExecutionFilters;
+  auditLogPage: PageResponse<AdminAuditLog> | null;
+  auditLogFilters: AdminAuditLogFilters;
   chunkPage: PageResponse<AdminChunk> | null;
   chunkFilters: AdminChunkFilters;
   parseJobPage: PageResponse<AdminParseJob> | null;
@@ -2364,6 +2446,8 @@ function AdminView({
   onTracePageChange: (page: number) => void;
   onAgentToolExecutionFilterChange: (patch: Partial<AdminAgentToolExecutionFilters>) => void;
   onAgentToolExecutionPageChange: (page: number) => void;
+  onAuditLogFilterChange: (patch: Partial<AdminAuditLogFilters>) => void;
+  onAuditLogPageChange: (page: number) => void;
   onChunkFilterChange: (patch: Partial<AdminChunkFilters>) => void;
   onChunkPageChange: (page: number) => void;
   onParseJobFilterChange: (patch: Partial<AdminParseJobFilters>) => void;
@@ -2544,6 +2628,14 @@ function AdminView({
         loading={loading}
         onFilterChange={onAgentToolExecutionFilterChange}
         onPageChange={onAgentToolExecutionPageChange}
+      />
+
+      <AdminAuditLogPanel
+        page={auditLogPage}
+        filters={auditLogFilters}
+        loading={loading}
+        onFilterChange={onAuditLogFilterChange}
+        onPageChange={onAuditLogPageChange}
       />
 
       <ModelTargetPanel
@@ -3685,6 +3777,124 @@ function AgentToolExecutionPanel({
         )}
       </div>
       <div className="admin-trace-pagination agent-tool-execution-pagination">
+        <button className="secondary-button compact-action" type="button" disabled={loading || currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+          上一页
+        </button>
+        <button className="secondary-button compact-action" type="button" disabled={loading || totalPages === 0 || currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          下一页
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AdminAuditLogPanel({
+  page,
+  filters,
+  loading,
+  onFilterChange,
+  onPageChange
+}: {
+  page: PageResponse<AdminAuditLog> | null;
+  filters: AdminAuditLogFilters;
+  loading: boolean;
+  onFilterChange: (patch: Partial<AdminAuditLogFilters>) => void;
+  onPageChange: (page: number) => void;
+}) {
+  const [draft, setDraft] = useState<AdminAuditLogFilters>(filters);
+  const logs = page?.items ?? [];
+  const currentPage = page?.page ?? 1;
+  const totalPages = page?.totalPages ?? 0;
+  const total = page?.total ?? 0;
+
+  useEffect(() => {
+    setDraft(filters);
+  }, [filters.action, filters.resourceType, filters.keyword]);
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onFilterChange(draft);
+  }
+
+  return (
+    <div className="admin-panel admin-audit-log-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>管理员操作审计</h3>
+          <p>追踪后台配置、权限、模型、片段和流式任务治理动作。</p>
+        </div>
+        <ShieldCheck size={18} />
+      </div>
+      <form className="admin-trace-filter admin-audit-log-filter" onSubmit={submit}>
+        <label>
+          <span>动作</span>
+          <select value={draft.action} onChange={(event) => setDraft((current) => ({ ...current, action: event.target.value }))}>
+            <option value="">全部</option>
+            {adminAuditActions.map((action) => (
+              <option value={action} key={`audit-action-${action}`}>
+                {adminAuditActionLabel(action)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>资源</span>
+          <select value={draft.resourceType} onChange={(event) => setDraft((current) => ({ ...current, resourceType: event.target.value }))}>
+            <option value="">全部</option>
+            {adminAuditResourceTypes.map((resourceType) => (
+              <option value={resourceType} key={`audit-resource-${resourceType}`}>
+                {adminAuditResourceLabel(resourceType)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="trace-filter-keyword">
+          <span>关键词</span>
+          <input value={draft.keyword} placeholder="操作者、动作、资源、摘要、详情" onChange={(event) => setDraft((current) => ({ ...current, keyword: event.target.value }))} />
+        </label>
+        <button className="secondary-button compact-action" type="submit" disabled={loading}>
+          查询
+        </button>
+        <button
+          className="secondary-button compact-action"
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            setDraft(defaultAdminAuditLogFilters);
+            onFilterChange(defaultAdminAuditLogFilters);
+          }}
+        >
+          重置
+        </button>
+      </form>
+      <div className="admin-trace-explorer-meta admin-audit-log-meta">
+        <span>{total} 条操作记录</span>
+        <span>第 {totalPages === 0 ? 0 : currentPage} / {totalPages} 页</span>
+      </div>
+      <div className="admin-audit-log-list">
+        {logs.length === 0 ? (
+          <EmptyState compact title="暂无操作记录" detail="管理员完成配置变更后会显示在这里。" />
+        ) : (
+          logs.map((log) => (
+            <div className="admin-audit-log-row" key={log.id}>
+              <strong className="admin-trace-status is-success">{adminAuditActionLabel(log.action)}</strong>
+              <span className="admin-audit-log-main">
+                <b>{log.summary}</b>
+                <small>{log.actorUsername} · {formatTime(log.createdAt)}</small>
+              </span>
+              <span>
+                <b>{adminAuditResourceLabel(log.resourceType)}</b>
+                <small>{log.resourceId || '-'}</small>
+              </span>
+              <span className="admin-audit-log-detail" title={log.detailJson || ''}>
+                <b>{auditDetailSummary(log.detailJson)}</b>
+                <small>{log.action}</small>
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="admin-trace-pagination admin-audit-log-pagination">
         <button className="secondary-button compact-action" type="button" disabled={loading || currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
           上一页
         </button>
@@ -5216,6 +5426,68 @@ function modelCircuitStateLabel(state: string) {
 
 function modelCircuitCanReset(model: AdminModelHealth) {
   return model.circuitState !== 'CLOSED' || model.consecutiveFailures > 0;
+}
+
+function adminAuditActionLabel(action: string) {
+  const labels: Record<string, string> = {
+    UPDATE_RAG_SETTINGS: '更新设置',
+    UPDATE_USER_STATUS: '用户状态',
+    UPDATE_AGENT_PIPELINE_NODE: 'Pipeline 节点',
+    UPDATE_AGENT_TOOL_ENABLED: '工具启停',
+    UPDATE_AGENT_TOOL_ROLE: '工具权限',
+    UPDATE_CHUNK_ENABLED: '片段治理',
+    RESET_MODEL_CIRCUIT: '复位熔断',
+    CANCEL_STREAM_TASK: '停止任务',
+    CREATE_MODEL_TARGET: '新建模型',
+    UPDATE_MODEL_TARGET: '更新模型',
+    DELETE_MODEL_TARGET: '删除模型',
+    CREATE_INTENT_ROUTE: '新建路由',
+    UPDATE_INTENT_ROUTE: '更新路由',
+    DELETE_INTENT_ROUTE: '删除路由',
+    CREATE_ANSWER_PROMPT_TEMPLATE: '新建模板',
+    UPDATE_ANSWER_PROMPT_TEMPLATE: '更新模板',
+    DELETE_ANSWER_PROMPT_TEMPLATE: '删除模板',
+    CREATE_QUERY_TERM_MAPPING: '新建术语',
+    UPDATE_QUERY_TERM_MAPPING: '更新术语',
+    DELETE_QUERY_TERM_MAPPING: '删除术语',
+    CREATE_SAMPLE_PROMPT: '新建示例',
+    UPDATE_SAMPLE_PROMPT: '更新示例',
+    DELETE_SAMPLE_PROMPT: '删除示例'
+  };
+  return labels[action] || action;
+}
+
+function adminAuditResourceLabel(resourceType: string) {
+  const labels: Record<string, string> = {
+    RAG_SETTINGS: 'RAG 设置',
+    USER: '用户',
+    AGENT_PIPELINE_NODE: 'Agent 节点',
+    AGENT_TOOL: 'Agent 工具',
+    PAPER_CHUNK: '知识片段',
+    MODEL_TARGET: '模型目标',
+    STREAM_TASK: '流式任务',
+    INTENT_ROUTE: '意图路由',
+    ANSWER_PROMPT_TEMPLATE: '回答模板',
+    QUERY_TERM_MAPPING: '术语映射',
+    SAMPLE_PROMPT: '示例问题'
+  };
+  return labels[resourceType] || resourceType;
+}
+
+function auditDetailSummary(detailJson?: string) {
+  if (!detailJson) {
+    return '-';
+  }
+  try {
+    const parsed = JSON.parse(detailJson) as Record<string, unknown>;
+    const parts = Object.entries(parsed)
+      .filter(([, value]) => value !== null && value !== undefined && value !== '')
+      .slice(0, 4)
+      .map(([key, value]) => `${key}: ${String(value)}`);
+    return parts.length > 0 ? compactText(parts.join(' · '), 120) : '-';
+  } catch {
+    return compactText(detailJson, 120);
+  }
 }
 
 function emptyDailyTrends(): AdminDailyTrend[] {
