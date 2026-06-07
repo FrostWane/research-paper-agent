@@ -37,6 +37,7 @@ public class RagSettingsService {
         settings.setCandidateLimit(clamp(request.candidateLimit(), 1, 50, 10));
         settings.setResultLimit(clamp(request.resultLimit(), 1, 20, 5));
         settings.setSourceExcerptChars(clamp(request.sourceExcerptChars(), 120, 1200, 520));
+        settings.setContextTokenBudget(clamp(request.contextTokenBudget(), 500, 12000, 2600));
         settings.setVectorWeight(clamp(request.vectorWeight(), 0.0d, 3.0d, 1.0d));
         settings.setKeywordWeight(clamp(request.keywordWeight(), 0.0d, 3.0d, 0.78d));
         settings.setMemoryHistoryTurns(clamp(request.memoryHistoryTurns(), 0, 12, 4));
@@ -72,6 +73,7 @@ public class RagSettingsService {
             clamp(settings.getCandidateLimit(), 1, 50, 10),
             clamp(settings.getResultLimit(), 1, 20, 5),
             clamp(settings.getSourceExcerptChars(), 120, 1200, 520),
+            clamp(settings.getContextTokenBudget(), 500, 12000, 2600),
             clamp(settings.getVectorWeight(), 0.0d, 3.0d, 1.0d),
             clamp(settings.getKeywordWeight(), 0.0d, 3.0d, 0.78d),
             clamp(settings.getMemoryHistoryTurns(), 0, 12, 4),
@@ -97,6 +99,7 @@ public class RagSettingsService {
             snapshot.candidateLimit(),
             snapshot.resultLimit(),
             snapshot.sourceExcerptChars(),
+            snapshot.contextTokenBudget(),
             snapshot.vectorWeight(),
             snapshot.keywordWeight(),
             snapshot.memoryHistoryTurns(),

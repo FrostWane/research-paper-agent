@@ -50,6 +50,7 @@ class AgentRateLimiterServiceTest {
             10,
             5,
             520,
+            2600,
             1.0d,
             0.78d,
             4,

@@ -3533,6 +3533,10 @@ select,
   color: #0f766e;
 }
 
+.admin-trace-question .admin-trace-context {
+  color: #8a5a12;
+}
+
 .admin-trace-detail {
   display: grid;
   gap: 8px;

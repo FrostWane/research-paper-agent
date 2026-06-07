@@ -111,6 +111,15 @@ public class RagTrace {
     @Column(name = "source_count", nullable = false)
     private Integer sourceCount = 0;
 
+    @Column(name = "context_token_budget", nullable = false)
+    private Integer contextTokenBudget = 0;
+
+    @Column(name = "context_estimated_tokens", nullable = false)
+    private Integer contextEstimatedTokens = 0;
+
+    @Column(name = "context_truncated", nullable = false)
+    private Boolean contextTruncated = false;
+
     @Column(name = "memory_turn_count", nullable = false)
     private Integer memoryTurnCount = 0;
 
@@ -384,6 +393,30 @@ public class RagTrace {
 
     public void setSourceCount(Integer sourceCount) {
         this.sourceCount = sourceCount;
+    }
+
+    public Integer getContextTokenBudget() {
+        return contextTokenBudget;
+    }
+
+    public void setContextTokenBudget(Integer contextTokenBudget) {
+        this.contextTokenBudget = contextTokenBudget;
+    }
+
+    public Integer getContextEstimatedTokens() {
+        return contextEstimatedTokens;
+    }
+
+    public void setContextEstimatedTokens(Integer contextEstimatedTokens) {
+        this.contextEstimatedTokens = contextEstimatedTokens;
+    }
+
+    public Boolean getContextTruncated() {
+        return contextTruncated;
+    }
+
+    public void setContextTruncated(Boolean contextTruncated) {
+        this.contextTruncated = contextTruncated;
     }
 
     public Integer getMemoryTurnCount() {

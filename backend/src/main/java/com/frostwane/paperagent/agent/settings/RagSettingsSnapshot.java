@@ -4,6 +4,7 @@ public record RagSettingsSnapshot(
     int candidateLimit,
     int resultLimit,
     int sourceExcerptChars,
+    int contextTokenBudget,
     double vectorWeight,
     double keywordWeight,
     int memoryHistoryTurns,

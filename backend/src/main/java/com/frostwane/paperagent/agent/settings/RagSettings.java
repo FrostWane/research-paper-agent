@@ -24,6 +24,9 @@ public class RagSettings {
     @Column(name = "source_excerpt_chars", nullable = false)
     private Integer sourceExcerptChars = 520;
 
+    @Column(name = "context_token_budget", nullable = false)
+    private Integer contextTokenBudget = 2600;
+
     @Column(name = "vector_weight", nullable = false)
     private Double vectorWeight = 1.0d;
 
@@ -114,6 +117,14 @@ public class RagSettings {
 
     public void setSourceExcerptChars(Integer sourceExcerptChars) {
         this.sourceExcerptChars = sourceExcerptChars;
+    }
+
+    public Integer getContextTokenBudget() {
+        return contextTokenBudget;
+    }
+
+    public void setContextTokenBudget(Integer contextTokenBudget) {
+        this.contextTokenBudget = contextTokenBudget;
     }
 
     public Double getVectorWeight() {

@@ -210,6 +210,7 @@ type RagSettingsInput = {
   candidateLimit: number;
   resultLimit: number;
   sourceExcerptChars: number;
+  contextTokenBudget: number;
   vectorWeight: number;
   keywordWeight: number;
   memoryHistoryTurns: number;
@@ -288,6 +289,7 @@ const defaultRagSettingsInput: RagSettingsInput = {
   candidateLimit: 10,
   resultLimit: 5,
   sourceExcerptChars: 520,
+  contextTokenBudget: 2600,
   vectorWeight: 1,
   keywordWeight: 0.78,
   memoryHistoryTurns: 4,
@@ -3119,6 +3121,9 @@ function AdminView({
                     {trace.memoryTurnCount > 0 && (
                       <small className="admin-trace-memory">记忆：{trace.memoryTurnCount} 轮 / {trace.memoryChars} 字</small>
                     )}
+                    <small className="admin-trace-context">
+                      上下文：{trace.contextEstimatedTokens}/{trace.contextTokenBudget || defaultRagSettingsInput.contextTokenBudget} token{trace.contextTruncated ? ' · 已裁剪' : ''}
+                    </small>
                     {trace.memorySummaryUsed && (
                       <small className="admin-trace-memory">
                         摘要：{trace.memorySummaryTurnCount} 轮 / {trace.memorySummaryChars} 字 · {memorySummaryMethodLabel(trace.memorySummaryMethod)}{trace.memorySummaryModelName ? ` · ${trace.memorySummaryModelName}` : ''}
@@ -3683,6 +3688,10 @@ function TraceExplorerPanel({
                     <span>
                       <b>会话记忆</b>
                       <small>{trace.memoryTurnCount} 轮 / {trace.memoryChars} 字{trace.memorySummaryUsed ? ` · 摘要 ${trace.memorySummaryTurnCount} 轮 / ${trace.memorySummaryChars} 字` : ''}</small>
+                    </span>
+                    <span>
+                      <b>上下文预算</b>
+                      <small>{trace.contextEstimatedTokens}/{trace.contextTokenBudget || defaultRagSettingsInput.contextTokenBudget} token{trace.contextTruncated ? ' · 已裁剪' : ''}</small>
                     </span>
                     <span>
                       <b>质量评估</b>
@@ -4843,6 +4852,7 @@ function RagSettingsPanel({ settings, rateLimit, onUpdate }: { settings: RagSett
       candidateLimit: boundedInt(form.candidateLimit, 1, 50, defaultRagSettingsInput.candidateLimit),
       resultLimit: boundedInt(form.resultLimit, 1, 20, defaultRagSettingsInput.resultLimit),
       sourceExcerptChars: boundedInt(form.sourceExcerptChars, 120, 1200, defaultRagSettingsInput.sourceExcerptChars),
+      contextTokenBudget: boundedInt(form.contextTokenBudget, 500, 12000, defaultRagSettingsInput.contextTokenBudget),
       vectorWeight: boundedFloat(form.vectorWeight, 0, 3, defaultRagSettingsInput.vectorWeight),
       keywordWeight: boundedFloat(form.keywordWeight, 0, 3, defaultRagSettingsInput.keywordWeight),
       memoryHistoryTurns: boundedInt(form.memoryHistoryTurns, 0, 12, defaultRagSettingsInput.memoryHistoryTurns),
@@ -4888,6 +4898,10 @@ function RagSettingsPanel({ settings, rateLimit, onUpdate }: { settings: RagSett
         <label>
           <span>摘录长度</span>
           <input type="number" min={120} max={1200} step={20} value={form.sourceExcerptChars} onChange={(event) => updateField('sourceExcerptChars', event.target.value)} />
+        </label>
+        <label>
+          <span>上下文预算</span>
+          <input type="number" min={500} max={12000} step={100} value={form.contextTokenBudget} onChange={(event) => updateField('contextTokenBudget', event.target.value)} />
         </label>
         <label>
           <span>向量权重</span>
@@ -6465,6 +6479,7 @@ function toRagSettingsForm(settings: RagSettings | null): RagSettingsFormState {
     candidateLimit: String(source.candidateLimit),
     resultLimit: String(source.resultLimit),
     sourceExcerptChars: String(source.sourceExcerptChars),
+    contextTokenBudget: String(source.contextTokenBudget ?? defaultRagSettingsInput.contextTokenBudget),
     vectorWeight: String(source.vectorWeight),
     keywordWeight: String(source.keywordWeight),
     memoryHistoryTurns: String(source.memoryHistoryTurns),

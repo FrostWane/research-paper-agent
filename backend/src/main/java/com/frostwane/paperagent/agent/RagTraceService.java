@@ -44,6 +44,9 @@ public class RagTraceService {
         String answerStrategy,
         String answerContract,
         int sourceCount,
+        int contextTokenBudget,
+        int contextEstimatedTokens,
+        boolean contextTruncated,
         int memoryTurnCount,
         int memoryChars,
         boolean memorySummaryUsed,
@@ -91,6 +94,9 @@ public class RagTraceService {
             answerStrategy,
             answerContract,
             sourceCount,
+            contextTokenBudget,
+            contextEstimatedTokens,
+            contextTruncated,
             memoryTurnCount,
             memoryChars,
             memorySummaryUsed,
@@ -140,6 +146,9 @@ public class RagTraceService {
         String answerStrategy,
         String answerContract,
         int sourceCount,
+        int contextTokenBudget,
+        int contextEstimatedTokens,
+        boolean contextTruncated,
         int memoryTurnCount,
         int memoryChars,
         boolean memorySummaryUsed,
@@ -188,6 +197,9 @@ public class RagTraceService {
             answerStrategy,
             answerContract,
             sourceCount,
+            contextTokenBudget,
+            contextEstimatedTokens,
+            contextTruncated,
             memoryTurnCount,
             memoryChars,
             memorySummaryUsed,
@@ -238,6 +250,9 @@ public class RagTraceService {
         String answerStrategy,
         String answerContract,
         int sourceCount,
+        int contextTokenBudget,
+        int contextEstimatedTokens,
+        boolean contextTruncated,
         int memoryTurnCount,
         int memoryChars,
         boolean memorySummaryUsed,
@@ -286,6 +301,9 @@ public class RagTraceService {
         trace.setAnswerStrategy(defaultText(answerStrategy, "EVIDENCE_GROUNDED_QA"));
         trace.setAnswerContract(answerContract);
         trace.setSourceCount(sourceCount);
+        trace.setContextTokenBudget(Math.max(0, contextTokenBudget));
+        trace.setContextEstimatedTokens(Math.max(0, contextEstimatedTokens));
+        trace.setContextTruncated(contextTruncated);
         trace.setMemoryTurnCount(Math.max(0, memoryTurnCount));
         trace.setMemoryChars(Math.max(0, memoryChars));
         trace.setMemorySummaryUsed(memorySummaryUsed);

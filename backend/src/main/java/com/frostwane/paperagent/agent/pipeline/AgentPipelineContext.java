@@ -52,6 +52,9 @@ public class AgentPipelineContext {
     private String verifiedAnswer;
     private String formattedAnswer;
     private String modelName;
+    private int contextTokenBudget;
+    private int contextEstimatedTokens;
+    private boolean contextTruncated;
     private int answerQualityScore;
     private String answerQualityLabel = "UNASSESSED";
     private String answerQualityNotes;
@@ -377,6 +380,30 @@ public class AgentPipelineContext {
 
     public void modelName(String modelName) {
         this.modelName = modelName;
+    }
+
+    public int contextTokenBudget() {
+        return contextTokenBudget;
+    }
+
+    public void contextTokenBudget(int contextTokenBudget) {
+        this.contextTokenBudget = Math.max(0, contextTokenBudget);
+    }
+
+    public int contextEstimatedTokens() {
+        return contextEstimatedTokens;
+    }
+
+    public void contextEstimatedTokens(int contextEstimatedTokens) {
+        this.contextEstimatedTokens = Math.max(0, contextEstimatedTokens);
+    }
+
+    public boolean contextTruncated() {
+        return contextTruncated;
+    }
+
+    public void contextTruncated(boolean contextTruncated) {
+        this.contextTruncated = contextTruncated;
     }
 
     public int answerQualityScore() {

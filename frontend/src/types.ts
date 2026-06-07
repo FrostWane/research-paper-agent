@@ -422,6 +422,9 @@ export interface AdminTrace {
   toolExecutions: AdminToolExecution[];
   guidance?: AdminGuidance;
   sourceCount: number;
+  contextTokenBudget: number;
+  contextEstimatedTokens: number;
+  contextTruncated: boolean;
   memoryTurnCount: number;
   memoryChars: number;
   memorySummaryUsed: boolean;
@@ -645,6 +648,7 @@ export interface RagSettings {
   candidateLimit: number;
   resultLimit: number;
   sourceExcerptChars: number;
+  contextTokenBudget: number;
   vectorWeight: number;
   keywordWeight: number;
   memoryHistoryTurns: number;
