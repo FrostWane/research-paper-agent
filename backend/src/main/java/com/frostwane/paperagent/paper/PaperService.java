@@ -8,6 +8,9 @@ import com.frostwane.paperagent.paper.dto.PaperDtos.PaperRequest;
 import com.frostwane.paperagent.paper.dto.PaperDtos.PaperResponse;
 import com.frostwane.paperagent.paper.dto.PaperDtos.ParseStatusResponse;
 import com.frostwane.paperagent.parse.PaperChunkRepository;
+import com.frostwane.paperagent.parse.ParseJob;
+import com.frostwane.paperagent.parse.ParseJobRepository;
+import com.frostwane.paperagent.parse.ParseJobService;
 import com.frostwane.paperagent.user.User;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
@@ -27,11 +30,18 @@ public class PaperService {
     private final PaperRepository paperRepository;
     private final FileService fileService;
     private final PaperChunkRepository chunkRepository;
+    private final ParseJobRepository parseJobRepository;
 
-    public PaperService(PaperRepository paperRepository, FileService fileService, PaperChunkRepository chunkRepository) {
+    public PaperService(
+        PaperRepository paperRepository,
+        FileService fileService,
+        PaperChunkRepository chunkRepository,
+        ParseJobRepository parseJobRepository
+    ) {
         this.paperRepository = paperRepository;
         this.fileService = fileService;
         this.chunkRepository = chunkRepository;
+        this.parseJobRepository = parseJobRepository;
     }
 
     @Transactional(readOnly = true)
@@ -86,16 +96,19 @@ public class PaperService {
     public ParseStatusResponse parseStatus(Long id, User owner) {
         Paper paper = requireOwnedPaper(id, owner.getId());
         long chunks = chunkRepository.countByPaperId(paper.getId());
+        ParseJob activeJob = parseJobRepository
+            .findTopByOwnerIdAndPaperIdAndStatusInOrderByStartedAtDesc(owner.getId(), paper.getId(), ParseJobService.ACTIVE_STATUSES)
+            .orElse(null);
         int progress = switch (paper.getProcessStatus()) {
             case PENDING -> 0;
-            case PARSING -> 35;
+            case PARSING -> activeJob != null && ParseJobService.STATUS_QUEUED.equals(activeJob.getStatus()) ? 10 : 35;
             case INDEXING -> 75;
             case INDEXED -> 100;
             case FAILED -> 0;
         };
         String message = switch (paper.getProcessStatus()) {
             case PENDING -> "PDF 尚未解析";
-            case PARSING -> "PDF 正在解析正文";
+            case PARSING -> activeJob != null && ParseJobService.STATUS_QUEUED.equals(activeJob.getStatus()) ? "PDF 解析任务正在排队" : "PDF 正在解析正文";
             case INDEXING -> "正在准备向量索引";
             case INDEXED -> "PDF 已解析，可用于来源片段检索";
             case FAILED -> "PDF 解析失败，请重试";

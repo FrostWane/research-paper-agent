@@ -15,8 +15,15 @@ import com.frostwane.paperagent.user.User;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -37,6 +44,9 @@ public class PaperParseService {
     private final FileService fileService;
     private final PaperEmbeddingIndexer embeddingIndexer;
     private final ParseJobService parseJobService;
+    private final ParseJobRepository parseJobRepository;
+    private final ThreadPoolTaskExecutor parseTaskExecutor;
+    private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
 
     public PaperParseService(
@@ -46,6 +56,9 @@ public class PaperParseService {
         FileService fileService,
         PaperEmbeddingIndexer embeddingIndexer,
         ParseJobService parseJobService,
+        ParseJobRepository parseJobRepository,
+        @Qualifier("parseTaskExecutor") ThreadPoolTaskExecutor parseTaskExecutor,
+        PlatformTransactionManager transactionManager,
         ObjectMapper objectMapper
     ) {
         this.paperService = paperService;
@@ -54,18 +67,118 @@ public class PaperParseService {
         this.fileService = fileService;
         this.embeddingIndexer = embeddingIndexer;
         this.parseJobService = parseJobService;
+        this.parseJobRepository = parseJobRepository;
+        this.parseTaskExecutor = parseTaskExecutor;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.objectMapper = objectMapper;
     }
 
-    @Transactional(noRollbackFor = BusinessException.class)
+    @Transactional
     public ParseStatusResponse parse(Long paperId, User owner) {
-        Instant started = Instant.now();
-        Paper paper = paperService.requireOwnedPaper(paperId, owner.getId());
+        Long ownerId = owner.getId();
+        Paper paper = lockOwnedPaper(paperId, ownerId);
         PaperFile file = paper.getFile();
         if (file == null) {
             throw new BusinessException("该文献未关联 PDF 文件");
         }
-        ParseJob job = parseJobService.start(owner, paper, file);
+        long existingChunks = chunkRepository.countByPaperId(paper.getId());
+        ParseJob activeJob = parseJobService.activeJob(ownerId, paper.getId()).orElse(null);
+        if (activeJob != null) {
+            paper.setProcessStatus(ProcessStatus.PARSING);
+            paperRepository.save(paper);
+            return queuedResponse(paper.getId(), activeJob, existingChunks);
+        }
+        ParseJob job = parseJobService.enqueue(owner, paper, file);
+        paper.setProcessStatus(ProcessStatus.PARSING);
+        paperRepository.save(paper);
+        scheduleAfterCommit(job.getId(), ownerId, paper.getId());
+        return new ParseStatusResponse(
+            paper.getId(),
+            ProcessStatus.PARSING.name(),
+            "解析任务已提交，后台队列将依次读取 PDF、切块并写入向量索引",
+            10,
+            existingChunks
+        );
+    }
+
+    @Transactional
+    public ParseStatusResponse unparse(Long paperId, User owner) {
+        Long ownerId = owner.getId();
+        Paper paper = lockOwnedPaper(paperId, ownerId);
+        if (parseJobService.activeJob(ownerId, paper.getId()).isPresent()) {
+            throw new BusinessException("解析任务正在排队或运行，请完成后再移除解析结果");
+        }
+        chunkRepository.deleteByPaperId(paper.getId());
+        paper.setProcessStatus(ProcessStatus.PENDING);
+        paperRepository.save(paper);
+        return new ParseStatusResponse(paper.getId(), ProcessStatus.PENDING.name(), "已从知识库移除解析结果，PDF 文件仍保留", 0, 0);
+    }
+
+    private ParseStatusResponse queuedResponse(Long paperId, ParseJob job, long chunkCount) {
+        boolean running = ParseJobService.STATUS_RUNNING.equals(job.getStatus());
+        return new ParseStatusResponse(
+            paperId,
+            ProcessStatus.PARSING.name(),
+            running ? "已有解析任务正在运行，请稍后刷新状态" : "已有解析任务在后台排队，请稍后刷新状态",
+            running ? 20 : 10,
+            chunkCount
+        );
+    }
+
+    private Paper lockOwnedPaper(Long paperId, Long ownerId) {
+        return paperRepository.lockByIdAndOwnerId(paperId, ownerId)
+            .orElseThrow(() -> new BusinessException("文献不存在或无权访问"));
+    }
+
+    private void scheduleAfterCommit(Long jobId, Long ownerId, Long paperId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    submitParseJob(jobId, ownerId, paperId);
+                }
+            });
+            return;
+        }
+        submitParseJob(jobId, ownerId, paperId);
+    }
+
+    private void submitParseJob(Long jobId, Long ownerId, Long paperId) {
+        try {
+            parseTaskExecutor.execute(() -> runParseJob(jobId, ownerId, paperId));
+        } catch (TaskRejectedException ex) {
+            markDispatchFailed(jobId, ownerId, paperId, ex);
+        }
+    }
+
+    private void runParseJob(Long jobId, Long ownerId, Long paperId) {
+        try {
+            transactionTemplate.executeWithoutResult(status -> markRunning(jobId, ownerId, paperId));
+            transactionTemplate.executeWithoutResult(status -> executeParseJob(jobId, ownerId, paperId));
+        } catch (RuntimeException ex) {
+            markDispatchFailed(jobId, ownerId, paperId, ex);
+        }
+    }
+
+    private void markRunning(Long jobId, Long ownerId, Long paperId) {
+        ParseJob job = parseJobRepository.findById(jobId)
+            .orElseThrow(() -> new BusinessException("解析任务不存在"));
+        Paper paper = paperService.requireOwnedPaper(paperId, ownerId);
+        parseJobService.markRunning(job);
+        paper.setProcessStatus(ProcessStatus.PARSING);
+        paperRepository.save(paper);
+    }
+
+    private void executeParseJob(Long jobId, Long ownerId, Long paperId) {
+        Instant started = Instant.now();
+        ParseJob job = parseJobRepository.findById(jobId)
+            .orElseThrow(() -> new BusinessException("解析任务不存在"));
+        Paper paper = paperService.requireOwnedPaper(paperId, ownerId);
+        PaperFile file = paper.getFile();
+        if (file == null) {
+            failJob(job, paper, 0, 0, elapsedMs(started), "[]", "该文献未关联 PDF 文件");
+            return;
+        }
         int pageCount = file.getPageCount() == null ? 0 : file.getPageCount();
         int chunkCount = 0;
         IngestionTrace trace = new IngestionTrace();
@@ -92,24 +205,35 @@ public class PaperParseService {
                 paperRepository.save(paper);
             });
             parseJobService.succeed(job, pageCount, chunkCount, elapsedMs(started), trace.toJson());
-            return new ParseStatusResponse(paper.getId(), ProcessStatus.INDEXED.name(), "PDF 已解析并写入向量索引，可用于来源片段检索", 100, chunks.size());
         } catch (Exception ex) {
-            chunkRepository.deleteByPaperId(paper.getId());
-            paper.setProcessStatus(ProcessStatus.FAILED);
-            paperRepository.saveAndFlush(paper);
             String message = "PDF 解析失败：" + ex.getMessage();
-            parseJobService.fail(job, pageCount, chunkCount, elapsedMs(started), trace.toJson(), message);
-            throw new BusinessException(message);
+            failJob(job, paper, pageCount, chunkCount, elapsedMs(started), trace.toJson(), message);
         }
     }
 
-    @Transactional
-    public ParseStatusResponse unparse(Long paperId, User owner) {
-        Paper paper = paperService.requireOwnedPaper(paperId, owner.getId());
-        chunkRepository.deleteByPaperId(paper.getId());
-        paper.setProcessStatus(ProcessStatus.PENDING);
-        paperRepository.save(paper);
-        return new ParseStatusResponse(paper.getId(), ProcessStatus.PENDING.name(), "已从知识库移除解析结果，PDF 文件仍保留", 0, 0);
+    private void markDispatchFailed(Long jobId, Long ownerId, Long paperId, Exception exception) {
+        transactionTemplate.executeWithoutResult(status -> {
+            ParseJob job = parseJobRepository.findById(jobId).orElse(null);
+            Paper paper = null;
+            try {
+                paper = paperService.requireOwnedPaper(paperId, ownerId);
+            } catch (RuntimeException ignored) {
+                // 文献可能已被删除，此时只标记任务失败。
+            }
+            String message = "解析任务提交失败：" + (exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+            failJob(job, paper, 0, 0, 0, "[]", message);
+        });
+    }
+
+    private void failJob(ParseJob job, Paper paper, int pageCount, int chunkCount, int durationMs, String nodeSpansJson, String message) {
+        if (paper != null) {
+            chunkRepository.deleteByPaperId(paper.getId());
+            paper.setProcessStatus(ProcessStatus.FAILED);
+            paperRepository.saveAndFlush(paper);
+        }
+        if (job != null) {
+            parseJobService.fail(job, pageCount, chunkCount, durationMs, nodeSpansJson, message);
+        }
     }
 
     private ExtractionResult extractChunks(Paper paper, byte[] pdfBytes) throws Exception {

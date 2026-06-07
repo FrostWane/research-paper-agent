@@ -169,6 +169,7 @@ public class PaperParseStatusTool implements AgentTool {
             return "状态未知";
         }
         return switch (status.toUpperCase(Locale.ROOT)) {
+            case "QUEUED" -> "排队中";
             case "SUCCESS" -> "成功";
             case "FAILED" -> "失败";
             case "RUNNING" -> "运行中";

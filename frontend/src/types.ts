@@ -431,7 +431,7 @@ export interface AdminParseJob {
   paperTitle: string;
   fileName: string;
   fileSize: number;
-  status: 'RUNNING' | 'SUCCESS' | 'FAILED' | string;
+  status: 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED' | string;
   pageCount: number;
   chunkCount: number;
   durationMs: number;

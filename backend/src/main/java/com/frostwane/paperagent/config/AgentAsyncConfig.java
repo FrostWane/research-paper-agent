@@ -17,4 +17,15 @@ public class AgentAsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    @Bean
+    public ThreadPoolTaskExecutor parseTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setThreadNamePrefix("paper-parse-");
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(3);
+        executor.setQueueCapacity(32);
+        executor.initialize();
+        return executor;
+    }
 }

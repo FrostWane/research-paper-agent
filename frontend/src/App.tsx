@@ -626,7 +626,7 @@ export default function App() {
       const uploaded = await uploadPaperFile(file);
       setBusyText('正在创建文献记录...');
       const paper = await createPaper({ ...form, title: form.title || titleFromFileName(file.name) }, uploaded.fileId);
-      setBusyText('正在解析 PDF 正文...');
+      setBusyText('正在提交 PDF 解析任务...');
       try {
         await parsePaper(paper.id);
       } catch {
@@ -639,7 +639,7 @@ export default function App() {
       setSelectedPaperId(paper.id);
       setReaderScope('paper');
       setActiveView('reader');
-      showNotice('文献已加入工作台。');
+      showNotice('文献已加入工作台，解析任务已提交。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -839,10 +839,10 @@ export default function App() {
 
   async function handleParse(paper: Paper) {
     try {
-      setBusyText('正在解析 PDF 正文...');
+      setBusyText('正在提交 PDF 解析任务...');
       await parsePaper(paper.id);
       await loadPaperList();
-      showNotice('PDF 已解析完成。');
+      showNotice('PDF 解析任务已提交，可稍后刷新状态。');
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -3136,6 +3136,7 @@ function ParseJobExplorerPanel({
           <span>状态</span>
           <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}>
             <option value="">全部</option>
+            <option value="QUEUED">排队中</option>
             <option value="RUNNING">进行中</option>
             <option value="SUCCESS">成功</option>
             <option value="FAILED">失败</option>
@@ -3179,7 +3180,7 @@ function ParseJobExplorerPanel({
             </div>
             {jobs.map((job) => (
               <div className={`admin-job-row ${job.status === 'FAILED' ? 'is-failed' : ''}`} key={job.id}>
-                <strong className={`admin-job-status ${job.status === 'SUCCESS' ? 'is-success' : job.status === 'RUNNING' ? 'is-running' : 'is-failed'}`}>
+                <strong className={`admin-job-status ${parseJobStatusClass(job.status)}`}>
                   {parseJobStatusLabel(job.status)}
                 </strong>
                 <span className="admin-job-title">
@@ -3208,7 +3209,7 @@ function ParseJobExplorerPanel({
                 <em>{job.fileName} · {formatBytes(job.fileSize)}</em>
                 <span>{job.pageCount}</span>
                 <span>{job.chunkCount}</span>
-                <strong>{job.status === 'RUNNING' ? '进行中' : formatLatency(job.durationMs)}</strong>
+                <strong>{job.status === 'QUEUED' ? '等待中' : job.status === 'RUNNING' ? '进行中' : formatLatency(job.durationMs)}</strong>
               </div>
             ))}
           </>
@@ -5546,11 +5547,22 @@ function localDateKey(date: Date) {
 
 function parseJobStatusLabel(status: string) {
   const labels: Record<string, string> = {
+    QUEUED: '排队中',
     RUNNING: '进行中',
     SUCCESS: '成功',
     FAILED: '失败'
   };
   return labels[status] || status;
+}
+
+function parseJobStatusClass(status: string) {
+  if (status === 'SUCCESS') {
+    return 'is-success';
+  }
+  if (status === 'QUEUED' || status === 'RUNNING') {
+    return 'is-running';
+  }
+  return 'is-failed';
 }
 
 function nodeSpanLabel(name: string) {

@@ -26,6 +26,8 @@ DELETE /api/papers/{id}/parse
 GET    /api/papers/{id}/parse-status
 ```
 
+`POST /api/papers/{id}/parse` 会提交后台 PDF 入库任务并立即返回当前解析状态，不会在 HTTP 请求中同步等待全文抽取和向量索引完成。返回状态通常为 `PARSING`，消息会说明任务已提交、排队或正在运行；前端可继续调用 `GET /api/papers/{id}/parse-status` 轮询 `PENDING`、`PARSING`、`INDEXING`、`INDEXED`、`FAILED`。同一用户同一文献已有 `QUEUED` 或 `RUNNING` 解析任务时，重复提交会返回已有任务状态。`DELETE /api/papers/{id}/parse` 会移除已入库片段并把文献重置为 `PENDING`；如果后台解析任务仍在排队或运行，会返回业务错误。
+
 ## Files
 
 ```http
@@ -174,7 +176,7 @@ DELETE /api/admin/sample-prompts/{id}
 
 `GET /api/admin/ingestion-pipeline/nodes` 返回 PDF 入库 Pipeline 的节点目录和运行画像。字段包含 `pipelineName`、`type`、`name`、`label`、`description`、`sortOrder`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`averageLatencyMs` 和 `lastSeenAt`。节点定义来自 `IngestionPipelineCatalog`，运行统计从历史解析任务的 `nodeSpans` 聚合，用于观察准备、读取 PDF、抽取文本、写入片段、向量索引和完成节点的长期健康状况。
 
-`GET /api/admin/parse-jobs` 返回分页解析任务 Explorer 数据，支持按 `status` 和 `keyword` 过滤；`keyword` 会匹配文献标题、文件名、错误信息、节点 span 和用户名。字段包含 `id`、`username`、`paperId`、`paperTitle`、`fileName`、`fileSize`、`status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`、`startedAt` 和 `finishedAt`，用于追查历史 PDF 入库任务、失败原因和每个入库节点耗时。
+`GET /api/admin/parse-jobs` 返回分页解析任务 Explorer 数据，支持按 `status` 和 `keyword` 过滤；`status` 支持 `QUEUED`、`RUNNING`、`SUCCESS`、`FAILED`，`keyword` 会匹配文献标题、文件名、错误信息、节点 span 和用户名。字段包含 `id`、`username`、`paperId`、`paperTitle`、`fileName`、`fileSize`、`status`、`pageCount`、`chunkCount`、`durationMs`、`errorMessage`、`nodeSpans`、`startedAt` 和 `finishedAt`，用于追查历史 PDF 入库任务、排队/运行状态、失败原因和每个入库节点耗时。
 
 `GET /api/admin/retrieval-channels` 返回当前注册的检索通道目录和运行画像。字段包含 `name`、`label`、`description`、`priority`、`enabled`、`totalRuns`、`successRuns`、`failedRuns`、`totalCandidates`、`averageCandidates`、`averageLatencyMs` 和 `lastSeenAt`。通道定义来自 `RetrievalChannel` Spring Bean，运行统计从历史 Trace 的 `retrievalChannels` 聚合，用于观察向量召回、关键词召回等通道的候选规模、失败风险和平均耗时。
 
