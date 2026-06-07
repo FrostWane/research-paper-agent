@@ -249,6 +249,15 @@ export function deleteModelTarget(id: number) {
   return unwrap<void>(api.delete(`/api/admin/model-targets/${id}`));
 }
 
+export function resetModelCircuit(targetName: string) {
+  return unwrap<{
+    targetName: string;
+    circuitState: string;
+    consecutiveFailures: number;
+    circuitOpenUntil?: string | null;
+  }>(api.post('/api/admin/model-circuits/reset', null, { params: { targetName } }));
+}
+
 export function fetchRagSettings() {
   return unwrap<RagSettings>(api.get('/api/admin/rag-settings'));
 }

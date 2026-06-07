@@ -71,6 +71,7 @@ import {
   fetchSamplePrompts,
   fetchAdminUsers,
   fetchQueryTermMappings,
+  resetModelCircuit,
   updateAgentPipelineNodeEnabled,
   updateAnswerPromptTemplate,
   updateIntentRoute,
@@ -997,6 +998,19 @@ export default function App() {
     }
   }
 
+  async function handleResetModelCircuit(model: AdminModelHealth) {
+    try {
+      setBusyText('正在复位模型熔断状态...');
+      await resetModelCircuit(model.targetName);
+      setAdminOverview(await fetchAdminOverview());
+      showNotice('模型熔断状态已复位。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
   async function handleAdminUserStatus(userItem: AdminUser, status: 'NORMAL' | 'DISABLED') {
     try {
       setBusyText(status === 'DISABLED' ? '正在禁用用户...' : '正在恢复用户...');
@@ -1602,6 +1616,7 @@ export default function App() {
             onParseJobPageChange={(page) => void loadAdminParseJobPage(adminParseJobFilters, page)}
             onChunkEnabledChange={(chunk, enabled) => void handleAdminChunkEnabled(chunk, enabled)}
             onAgentPipelineNodeEnabledChange={(node, enabled) => void handleAdminAgentPipelineNodeEnabled(node, enabled)}
+            onResetModelCircuit={(model) => void handleResetModelCircuit(model)}
             onAgentToolEnabledChange={(tool, enabled) => void handleAdminAgentToolEnabled(tool, enabled)}
             onAgentToolMinimumRoleChange={(tool, minimumRole) => void handleAdminAgentToolMinimumRole(tool, minimumRole)}
             onUserStatusChange={(userItem, status) => void handleAdminUserStatus(userItem, status)}
@@ -2298,6 +2313,7 @@ function AdminView({
   onParseJobPageChange,
   onChunkEnabledChange,
   onAgentPipelineNodeEnabledChange,
+  onResetModelCircuit,
   onAgentToolEnabledChange,
   onAgentToolMinimumRoleChange,
   onUserStatusChange,
@@ -2353,6 +2369,7 @@ function AdminView({
   onParseJobPageChange: (page: number) => void;
   onChunkEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
   onAgentPipelineNodeEnabledChange: (node: AdminAgentPipelineNode, enabled: boolean) => void;
+  onResetModelCircuit: (model: AdminModelHealth) => void;
   onAgentToolEnabledChange: (tool: AdminAgentTool, enabled: boolean) => void;
   onAgentToolMinimumRoleChange: (tool: AdminAgentTool, minimumRole: 'USER' | 'ADMIN') => void;
   onUserStatusChange: (user: AdminUser, status: 'NORMAL' | 'DISABLED') => void;
@@ -2489,7 +2506,15 @@ function AdminView({
                 <em>{model.failedCalls} 失败</em>
                 <em>{model.fallbackCalls} fallback</em>
                 <em>{model.skippedCalls} 跳过</em>
-                <strong>{formatLatency(model.averageLatencyMs)}</strong>
+                <strong className="admin-model-health-latency">{formatLatency(model.averageLatencyMs)}</strong>
+                <button
+                  className="secondary-button compact-action"
+                  type="button"
+                  disabled={loading || !modelCircuitCanReset(model)}
+                  onClick={() => onResetModelCircuit(model)}
+                >
+                  复位
+                </button>
               </div>
             ))
           )}
@@ -5111,6 +5136,10 @@ function modelCircuitStateLabel(state: string) {
     HALF_OPEN: '半开'
   };
   return labels[state] || state || '关闭';
+}
+
+function modelCircuitCanReset(model: AdminModelHealth) {
+  return model.circuitState !== 'CLOSED' || model.consecutiveFailures > 0;
 }
 
 function parseJobStatusLabel(status: string) {

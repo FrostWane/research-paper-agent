@@ -11,6 +11,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AdminUserResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ChatRateLimitResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.GuidanceResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IngestionPipelineNodeResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ModelCircuitResetResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelHealthResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelUsageResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobNodeSpanResponse;
@@ -852,6 +853,21 @@ public class AdminService {
     public ChatStreamTaskResponse cancelStreamTask(String taskId, User currentUser) {
         requireAdmin(currentUser);
         return agentStreamService.cancelAny(taskId);
+    }
+
+    public ModelCircuitResetResponse resetModelCircuit(String targetName, User currentUser) {
+        requireAdmin(currentUser);
+        String normalizedTargetName = compact(targetName, 160);
+        if (normalizedTargetName == null) {
+            throw new BusinessException("模型目标名称不能为空");
+        }
+        ModelCircuitBreaker.CircuitSnapshot snapshot = modelCircuitBreaker.reset(normalizedTargetName);
+        return new ModelCircuitResetResponse(
+            normalizedTargetName,
+            snapshot.state(),
+            snapshot.consecutiveFailures(),
+            snapshot.openUntil()
+        );
     }
 
     @Transactional(readOnly = true)

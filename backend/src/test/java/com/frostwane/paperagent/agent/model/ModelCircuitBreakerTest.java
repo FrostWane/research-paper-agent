@@ -70,6 +70,35 @@ class ModelCircuitBreakerTest {
         assertThat(snapshot.openUntil()).isNotNull();
     }
 
+    @Test
+    void resetClosesOpenCircuitAndClearsFailures() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-06-07T00:00:00Z"));
+        ModelCircuitBreaker breaker = new ModelCircuitBreaker(clock);
+        open(breaker, "target-d");
+
+        ModelCircuitBreaker.CircuitSnapshot reset = breaker.reset("target-d");
+
+        assertThat(reset.state()).isEqualTo("CLOSED");
+        assertThat(reset.consecutiveFailures()).isZero();
+        assertThat(reset.openUntil()).isNull();
+        assertThat(breaker.beforeCall("target-d").allowed()).isTrue();
+    }
+
+    @Test
+    void resetClearsHalfOpenProbeInFlight() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-06-07T00:00:00Z"));
+        ModelCircuitBreaker breaker = new ModelCircuitBreaker(clock);
+        open(breaker, "target-e");
+        clock.advance(Duration.ofSeconds(61));
+        assertThat(breaker.beforeCall("target-e").circuitState()).isEqualTo("HALF_OPEN");
+
+        breaker.reset("target-e");
+
+        ModelCircuitBreaker.CallDecision decision = breaker.beforeCall("target-e");
+        assertThat(decision.allowed()).isTrue();
+        assertThat(decision.circuitState()).isEqualTo("CLOSED");
+    }
+
     private void open(ModelCircuitBreaker breaker, String target) {
         breaker.markFailure(target);
         breaker.markFailure(target);

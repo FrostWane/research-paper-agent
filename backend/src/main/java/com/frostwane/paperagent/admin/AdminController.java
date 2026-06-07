@@ -15,6 +15,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse
 import com.frostwane.paperagent.admin.dto.AdminDtos.IngestionPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.ModelCircuitResetResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ModelTargetResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ParseJobResponse;
@@ -88,6 +89,11 @@ public class AdminController {
     @PostMapping("/stream-tasks/{taskId}/cancel")
     public ApiResponse<ChatStreamTaskResponse> cancelStreamTask(@PathVariable String taskId) {
         return ApiResponse.ok(adminService.cancelStreamTask(taskId, currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/model-circuits/reset")
+    public ApiResponse<ModelCircuitResetResponse> resetModelCircuit(@RequestParam String targetName) {
+        return ApiResponse.ok(adminService.resetModelCircuit(targetName, currentUserService.getRequiredUser()));
     }
 
     @GetMapping("/rag-traces")

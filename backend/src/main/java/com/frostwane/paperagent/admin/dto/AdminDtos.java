@@ -95,6 +95,14 @@ public final class AdminDtos {
     ) {
     }
 
+    public record ModelCircuitResetResponse(
+        String targetName,
+        String circuitState,
+        int consecutiveFailures,
+        OffsetDateTime circuitOpenUntil
+    ) {
+    }
+
     public record AgentToolResponse(
         String name,
         String label,

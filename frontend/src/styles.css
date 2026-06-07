@@ -1415,7 +1415,7 @@ select,
 
 .admin-model-health-row {
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) 72px 72px 72px 92px 72px 76px;
+  grid-template-columns: 62px minmax(0, 1fr) 72px 72px 72px 92px 72px 76px 62px;
   align-items: center;
   gap: 10px;
   min-height: 58px;
@@ -1467,7 +1467,8 @@ select,
 }
 
 .admin-model-health-row > em,
-.admin-model-health-row > strong:last-child {
+.admin-model-health-latency,
+.admin-model-health-row > button {
   justify-self: end;
 }
 
@@ -3464,7 +3465,7 @@ select,
   }
 
   .admin-model-health-row {
-    grid-template-columns: 62px minmax(0, 1fr) repeat(6, minmax(58px, auto));
+    grid-template-columns: 62px minmax(0, 1fr) repeat(7, minmax(58px, auto));
   }
 
   .model-target-form {
@@ -3631,7 +3632,8 @@ select,
   }
 
   .admin-model-health-row > em,
-  .admin-model-health-row > strong:last-child {
+  .admin-model-health-latency,
+  .admin-model-health-row > button {
     justify-self: start;
   }
 

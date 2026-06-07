@@ -78,6 +78,15 @@ public class ModelCircuitBreaker {
         return new CircuitSnapshot(health.state.name(), health.consecutiveFailures, openUntil(health));
     }
 
+    public synchronized CircuitSnapshot reset(String targetName) {
+        ModelHealth health = healthByTarget.computeIfAbsent(key(targetName), ignored -> new ModelHealth());
+        health.state = CircuitState.CLOSED;
+        health.consecutiveFailures = 0;
+        health.openUntil = null;
+        health.halfOpenInFlight = false;
+        return new CircuitSnapshot(health.state.name(), health.consecutiveFailures, null);
+    }
+
     private String key(String targetName) {
         return targetName == null || targetName.isBlank() ? "unknown" : targetName.trim();
     }
