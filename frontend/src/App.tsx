@@ -97,7 +97,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminChatRateLimit, AdminChunk, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -2384,6 +2384,7 @@ function AdminView({
         <AdminStat icon={Brain} label="示例问题" value={overview?.totalSamplePrompts ?? 0} detail={`${overview?.enabledSamplePrompts ?? 0} 条启用`} />
         <AdminStat icon={Activity} label="平均耗时" value={formatLatency(overview?.averageLatencyMs ?? 0)} detail={`检索 ${formatLatency(overview?.averageRetrievalMs ?? 0)} / 生成 ${formatLatency(overview?.averageGenerationMs ?? 0)}`} />
         <AdminStat icon={ShieldCheck} label="限流" value={overview?.chatRateLimit?.activeGlobal ?? 0} detail={overview?.chatRateLimit ? `${overview.chatRateLimit.enabled ? '已启用' : '已关闭'} · ${overview.chatRateLimit.recentRequests}/${overview.chatRateLimit.userPerMinuteLimit} 每分钟` : '等待加载'} />
+        <AdminStat icon={CircleStop} label="流式任务" value={overview?.activeStreamTasks?.length ?? 0} detail={(overview?.activeStreamTasks?.length ?? 0) > 0 ? '运行中或排队中' : '暂无活跃任务'} />
         <AdminStat icon={CheckCircle2} label="质量均分" value={overview?.averageAnswerQualityScore ?? 0} detail="成功 Trace 的评估分" />
       </div>
 
@@ -2473,6 +2474,8 @@ function AdminView({
           )}
         </div>
       </div>
+
+      <ActiveStreamTaskPanel tasks={overview?.activeStreamTasks ?? []} />
 
       <AgentPipelinePanel nodes={agentPipelineNodes} onEnabledChange={onAgentPipelineNodeEnabledChange} loading={loading} />
 
@@ -2784,6 +2787,46 @@ function AdminView({
         </div>
       </div>
     </section>
+  );
+}
+
+function ActiveStreamTaskPanel({ tasks }: { tasks: ChatStreamTask[] }) {
+  return (
+    <div className="admin-panel admin-stream-task-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>活跃流式任务</h3>
+          <p>仍在排队或运行的 SSE Agent 问答请求。</p>
+        </div>
+        <CircleStop size={18} />
+      </div>
+      <div className="admin-stream-task-list">
+        {tasks.length === 0 ? (
+          <EmptyState compact title="暂无活跃任务" detail="用户发起流式问答后会显示当前占用。" />
+        ) : (
+          <>
+            <div className="admin-stream-task-row head">
+              <span>阶段</span>
+              <span>用户</span>
+              <span>问题</span>
+              <span>范围</span>
+              <span>会话</span>
+              <span>开始时间</span>
+            </div>
+            {tasks.map((task) => (
+              <div className={`admin-stream-task-row ${task.cancelled ? 'is-cancelled' : ''}`} key={task.taskId}>
+                <strong>{streamPhaseLabel(task.phase)}</strong>
+                <span>{task.ownerUsername || '-'}</span>
+                <span title={task.question}>{compactText(task.question, 96)}</span>
+                <em>{task.paperId ? `单篇 #${task.paperId}` : '全库'}</em>
+                <em>{task.sessionId ? `#${task.sessionId}` : '新会话'}</em>
+                <small>{formatTime(task.startedAt)}</small>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -5321,6 +5364,19 @@ function streamEventMessage(eventName: string) {
     default:
       return 'Agent 正在运行...';
   }
+}
+
+function streamPhaseLabel(phase = 'queued') {
+  const labels: Record<string, string> = {
+    queued: '排队',
+    started: '已连接',
+    running: '运行中',
+    final: '已生成',
+    done: '完成',
+    cancelled: '已取消',
+    error: '失败'
+  };
+  return labels[phase] || phase;
 }
 
 function streamChatContent(message: string) {

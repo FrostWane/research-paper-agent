@@ -16,6 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
@@ -44,7 +45,7 @@ public class AgentStreamService {
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
         AtomicBoolean closed = new AtomicBoolean(false);
         AtomicReference<Future<?>> futureRef = new AtomicReference<>();
-        StreamTask task = new StreamTask(taskId, owner.getId(), request, emitter, closed, futureRef);
+        StreamTask task = new StreamTask(taskId, owner.getId(), ownerUsername(owner), request, emitter, closed, futureRef);
         tasks.put(taskId, task);
 
         emitter.onCompletion(() -> {
@@ -71,7 +72,14 @@ public class AgentStreamService {
     public List<ChatStreamTaskResponse> activeTasks(User owner) {
         Long ownerId = owner.getId();
         return tasks.values().stream()
-            .filter(task -> task.ownerId().equals(ownerId))
+            .filter(task -> Objects.equals(task.ownerId(), ownerId))
+            .sorted(Comparator.comparing(StreamTask::startedAt).reversed())
+            .map(StreamTask::response)
+            .toList();
+    }
+
+    public List<ChatStreamTaskResponse> allActiveTasks() {
+        return tasks.values().stream()
             .sorted(Comparator.comparing(StreamTask::startedAt).reversed())
             .map(StreamTask::response)
             .toList();
@@ -79,7 +87,7 @@ public class AgentStreamService {
 
     public ChatStreamTaskResponse cancel(String taskId, User owner) {
         StreamTask task = tasks.get(taskId);
-        if (task == null || !task.ownerId().equals(owner.getId())) {
+        if (task == null || !Objects.equals(task.ownerId(), owner.getId())) {
             throw new BusinessException("流式任务不存在或已结束");
         }
         task.cancelled().set(true);
@@ -159,9 +167,17 @@ public class AgentStreamService {
         return sanitized.length() > 500 ? sanitized.substring(0, 500) : sanitized;
     }
 
+    private String ownerUsername(User owner) {
+        if (owner.getUsername() != null && !owner.getUsername().isBlank()) {
+            return owner.getUsername();
+        }
+        return owner.getId() == null ? "unknown" : "user-" + owner.getId();
+    }
+
     private static final class StreamTask {
         private final String taskId;
         private final Long ownerId;
+        private final String ownerUsername;
         private final ChatRequest request;
         private final SseEmitter emitter;
         private final AtomicBoolean closed;
@@ -174,6 +190,7 @@ public class AgentStreamService {
         private StreamTask(
             String taskId,
             Long ownerId,
+            String ownerUsername,
             ChatRequest request,
             SseEmitter emitter,
             AtomicBoolean closed,
@@ -181,6 +198,7 @@ public class AgentStreamService {
         ) {
             this.taskId = taskId;
             this.ownerId = ownerId;
+            this.ownerUsername = ownerUsername;
             this.request = request;
             this.emitter = emitter;
             this.closed = closed;
@@ -227,6 +245,7 @@ public class AgentStreamService {
         private ChatStreamTaskResponse response() {
             return new ChatStreamTaskResponse(
                 taskId,
+                ownerUsername,
                 phase,
                 request.question(),
                 request.paperId(),

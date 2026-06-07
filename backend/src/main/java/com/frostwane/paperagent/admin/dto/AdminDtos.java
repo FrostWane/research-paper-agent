@@ -1,5 +1,6 @@
 package com.frostwane.paperagent.admin.dto;
 
+import com.frostwane.paperagent.agent.dto.AgentDtos.ChatStreamTaskResponse;
 import com.frostwane.paperagent.user.UserStatus;
 import com.frostwane.paperagent.user.UserRole;
 import jakarta.validation.constraints.DecimalMax;
@@ -46,6 +47,7 @@ public final class AdminDtos {
         int averageLatencyMs,
         long failedTraces,
         ChatRateLimitResponse chatRateLimit,
+        List<ChatStreamTaskResponse> activeStreamTasks,
         int averageRetrievalMs,
         int averageGenerationMs,
         int averageAnswerQualityScore,

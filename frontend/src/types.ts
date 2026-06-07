@@ -100,6 +100,7 @@ export interface ChatStreamEvent {
 
 export interface ChatStreamTask {
   taskId: string;
+  ownerUsername?: string;
   phase: string;
   question: string;
   paperId?: number | null;
@@ -454,6 +455,7 @@ export interface AdminOverview {
   averageLatencyMs: number;
   failedTraces: number;
   chatRateLimit: AdminChatRateLimit;
+  activeStreamTasks: ChatStreamTask[];
   averageRetrievalMs: number;
   averageGenerationMs: number;
   averageAnswerQualityScore: number;

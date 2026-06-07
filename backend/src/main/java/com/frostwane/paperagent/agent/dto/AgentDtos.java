@@ -51,6 +51,7 @@ public final class AgentDtos {
 
     public record ChatStreamTaskResponse(
         String taskId,
+        String ownerUsername,
         String phase,
         String question,
         Long paperId,

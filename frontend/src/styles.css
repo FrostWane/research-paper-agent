@@ -1328,6 +1328,7 @@ select,
 .admin-status-list,
 .admin-model-list,
 .admin-model-health-list,
+.admin-stream-task-list,
 .agent-pipeline-list,
 .ingestion-pipeline-list,
 .retrieval-catalog-list,
@@ -1505,8 +1506,68 @@ select,
 .admin-retrieval-catalog-panel,
 .admin-agent-tool-panel,
 .admin-agent-tool-execution-panel,
+.admin-stream-task-panel,
 .admin-chunk-panel {
   overflow-x: auto;
+}
+
+.admin-stream-task-list {
+  min-width: 900px;
+}
+
+.admin-stream-task-row {
+  display: grid;
+  grid-template-columns: 78px 118px minmax(240px, 1fr) 90px 84px 168px;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.admin-stream-task-row.head {
+  min-height: 34px;
+  color: var(--muted);
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-stream-task-row.is-cancelled {
+  color: var(--muted);
+  background: #fff7f7;
+  border-color: #fecaca;
+}
+
+.admin-stream-task-row strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  color: #0f766e;
+  background: #ecfdf5;
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.admin-stream-task-row span,
+.admin-stream-task-row em,
+.admin-stream-task-row small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-stream-task-row span:nth-child(3) {
+  color: var(--ink);
+  font-size: 13px;
 }
 
 .agent-pipeline-list {
@@ -3540,6 +3601,25 @@ select,
   .admin-model-health-row {
     grid-template-columns: 1fr;
     align-items: start;
+  }
+
+  .admin-stream-task-list {
+    min-width: 0;
+  }
+
+  .admin-stream-task-row,
+  .admin-stream-task-row.head {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .admin-stream-task-row.head {
+    display: none;
+  }
+
+  .admin-stream-task-row strong {
+    width: fit-content;
+    padding: 0 8px;
   }
 
   .admin-model-health-row > em,

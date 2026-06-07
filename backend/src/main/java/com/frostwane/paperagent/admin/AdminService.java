@@ -27,6 +27,7 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalChannelCatalogRespo
 import com.frostwane.paperagent.admin.dto.AdminDtos.RetrievalProcessorCatalogResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.StatusCountResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.ToolExecutionResponse;
+import com.frostwane.paperagent.agent.AgentStreamService;
 import com.frostwane.paperagent.agent.limit.AgentRateLimitStatus;
 import com.frostwane.paperagent.agent.limit.AgentRateLimiterService;
 import com.frostwane.paperagent.agent.model.ModelCircuitBreaker;
@@ -74,6 +75,7 @@ public class AdminService {
     private final UserRepository userRepository;
     private final QueryTermMappingRepository queryTermMappingRepository;
     private final AgentRateLimiterService agentRateLimiterService;
+    private final AgentStreamService agentStreamService;
     private final ModelCircuitBreaker modelCircuitBreaker;
     private final AgentToolRegistry agentToolRegistry;
     private final AgentToolSettingService agentToolSettingService;
@@ -89,6 +91,7 @@ public class AdminService {
         UserRepository userRepository,
         QueryTermMappingRepository queryTermMappingRepository,
         AgentRateLimiterService agentRateLimiterService,
+        AgentStreamService agentStreamService,
         ModelCircuitBreaker modelCircuitBreaker,
         AgentToolRegistry agentToolRegistry,
         AgentToolSettingService agentToolSettingService,
@@ -103,6 +106,7 @@ public class AdminService {
         this.userRepository = userRepository;
         this.queryTermMappingRepository = queryTermMappingRepository;
         this.agentRateLimiterService = agentRateLimiterService;
+        this.agentStreamService = agentStreamService;
         this.modelCircuitBreaker = modelCircuitBreaker;
         this.agentToolRegistry = agentToolRegistry;
         this.agentToolSettingService = agentToolSettingService;
@@ -150,6 +154,7 @@ public class AdminService {
             intValue("select coalesce(round(avg(latency_ms)), 0) from chat_records where latency_ms is not null"),
             count("select count(*) from rag_traces where status = 'FAILED'"),
             chatRateLimit(),
+            agentStreamService.allActiveTasks(),
             intValue("select coalesce(round(avg(retrieval_ms)), 0) from rag_traces"),
             intValue("select coalesce(round(avg(generation_ms)), 0) from rag_traces"),
             intValue("select coalesce(round(avg(answer_quality_score)), 0) from rag_traces where status = 'SUCCESS' and answer_quality_label <> 'UNASSESSED'"),

@@ -30,6 +30,7 @@ class AgentStreamServiceTest {
 
         List<ChatStreamTaskResponse> activeTasks = service.activeTasks(owner);
         assertThat(activeTasks).hasSize(1);
+        assertThat(activeTasks.get(0).ownerUsername()).isEqualTo("user-11");
         assertThat(activeTasks.get(0).phase()).isEqualTo("queued");
         assertThat(activeTasks.get(0).question()).isEqualTo("请总结一下");
 
@@ -58,12 +59,31 @@ class AgentStreamServiceTest {
         assertThat(service.activeTasks(owner)).hasSize(1);
     }
 
+    @Test
+    void allActiveTasksExposeEveryOwnerButUserListStaysScoped() {
+        QueuedAsyncTaskExecutor executor = new QueuedAsyncTaskExecutor();
+        AgentStreamService service = new AgentStreamService(mock(AgentOrchestratorService.class), executor);
+        User owner = user(21L);
+        User other = user(22L);
+
+        service.stream(new ChatRequest(null, null, "问题 A", true), owner);
+        service.stream(new ChatRequest(null, null, "问题 B", true), other);
+
+        assertThat(service.activeTasks(owner))
+            .extracting(ChatStreamTaskResponse::question)
+            .containsExactly("问题 A");
+        assertThat(service.allActiveTasks())
+            .extracting(ChatStreamTaskResponse::ownerUsername)
+            .containsExactlyInAnyOrder("user-21", "user-22");
+    }
+
     private User user(Long id) {
         try {
             User user = new User();
             Field idField = User.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(user, id);
+            user.setUsername("user-" + id);
             return user;
         } catch (ReflectiveOperationException ex) {
             throw new IllegalStateException(ex);

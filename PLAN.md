@@ -55,7 +55,7 @@
   - `ConversationMemoryNode`：优先按当前会话读取长期摘要和最近历史，生成“摘要 + 近期对话”的压缩记忆并注入回答 Prompt。
   - `ConversationSummaryService`：按阈值把超出近期窗口的旧轮次压缩为长期摘要，模型不可用时启发式兜底。
   - `AgentRateLimiterService`：保护同步和流式聊天入口，支持全局并发、用户并发和用户每分钟请求限流。
-  - `AgentStreamService`：为 SSE 问答分配 taskId，提供当前用户活跃任务查询和服务端取消能力。
+  - `AgentStreamService`：为 SSE 问答分配 taskId，提供当前用户活跃任务查询、管理员活跃任务总览和服务端取消能力。
   - `QueryRewriteNode`：参考 ragent 的问题改写与拆分，把用户问题转换为更适合检索的查询和子问题。
   - `QueryPlanningNode`：识别问题意图，生成检索式，标记跨文献比较需求，并把意图路由绑定的工具名传给后续节点。
   - `ToolExecutionNode`：通过内部 `AgentToolRegistry` 按工具触发规则或意图路由绑定匹配业务工具，当前支持文献库统计和单篇解析状态工具结果注入。
