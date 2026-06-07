@@ -438,6 +438,7 @@ public final class AdminDtos {
         String searchHint,
         String answerStrategy,
         String answerContract,
+        String boundToolName,
         boolean comparisonEnabled,
         boolean enabled,
         int sortOrder,
@@ -454,6 +455,7 @@ public final class AdminDtos {
         @Size(max = 500) String searchHint,
         @NotBlank @Size(max = 64) String answerStrategy,
         @Size(max = 2000) String answerContract,
+        @Size(max = 120) String boundToolName,
         Boolean comparisonEnabled,
         Boolean enabled,
         @Min(0) @Max(1000) Integer sortOrder

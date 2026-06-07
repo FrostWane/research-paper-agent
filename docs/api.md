@@ -202,13 +202,14 @@ DELETE /api/admin/sample-prompts/{id}
   "searchHint": "method architecture module",
   "answerStrategy": "EVIDENCE_GROUNDED_QA",
   "answerContract": "输出结构：按方法目标、模块组成、关键步骤和证据页码组织。",
+  "boundToolName": null,
   "comparisonEnabled": false,
   "enabled": true,
   "sortOrder": 80
 }
 ```
 
-启用后的意图路由会被 `QueryPlanningNode` 用于识别 `queryIntent`、扩展检索提示和标记比较类问题；`AnswerPlanningNode` 会读取对应的 `answerStrategy` 和 `answerContract`。
+启用后的意图路由会被 `QueryPlanningNode` 用于识别 `queryIntent`、扩展检索提示、标记比较类问题，并把 `boundToolName` 指定的 Agent 工具传给后续工具节点；`AnswerPlanningNode` 会读取对应的 `answerStrategy` 和 `answerContract`。`boundToolName` 可为空；有值时必须匹配 `/api/admin/agent-tools` 中已注册的工具名，例如 `library-stats`。绑定工具只表示路由显式请求该工具，仍会受工具启停状态和最小调用角色约束。
 
 回答 Prompt 模板请求：
 

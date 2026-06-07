@@ -32,6 +32,7 @@ public class AgentPipelineContext {
     private List<RetrievalProcessorTrace> retrievalProcessors = List.of();
     private List<QueryTermExpansion> queryExpansions = List.of();
     private List<ToolExecutionTrace> toolExecutions = List.of();
+    private List<String> requestedToolNames = List.of();
     private String toolContext = "";
     private String queryIntent = "GENERAL_QA";
     private String searchQuery;
@@ -153,6 +154,23 @@ public class AgentPipelineContext {
 
     public List<ToolExecutionTrace> toolExecutions() {
         return toolExecutions;
+    }
+
+    public List<String> requestedToolNames() {
+        return requestedToolNames;
+    }
+
+    public void requestedToolNames(List<String> requestedToolNames) {
+        if (requestedToolNames == null) {
+            this.requestedToolNames = List.of();
+            return;
+        }
+        this.requestedToolNames = requestedToolNames.stream()
+            .filter(item -> item != null && !item.isBlank())
+            .map(String::trim)
+            .distinct()
+            .limit(8)
+            .toList();
     }
 
     public void toolExecutions(List<ToolExecutionTrace> toolExecutions) {

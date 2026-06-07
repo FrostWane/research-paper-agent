@@ -473,6 +473,7 @@ export interface IntentRoute {
   searchHint?: string;
   answerStrategy: string;
   answerContract?: string;
+  boundToolName?: string;
   comparisonEnabled: boolean;
   enabled: boolean;
   sortOrder: number;

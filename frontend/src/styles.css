@@ -2230,7 +2230,8 @@ select,
   font-weight: 700;
 }
 
-.intent-route-form input {
+.intent-route-form input,
+.intent-route-form select {
   min-height: 38px;
   padding: 0 10px;
   color: var(--ink);
@@ -2259,7 +2260,7 @@ select,
 
 .intent-route-row {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr) minmax(160px, 0.48fr) 150px 62px 62px 34px;
+  grid-template-columns: 120px minmax(0, 1fr) minmax(150px, 0.44fr) minmax(210px, 0.62fr) 62px 62px 34px;
   align-items: center;
   gap: 10px;
   min-height: 58px;

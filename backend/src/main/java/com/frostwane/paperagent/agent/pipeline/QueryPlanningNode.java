@@ -42,6 +42,7 @@ public class QueryPlanningNode implements AgentNode {
         String normalized = normalize(searchText);
         IntentRouteMatch intent = intentRouteService.match(normalized + " " + normalize(context.question()));
         context.queryIntent(intent.intentCode());
+        context.requestedToolNames(intent.boundToolName() == null ? List.of() : List.of(intent.boundToolName()));
         context.comparisonRequested(intent.comparisonRequested());
         String searchQuery = buildSearchQuery(question, normalized, intent.searchHint(), context.libraryScope());
         List<QueryTermExpansion> expansions = queryTermMappingService.match(question, searchQuery);

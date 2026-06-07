@@ -136,6 +136,7 @@ export function createIntentRoute(input: {
   searchHint?: string;
   answerStrategy: string;
   answerContract?: string;
+  boundToolName?: string;
   comparisonEnabled?: boolean;
   enabled?: boolean;
   sortOrder?: number;
@@ -153,6 +154,7 @@ export function updateIntentRoute(
     searchHint?: string;
     answerStrategy: string;
     answerContract?: string;
+    boundToolName?: string;
     comparisonEnabled?: boolean;
     enabled?: boolean;
     sortOrder?: number;

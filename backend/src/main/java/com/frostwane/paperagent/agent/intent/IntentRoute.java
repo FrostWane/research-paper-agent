@@ -40,6 +40,9 @@ public class IntentRoute {
     @Column(name = "answer_contract", columnDefinition = "TEXT")
     private String answerContract;
 
+    @Column(name = "bound_tool_name", length = 120)
+    private String boundToolName;
+
     @Column(name = "comparison_enabled", nullable = false)
     private Boolean comparisonEnabled = false;
 
@@ -125,6 +128,14 @@ public class IntentRoute {
 
     public void setAnswerContract(String answerContract) {
         this.answerContract = answerContract;
+    }
+
+    public String getBoundToolName() {
+        return boundToolName;
+    }
+
+    public void setBoundToolName(String boundToolName) {
+        this.boundToolName = boundToolName;
     }
 
     public Boolean getComparisonEnabled() {

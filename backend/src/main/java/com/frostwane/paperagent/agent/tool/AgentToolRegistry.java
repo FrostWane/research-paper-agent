@@ -24,11 +24,16 @@ public class AgentToolRegistry {
         UserRole role = context == null || context.owner() == null ? UserRole.USER : context.owner().getRole();
         return tools.stream()
             .filter(tool -> settingService.available(tool.name(), role))
-            .filter(tool -> tool.supports(context))
+            .filter(tool -> requested(context, tool) || tool.supports(context))
             .toList();
     }
 
     public List<AgentTool> tools() {
         return tools;
+    }
+
+    private boolean requested(AgentPipelineContext context, AgentTool tool) {
+        return context != null && context.requestedToolNames().stream()
+            .anyMatch(name -> tool.name().equalsIgnoreCase(name));
     }
 }

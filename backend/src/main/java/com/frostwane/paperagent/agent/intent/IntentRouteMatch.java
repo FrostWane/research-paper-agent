@@ -6,9 +6,10 @@ public record IntentRouteMatch(
     String searchHint,
     String answerStrategy,
     String answerContract,
+    String boundToolName,
     boolean comparisonRequested
 ) {
     public static IntentRouteMatch general() {
-        return new IntentRouteMatch("GENERAL_QA", "通用问答", "", "EVIDENCE_GROUNDED_QA", "", false);
+        return new IntentRouteMatch("GENERAL_QA", "通用问答", "", "EVIDENCE_GROUNDED_QA", "", null, false);
     }
 }

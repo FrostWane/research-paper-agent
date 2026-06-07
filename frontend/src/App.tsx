@@ -169,6 +169,7 @@ type IntentRouteInput = {
   searchHint: string;
   answerStrategy: string;
   answerContract: string;
+  boundToolName: string;
   comparisonEnabled: boolean;
   sortOrder: number;
 };
@@ -1072,6 +1073,7 @@ export default function App() {
         searchHint: patch.searchHint ?? route.searchHint ?? '',
         answerStrategy: patch.answerStrategy ?? route.answerStrategy,
         answerContract: patch.answerContract ?? route.answerContract ?? '',
+        boundToolName: patch.boundToolName ?? route.boundToolName ?? '',
         comparisonEnabled: patch.comparisonEnabled ?? route.comparisonEnabled,
         enabled: patch.enabled ?? route.enabled,
         sortOrder: patch.sortOrder ?? route.sortOrder
@@ -2491,6 +2493,7 @@ function AdminView({
 
       <IntentRoutePanel
         routes={intentRoutes}
+        tools={agentTools}
         onCreate={onCreateIntentRoute}
         onUpdate={onUpdateIntentRoute}
         onDelete={onDeleteIntentRoute}
@@ -3886,11 +3889,13 @@ function RagSettingsPanel({ settings, rateLimit, onUpdate }: { settings: RagSett
 
 function IntentRoutePanel({
   routes,
+  tools,
   onCreate,
   onUpdate,
   onDelete
 }: {
   routes: IntentRoute[];
+  tools: AdminAgentTool[];
   onCreate: (input: IntentRouteInput) => void;
   onUpdate: (route: IntentRoute, patch: Partial<IntentRouteInput & { enabled: boolean }>) => void;
   onDelete: (route: IntentRoute) => void;
@@ -3903,6 +3908,7 @@ function IntentRoutePanel({
   const [searchHint, setSearchHint] = useState('');
   const [answerStrategy, setAnswerStrategy] = useState('EVIDENCE_GROUNDED_QA');
   const [answerContract, setAnswerContract] = useState('');
+  const [boundToolName, setBoundToolName] = useState('');
   const [comparisonEnabled, setComparisonEnabled] = useState(false);
   const [sortOrder, setSortOrder] = useState('100');
   const editingRoute = routes.find((item) => item.id === editingId) ?? null;
@@ -3916,6 +3922,7 @@ function IntentRoutePanel({
     setSearchHint('');
     setAnswerStrategy('EVIDENCE_GROUNDED_QA');
     setAnswerContract('');
+    setBoundToolName('');
     setComparisonEnabled(false);
     setSortOrder('100');
   }
@@ -3929,6 +3936,7 @@ function IntentRoutePanel({
     setSearchHint(route.searchHint ?? '');
     setAnswerStrategy(route.answerStrategy);
     setAnswerContract(route.answerContract ?? '');
+    setBoundToolName(route.boundToolName ?? '');
     setComparisonEnabled(route.comparisonEnabled);
     setSortOrder(String(route.sortOrder ?? 100));
   }
@@ -3943,6 +3951,7 @@ function IntentRoutePanel({
       searchHint: searchHint.trim(),
       answerStrategy: answerStrategy.trim(),
       answerContract: answerContract.trim(),
+      boundToolName: boundToolName.trim(),
       comparisonEnabled,
       sortOrder: Number.parseInt(sortOrder, 10) || 100
     };
@@ -3988,6 +3997,17 @@ function IntentRoutePanel({
           <input value={searchHint} maxLength={500} placeholder="method architecture module" onChange={(event) => setSearchHint(event.target.value)} />
         </label>
         <label>
+          <span>绑定工具</span>
+          <select value={boundToolName} onChange={(event) => setBoundToolName(event.target.value)}>
+            <option value="">不绑定</option>
+            {tools.map((tool) => (
+              <option value={tool.name} key={`intent-tool-${tool.name}`}>
+                {tool.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           <span>排序</span>
           <input value={sortOrder} inputMode="numeric" onChange={(event) => setSortOrder(event.target.value)} />
         </label>
@@ -4027,7 +4047,7 @@ function IntentRoutePanel({
                 <small>{route.keywords}</small>
               </span>
               <em>{route.answerStrategy}</em>
-              <em>{route.comparisonEnabled ? '比较' : '普通'} · {route.enabled ? '启用' : '停用'} · {route.sortOrder}</em>
+              <em>{route.boundToolName ? `工具 ${route.boundToolName}` : '无工具'} · {route.comparisonEnabled ? '比较' : '普通'} · {route.enabled ? '启用' : '停用'} · {route.sortOrder}</em>
               <button className="secondary-button compact-action" type="button" onClick={() => startEdit(route)}>
                 编辑
               </button>

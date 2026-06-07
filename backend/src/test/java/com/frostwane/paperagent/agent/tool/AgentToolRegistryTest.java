@@ -51,13 +51,35 @@ class AgentToolRegistryTest {
             .containsExactly("admin-tool", "user-tool");
     }
 
+    @Test
+    void matchingToolsIncludesRouteBoundTool() {
+        AgentToolSettingService settings = mock(AgentToolSettingService.class);
+        when(settings.available("route-tool", UserRole.USER)).thenReturn(true);
+        when(settings.available("ignored-tool", UserRole.USER)).thenReturn(true);
+
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(
+            new StubTool("ignored-tool", false),
+            new StubTool("route-tool", false)
+        ), settings);
+        AgentPipelineContext context = context(UserRole.USER);
+        context.requestedToolNames(List.of("route-tool"));
+
+        assertThat(registry.matchingTools(context))
+            .extracting(AgentTool::name)
+            .containsExactly("route-tool");
+    }
+
     private AgentPipelineContext context(UserRole role) {
         User user = new User();
         user.setRole(role);
         return new AgentPipelineContext(new ChatRequest(null, null, "统计一下文献库", true), user);
     }
 
-    private record StubTool(String name) implements AgentTool {
+    private record StubTool(String name, boolean supports) implements AgentTool {
+        private StubTool(String name) {
+            this(name, true);
+        }
+
         @Override
         public String label() {
             return name;
@@ -70,7 +92,7 @@ class AgentToolRegistryTest {
 
         @Override
         public boolean supports(AgentPipelineContext context) {
-            return true;
+            return supports;
         }
 
         @Override

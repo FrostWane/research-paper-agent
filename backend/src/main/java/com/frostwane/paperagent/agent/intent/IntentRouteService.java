@@ -2,6 +2,7 @@ package com.frostwane.paperagent.agent.intent;
 
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteResponse;
+import com.frostwane.paperagent.agent.tool.AgentToolRegistry;
 import com.frostwane.paperagent.common.BusinessException;
 import com.frostwane.paperagent.user.User;
 import com.frostwane.paperagent.user.UserRole;
@@ -18,9 +19,11 @@ import java.util.Locale;
 public class IntentRouteService {
 
     private final IntentRouteRepository repository;
+    private final AgentToolRegistry agentToolRegistry;
 
-    public IntentRouteService(IntentRouteRepository repository) {
+    public IntentRouteService(IntentRouteRepository repository, AgentToolRegistry agentToolRegistry) {
         this.repository = repository;
+        this.agentToolRegistry = agentToolRegistry;
     }
 
     @Transactional(readOnly = true)
@@ -103,6 +106,7 @@ public class IntentRouteService {
         route.setSearchHint(compact(request.searchHint(), 500));
         route.setAnswerStrategy(answerStrategy);
         route.setAnswerContract(compact(request.answerContract(), 2000));
+        route.setBoundToolName(validatedToolName(request.boundToolName()));
         route.setComparisonEnabled(Boolean.TRUE.equals(request.comparisonEnabled()));
         route.setEnabled(request.enabled() == null || request.enabled());
         route.setSortOrder(clamp(request.sortOrder(), 0, 1000, 100));
@@ -115,6 +119,7 @@ public class IntentRouteService {
             route.getSearchHint(),
             route.getAnswerStrategy(),
             route.getAnswerContract(),
+            route.getBoundToolName(),
             Boolean.TRUE.equals(route.getComparisonEnabled())
         );
     }
@@ -129,6 +134,7 @@ public class IntentRouteService {
             route.getSearchHint(),
             route.getAnswerStrategy(),
             route.getAnswerContract(),
+            route.getBoundToolName(),
             Boolean.TRUE.equals(route.getComparisonEnabled()),
             Boolean.TRUE.equals(route.getEnabled()),
             safeInt(route.getSortOrder(), 100),
@@ -154,6 +160,18 @@ public class IntentRouteService {
             .replaceAll("[\\p{Punct}，。！？；：、（）【】《》]+", " ")
             .replaceAll("\\s+", " ")
             .trim();
+    }
+
+    private String validatedToolName(String value) {
+        String toolName = compact(value, 120);
+        if (toolName == null) {
+            return null;
+        }
+        return agentToolRegistry.tools().stream()
+            .filter(tool -> tool.name().equalsIgnoreCase(toolName))
+            .map(tool -> tool.name())
+            .findFirst()
+            .orElseThrow(() -> new BusinessException("绑定的 Agent 工具不存在"));
     }
 
     private String normalizeCode(String value) {
