@@ -49,8 +49,11 @@ import {
   createModelTarget,
   createSamplePrompt,
   createQueryTermMapping,
+  createEvaluationCaseFromTrace,
+  createEvaluationDataset,
   cancelAdminStreamTask,
   deleteAnswerPromptTemplate,
+  deleteEvaluationDataset,
   deleteIntentRoute,
   deleteModelTarget,
   deleteSamplePrompt,
@@ -61,6 +64,8 @@ import {
   fetchAdminParseJobs,
   fetchAdminTraces,
   fetchAnswerPromptTemplates,
+  fetchEvaluationCases,
+  fetchEvaluationDatasets,
   fetchAgentToolExecutions,
   fetchAgentPipelineNodes,
   fetchAgentTools,
@@ -76,6 +81,7 @@ import {
   resetModelCircuit,
   updateAgentPipelineNodeEnabled,
   updateAnswerPromptTemplate,
+  updateEvaluationDataset,
   updateIntentRoute,
   updateModelTarget,
   updateSamplePrompt,
@@ -101,7 +107,7 @@ import { login, me, register } from './api/auth';
 import { fetchPdfPreview, uploadPaperFile } from './api/files';
 import { clearToken, getToken, setToken } from './api/request';
 import { createPaper, deletePaper, listPapers, parsePaper, unparsePaper, updatePaperStatus } from './api/papers';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChatRateLimit, AdminChunk, AdminDailyTrend, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChatRateLimit, AdminChunk, AdminDailyTrend, AdminIngestionPipelineNode, AdminModelHealth, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatRecord, ChatResponse, ChatSession, ChatStreamTask, EvaluationCase, EvaluationDataset, IntentRoute, ModelTarget, PageResponse, Paper, PaperForm, QueryTermMapping, RagSettings, SamplePrompt, SourceResponse, User } from './types';
 
 const markdownPlugins = [remarkGfm];
 const PDF_CACHE_DB = 'research-paper-agent-cache';
@@ -249,6 +255,27 @@ type AdminParseJobFilters = {
   status: string;
   keyword: string;
 };
+type EvaluationCaseFilters = {
+  datasetId: string;
+  enabled: string;
+  keyword: string;
+};
+type EvaluationDatasetInput = {
+  code: string;
+  name: string;
+  description: string;
+  scope: 'PAPER' | 'LIBRARY';
+  enabled: boolean;
+};
+type EvaluationCaseFromTraceInput = {
+  datasetId: number;
+  traceId: number;
+  expectedAnswer: string;
+  expectedSourcesJson: string;
+  tags: string;
+  difficulty: string;
+  enabled: boolean;
+};
 
 const defaultRagSettingsInput: RagSettingsInput = {
   candidateLimit: 10,
@@ -295,6 +322,11 @@ const defaultParseJobFilters: AdminParseJobFilters = {
   status: '',
   keyword: ''
 };
+const defaultEvaluationCaseFilters: EvaluationCaseFilters = {
+  datasetId: '',
+  enabled: '',
+  keyword: ''
+};
 const adminAuditActions = [
   'UPDATE_RAG_SETTINGS',
   'UPDATE_USER_STATUS',
@@ -318,7 +350,14 @@ const adminAuditActions = [
   'DELETE_QUERY_TERM_MAPPING',
   'CREATE_SAMPLE_PROMPT',
   'UPDATE_SAMPLE_PROMPT',
-  'DELETE_SAMPLE_PROMPT'
+  'DELETE_SAMPLE_PROMPT',
+  'CREATE_EVALUATION_DATASET',
+  'UPDATE_EVALUATION_DATASET',
+  'DELETE_EVALUATION_DATASET',
+  'CREATE_EVALUATION_CASE',
+  'CREATE_EVALUATION_CASE_FROM_TRACE',
+  'UPDATE_EVALUATION_CASE',
+  'DELETE_EVALUATION_CASE'
 ];
 const adminAuditResourceTypes = [
   'RAG_SETTINGS',
@@ -331,7 +370,9 @@ const adminAuditResourceTypes = [
   'INTENT_ROUTE',
   'ANSWER_PROMPT_TEMPLATE',
   'QUERY_TERM_MAPPING',
-  'SAMPLE_PROMPT'
+  'SAMPLE_PROMPT',
+  'EVALUATION_DATASET',
+  'EVALUATION_CASE'
 ];
 
 export default function App() {
@@ -365,6 +406,9 @@ export default function App() {
   const [adminChunkFilters, setAdminChunkFilters] = useState<AdminChunkFilters>(defaultChunkFilters);
   const [adminParseJobPage, setAdminParseJobPage] = useState<PageResponse<AdminParseJob> | null>(null);
   const [adminParseJobFilters, setAdminParseJobFilters] = useState<AdminParseJobFilters>(defaultParseJobFilters);
+  const [evaluationDatasets, setEvaluationDatasets] = useState<EvaluationDataset[]>([]);
+  const [evaluationCasePage, setEvaluationCasePage] = useState<PageResponse<EvaluationCase> | null>(null);
+  const [evaluationCaseFilters, setEvaluationCaseFilters] = useState<EvaluationCaseFilters>(defaultEvaluationCaseFilters);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [agentPipelineNodes, setAgentPipelineNodes] = useState<AdminAgentPipelineNode[]>([]);
   const [ingestionPipelineNodes, setIngestionPipelineNodes] = useState<AdminIngestionPipelineNode[]>([]);
@@ -871,13 +915,15 @@ export default function App() {
     try {
       setAdminLoading(true);
       setError('');
-      const [overview, traces, toolExecutions, auditLogs, chunks, parseJobs, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
+      const [overview, traces, toolExecutions, auditLogs, chunks, parseJobs, datasets, evaluationCases, users, pipelineNodes, ingestionNodes, retrievalChannelItems, retrievalProcessorItems, tools, mappings, routes, templates, targets, prompts, settings] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminTraces({ ...adminTraceFilters, page: adminTracePage?.page ?? 1, pageSize: adminTracePage?.pageSize ?? 12 }),
         fetchAgentToolExecutions({ ...agentToolExecutionFilters, page: agentToolExecutionPage?.page ?? 1, pageSize: agentToolExecutionPage?.pageSize ?? 10 }),
         fetchAdminAuditLogs({ ...adminAuditLogFilters, page: adminAuditLogPage?.page ?? 1, pageSize: adminAuditLogPage?.pageSize ?? 12 }),
         fetchAdminChunks({ ...adminChunkFilters, page: adminChunkPage?.page ?? 1, pageSize: adminChunkPage?.pageSize ?? 8 }),
         fetchAdminParseJobs({ ...adminParseJobFilters, page: adminParseJobPage?.page ?? 1, pageSize: adminParseJobPage?.pageSize ?? 10 }),
+        fetchEvaluationDatasets(),
+        fetchEvaluationCases({ ...evaluationCaseFilters, page: evaluationCasePage?.page ?? 1, pageSize: evaluationCasePage?.pageSize ?? 10 }),
         fetchAdminUsers(),
         fetchAgentPipelineNodes(),
         fetchIngestionPipelineNodes(),
@@ -897,6 +943,8 @@ export default function App() {
       setAdminAuditLogPage(auditLogs);
       setAdminChunkPage(chunks);
       setAdminParseJobPage(parseJobs);
+      setEvaluationDatasets(datasets);
+      setEvaluationCasePage(evaluationCases);
       setAdminUsers(users);
       setAgentPipelineNodes(pipelineNodes);
       setIngestionPipelineNodes(ingestionNodes);
@@ -1009,6 +1057,97 @@ export default function App() {
     const nextFilters = { ...adminParseJobFilters, ...patch };
     setAdminParseJobFilters(nextFilters);
     await loadAdminParseJobPage(nextFilters, 1);
+  }
+
+  async function loadEvaluationCasePage(nextFilters = evaluationCaseFilters, page = evaluationCasePage?.page ?? 1) {
+    try {
+      setAdminLoading(true);
+      setError('');
+      const result = await fetchEvaluationCases({ ...nextFilters, page, pageSize: evaluationCasePage?.pageSize ?? 10 });
+      setEvaluationCasePage(result);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleEvaluationCaseFilterChange(patch: Partial<EvaluationCaseFilters>) {
+    const nextFilters = { ...evaluationCaseFilters, ...patch };
+    setEvaluationCaseFilters(nextFilters);
+    await loadEvaluationCasePage(nextFilters, 1);
+  }
+
+  async function handleCreateEvaluationDataset(input: EvaluationDatasetInput) {
+    try {
+      setBusyText('正在创建 Agent 评测集...');
+      const created = await createEvaluationDataset(input);
+      setEvaluationDatasets((current) => [created, ...current]);
+      showNotice('Agent 评测集已创建。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleUpdateEvaluationDataset(dataset: EvaluationDataset, patch: Partial<EvaluationDatasetInput>) {
+    try {
+      setBusyText('正在更新 Agent 评测集...');
+      const updated = await updateEvaluationDataset(dataset.id, {
+        code: patch.code ?? dataset.code,
+        name: patch.name ?? dataset.name,
+        description: patch.description ?? dataset.description ?? '',
+        scope: patch.scope ?? (dataset.scope === 'PAPER' ? 'PAPER' : 'LIBRARY'),
+        enabled: patch.enabled ?? dataset.enabled
+      });
+      setEvaluationDatasets((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      showNotice('Agent 评测集已更新。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleDeleteEvaluationDataset(dataset: EvaluationDataset) {
+    const confirmed = window.confirm(`删除评测集「${dataset.name}」会同时删除其中的评测样本。确定继续吗？`);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setBusyText('正在删除 Agent 评测集...');
+      await deleteEvaluationDataset(dataset.id);
+      setEvaluationDatasets((current) => current.filter((item) => item.id !== dataset.id));
+      await loadEvaluationCasePage(evaluationCaseFilters, evaluationCasePage?.page ?? 1);
+      showNotice('Agent 评测集已删除。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
+  }
+
+  async function handleCreateEvaluationCaseFromTrace(input: EvaluationCaseFromTraceInput) {
+    try {
+      setBusyText('正在从 RAG Trace 沉淀评测样本...');
+      await createEvaluationCaseFromTrace({
+        datasetId: input.datasetId,
+        traceId: input.traceId,
+        expectedAnswer: input.expectedAnswer || undefined,
+        expectedSourcesJson: input.expectedSourcesJson || undefined,
+        tags: input.tags || undefined,
+        difficulty: input.difficulty || undefined,
+        enabled: input.enabled
+      });
+      setEvaluationDatasets(await fetchEvaluationDatasets());
+      await loadEvaluationCasePage(evaluationCaseFilters, 1);
+      showNotice('评测样本已从 Trace 沉淀。');
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusyText('');
+    }
   }
 
   async function handleAdminChunkEnabled(chunk: AdminChunk, enabled: boolean) {
@@ -1666,6 +1805,9 @@ export default function App() {
             chunkFilters={adminChunkFilters}
             parseJobPage={adminParseJobPage}
             parseJobFilters={adminParseJobFilters}
+            evaluationDatasets={evaluationDatasets}
+            evaluationCasePage={evaluationCasePage}
+            evaluationCaseFilters={evaluationCaseFilters}
             users={adminUsers}
             agentPipelineNodes={agentPipelineNodes}
             ingestionPipelineNodes={ingestionPipelineNodes}
@@ -1691,6 +1833,8 @@ export default function App() {
             onChunkPageChange={(page) => void loadAdminChunkPage(adminChunkFilters, page)}
             onParseJobFilterChange={(patch) => void handleAdminParseJobFilterChange(patch)}
             onParseJobPageChange={(page) => void loadAdminParseJobPage(adminParseJobFilters, page)}
+            onEvaluationCaseFilterChange={(patch) => void handleEvaluationCaseFilterChange(patch)}
+            onEvaluationCasePageChange={(page) => void loadEvaluationCasePage(evaluationCaseFilters, page)}
             onChunkEnabledChange={(chunk, enabled) => void handleAdminChunkEnabled(chunk, enabled)}
             onAgentPipelineNodeEnabledChange={(node, enabled) => void handleAdminAgentPipelineNodeEnabled(node, enabled)}
             onResetModelCircuit={(model) => void handleResetModelCircuit(model)}
@@ -1710,6 +1854,10 @@ export default function App() {
             onCreateModelTarget={(input) => void handleCreateModelTarget(input)}
             onUpdateModelTarget={(target, patch) => void handleUpdateModelTarget(target, patch)}
             onDeleteModelTarget={(target) => void handleDeleteModelTarget(target)}
+            onCreateEvaluationDataset={(input) => void handleCreateEvaluationDataset(input)}
+            onUpdateEvaluationDataset={(dataset, patch) => void handleUpdateEvaluationDataset(dataset, patch)}
+            onDeleteEvaluationDataset={(dataset) => void handleDeleteEvaluationDataset(dataset)}
+            onCreateEvaluationCaseFromTrace={(input) => void handleCreateEvaluationCaseFromTrace(input)}
             onCreateSamplePrompt={(input) => void handleCreateSamplePrompt(input)}
             onUpdateSamplePrompt={(prompt, patch) => void handleUpdateSamplePrompt(prompt, patch)}
             onDeleteSamplePrompt={(prompt) => void handleDeleteSamplePrompt(prompt)}
@@ -2367,6 +2515,9 @@ function AdminView({
   chunkFilters,
   parseJobPage,
   parseJobFilters,
+  evaluationDatasets,
+  evaluationCasePage,
+  evaluationCaseFilters,
   users,
   agentPipelineNodes,
   ingestionPipelineNodes,
@@ -2392,6 +2543,8 @@ function AdminView({
   onChunkPageChange,
   onParseJobFilterChange,
   onParseJobPageChange,
+  onEvaluationCaseFilterChange,
+  onEvaluationCasePageChange,
   onChunkEnabledChange,
   onAgentPipelineNodeEnabledChange,
   onResetModelCircuit,
@@ -2411,6 +2564,10 @@ function AdminView({
   onCreateModelTarget,
   onUpdateModelTarget,
   onDeleteModelTarget,
+  onCreateEvaluationDataset,
+  onUpdateEvaluationDataset,
+  onDeleteEvaluationDataset,
+  onCreateEvaluationCaseFromTrace,
   onCreateSamplePrompt,
   onUpdateSamplePrompt,
   onDeleteSamplePrompt,
@@ -2427,6 +2584,9 @@ function AdminView({
   chunkFilters: AdminChunkFilters;
   parseJobPage: PageResponse<AdminParseJob> | null;
   parseJobFilters: AdminParseJobFilters;
+  evaluationDatasets: EvaluationDataset[];
+  evaluationCasePage: PageResponse<EvaluationCase> | null;
+  evaluationCaseFilters: EvaluationCaseFilters;
   users: AdminUser[];
   agentPipelineNodes: AdminAgentPipelineNode[];
   ingestionPipelineNodes: AdminIngestionPipelineNode[];
@@ -2452,6 +2612,8 @@ function AdminView({
   onChunkPageChange: (page: number) => void;
   onParseJobFilterChange: (patch: Partial<AdminParseJobFilters>) => void;
   onParseJobPageChange: (page: number) => void;
+  onEvaluationCaseFilterChange: (patch: Partial<EvaluationCaseFilters>) => void;
+  onEvaluationCasePageChange: (page: number) => void;
   onChunkEnabledChange: (chunk: AdminChunk, enabled: boolean) => void;
   onAgentPipelineNodeEnabledChange: (node: AdminAgentPipelineNode, enabled: boolean) => void;
   onResetModelCircuit: (model: AdminModelHealth) => void;
@@ -2471,6 +2633,10 @@ function AdminView({
   onCreateModelTarget: (input: ModelTargetInput) => void;
   onUpdateModelTarget: (target: ModelTarget, patch: Partial<ModelTargetInput & { enabled: boolean }>) => void;
   onDeleteModelTarget: (target: ModelTarget) => void;
+  onCreateEvaluationDataset: (input: EvaluationDatasetInput) => void;
+  onUpdateEvaluationDataset: (dataset: EvaluationDataset, patch: Partial<EvaluationDatasetInput>) => void;
+  onDeleteEvaluationDataset: (dataset: EvaluationDataset) => void;
+  onCreateEvaluationCaseFromTrace: (input: EvaluationCaseFromTraceInput) => void;
   onCreateSamplePrompt: (input: SamplePromptInput) => void;
   onUpdateSamplePrompt: (prompt: SamplePrompt, patch: Partial<SamplePromptInput & { enabled: boolean }>) => void;
   onDeleteSamplePrompt: (prompt: SamplePrompt) => void;
@@ -2643,6 +2809,19 @@ function AdminView({
         onCreate={onCreateModelTarget}
         onUpdate={onUpdateModelTarget}
         onDelete={onDeleteModelTarget}
+      />
+
+      <EvaluationDatasetPanel
+        datasets={evaluationDatasets}
+        casePage={evaluationCasePage}
+        filters={evaluationCaseFilters}
+        loading={loading}
+        onCreateDataset={onCreateEvaluationDataset}
+        onUpdateDataset={onUpdateEvaluationDataset}
+        onDeleteDataset={onDeleteEvaluationDataset}
+        onCreateCaseFromTrace={onCreateEvaluationCaseFromTrace}
+        onFilterChange={onEvaluationCaseFilterChange}
+        onPageChange={onEvaluationCasePageChange}
       />
 
       <RagSettingsPanel settings={ragSettings} rateLimit={overview?.chatRateLimit} onUpdate={onUpdateRagSettings} />
@@ -4070,6 +4249,265 @@ function ModelTargetPanel({
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function EvaluationDatasetPanel({
+  datasets,
+  casePage,
+  filters,
+  loading,
+  onCreateDataset,
+  onUpdateDataset,
+  onDeleteDataset,
+  onCreateCaseFromTrace,
+  onFilterChange,
+  onPageChange
+}: {
+  datasets: EvaluationDataset[];
+  casePage: PageResponse<EvaluationCase> | null;
+  filters: EvaluationCaseFilters;
+  loading: boolean;
+  onCreateDataset: (input: EvaluationDatasetInput) => void;
+  onUpdateDataset: (dataset: EvaluationDataset, patch: Partial<EvaluationDatasetInput>) => void;
+  onDeleteDataset: (dataset: EvaluationDataset) => void;
+  onCreateCaseFromTrace: (input: EvaluationCaseFromTraceInput) => void;
+  onFilterChange: (patch: Partial<EvaluationCaseFilters>) => void;
+  onPageChange: (page: number) => void;
+}) {
+  const [datasetForm, setDatasetForm] = useState<EvaluationDatasetInput>({
+    code: '',
+    name: '',
+    description: '',
+    scope: 'LIBRARY',
+    enabled: true
+  });
+  const [caseForm, setCaseForm] = useState({
+    datasetId: '',
+    traceId: '',
+    expectedAnswer: '',
+    expectedSourcesJson: '',
+    tags: '',
+    difficulty: 'MEDIUM',
+    enabled: true
+  });
+  const totalCases = datasets.reduce((sum, item) => sum + item.caseCount, 0);
+  const enabledCases = datasets.reduce((sum, item) => sum + item.enabledCaseCount, 0);
+  const currentPage = casePage?.page ?? 1;
+  const totalPages = casePage?.totalPages ?? 0;
+
+  function submitDataset(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!datasetForm.code.trim() || !datasetForm.name.trim()) {
+      return;
+    }
+    onCreateDataset({
+      ...datasetForm,
+      code: datasetForm.code.trim(),
+      name: datasetForm.name.trim(),
+      description: datasetForm.description.trim()
+    });
+    setDatasetForm({ code: '', name: '', description: '', scope: 'LIBRARY', enabled: true });
+  }
+
+  function submitCaseFromTrace(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const datasetId = Number.parseInt(caseForm.datasetId, 10);
+    const traceId = Number.parseInt(caseForm.traceId, 10);
+    if (!datasetId || !traceId) {
+      return;
+    }
+    onCreateCaseFromTrace({
+      datasetId,
+      traceId,
+      expectedAnswer: caseForm.expectedAnswer.trim(),
+      expectedSourcesJson: caseForm.expectedSourcesJson.trim(),
+      tags: caseForm.tags.trim(),
+      difficulty: caseForm.difficulty,
+      enabled: caseForm.enabled
+    });
+    setCaseForm((current) => ({ ...current, traceId: '', expectedAnswer: '', expectedSourcesJson: '', tags: '' }));
+  }
+
+  function renameDataset(dataset: EvaluationDataset) {
+    const nextName = window.prompt('新的评测集名称', dataset.name);
+    if (!nextName || !nextName.trim() || nextName.trim() === dataset.name) {
+      return;
+    }
+    onUpdateDataset(dataset, { name: nextName.trim() });
+  }
+
+  return (
+    <div className="admin-panel evaluation-dataset-panel">
+      <div className="admin-panel-head">
+        <div>
+          <h3>Agent 评测集</h3>
+          <p>从高价值 Trace 沉淀回归样本，为后续批量评测、模型替换和 Prompt 调优做质量基线。</p>
+        </div>
+        <BarChart3 size={18} />
+      </div>
+
+      <div className="evaluation-dataset-summary">
+        <span>
+          <b>{datasets.length}</b>
+          <em>评测集</em>
+        </span>
+        <span>
+          <b>{totalCases}</b>
+          <em>样本总数</em>
+        </span>
+        <span>
+          <b>{enabledCases}</b>
+          <em>启用样本</em>
+        </span>
+      </div>
+
+      <form className="evaluation-dataset-form" onSubmit={submitDataset}>
+        <label>
+          <span>标识</span>
+          <input value={datasetForm.code} maxLength={64} placeholder="PAPER_QA_REGRESSION" onChange={(event) => setDatasetForm((current) => ({ ...current, code: event.target.value }))} />
+        </label>
+        <label>
+          <span>名称</span>
+          <input value={datasetForm.name} maxLength={160} placeholder="论文问答回归集" onChange={(event) => setDatasetForm((current) => ({ ...current, name: event.target.value }))} />
+        </label>
+        <label>
+          <span>范围</span>
+          <select value={datasetForm.scope} onChange={(event) => setDatasetForm((current) => ({ ...current, scope: event.target.value as 'PAPER' | 'LIBRARY' }))}>
+            <option value="LIBRARY">全库</option>
+            <option value="PAPER">单篇</option>
+          </select>
+        </label>
+        <label className="wide">
+          <span>说明</span>
+          <input value={datasetForm.description} maxLength={2000} placeholder="覆盖摘要、贡献、实验、局限和跨论文比较等高频问题" onChange={(event) => setDatasetForm((current) => ({ ...current, description: event.target.value }))} />
+        </label>
+        <div className="evaluation-dataset-actions">
+          <button className="primary-button" type="submit" disabled={!datasetForm.code.trim() || !datasetForm.name.trim()}>
+            <Plus size={17} />
+            创建评测集
+          </button>
+        </div>
+      </form>
+
+      <div className="evaluation-dataset-list">
+        {datasets.length === 0 ? (
+          <EmptyState compact title="暂无评测集" detail="创建一个评测集后，可以从 RAG Trace 沉淀回归样本。" />
+        ) : (
+          datasets.map((dataset) => (
+            <div className={`evaluation-dataset-row ${dataset.enabled ? '' : 'is-disabled'}`} key={dataset.id}>
+              <strong>{dataset.code}</strong>
+              <span>
+                <b>{dataset.name}</b>
+                <small>{scopeLabel(dataset.scope)} · {dataset.caseCount} 条样本 · {dataset.enabledCaseCount} 条启用 · {dataset.createdBy || 'system'}</small>
+              </span>
+              <em>{dataset.description || '暂无说明'}</em>
+              <button className="secondary-button compact-action" type="button" onClick={() => renameDataset(dataset)}>改名</button>
+              <button className="secondary-button compact-action" type="button" onClick={() => onUpdateDataset(dataset, { enabled: !dataset.enabled })}>
+                {dataset.enabled ? '停用' : '启用'}
+              </button>
+              <button className="icon-button small danger" type="button" title="删除评测集" onClick={() => onDeleteDataset(dataset)}>
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      <form className="evaluation-case-form" onSubmit={submitCaseFromTrace}>
+        <label>
+          <span>评测集</span>
+          <select value={caseForm.datasetId} onChange={(event) => setCaseForm((current) => ({ ...current, datasetId: event.target.value }))}>
+            <option value="">选择评测集</option>
+            {datasets.map((dataset) => (
+              <option value={dataset.id} key={dataset.id}>{dataset.name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Trace ID</span>
+          <input value={caseForm.traceId} inputMode="numeric" placeholder="例如 42" onChange={(event) => setCaseForm((current) => ({ ...current, traceId: event.target.value }))} />
+        </label>
+        <label>
+          <span>难度</span>
+          <select value={caseForm.difficulty} onChange={(event) => setCaseForm((current) => ({ ...current, difficulty: event.target.value }))}>
+            <option value="EASY">EASY</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HARD">HARD</option>
+          </select>
+        </label>
+        <label>
+          <span>标签</span>
+          <input value={caseForm.tags} maxLength={500} placeholder="贡献,实验,引用" onChange={(event) => setCaseForm((current) => ({ ...current, tags: event.target.value }))} />
+        </label>
+        <label className="wide">
+          <span>期望答案覆盖</span>
+          <textarea value={caseForm.expectedAnswer} placeholder="留空时使用该 Trace 关联问答记录里的回答作为期望答案" onChange={(event) => setCaseForm((current) => ({ ...current, expectedAnswer: event.target.value }))} />
+        </label>
+        <label className="wide">
+          <span>期望来源 JSON</span>
+          <textarea value={caseForm.expectedSourcesJson} placeholder="留空时使用该 Trace 关联问答记录里的 sources_json" onChange={(event) => setCaseForm((current) => ({ ...current, expectedSourcesJson: event.target.value }))} />
+        </label>
+        <div className="evaluation-dataset-actions">
+          <button className="secondary-button" type="submit" disabled={!caseForm.datasetId || !caseForm.traceId}>
+            <Plus size={17} />
+            从 Trace 沉淀样本
+          </button>
+        </div>
+      </form>
+
+      <form className="admin-trace-filter evaluation-case-filter" onSubmit={(event) => event.preventDefault()}>
+        <label>
+          <span>评测集</span>
+          <select value={filters.datasetId} onChange={(event) => onFilterChange({ datasetId: event.target.value })}>
+            <option value="">全部</option>
+            {datasets.map((dataset) => (
+              <option value={dataset.id} key={dataset.id}>{dataset.name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>状态</span>
+          <select value={filters.enabled} onChange={(event) => onFilterChange({ enabled: event.target.value })}>
+            <option value="">全部</option>
+            <option value="true">启用</option>
+            <option value="false">停用</option>
+          </select>
+        </label>
+        <label>
+          <span>关键词</span>
+          <input value={filters.keyword} placeholder="问题 / 答案 / 标签" onChange={(event) => onFilterChange({ keyword: event.target.value })} />
+        </label>
+        <button className="secondary-button" type="button" onClick={() => onFilterChange({ ...defaultEvaluationCaseFilters })}>重置</button>
+      </form>
+
+      <div className="evaluation-case-list">
+        {(casePage?.items ?? []).length === 0 ? (
+          <EmptyState compact title="暂无评测样本" detail="从 Trace 沉淀样本后，会在这里形成可回归的问答基线。" />
+        ) : (
+          casePage!.items.map((item) => (
+            <div className={`evaluation-case-row ${item.enabled ? '' : 'is-disabled'}`} key={item.id}>
+              <strong>{item.difficulty}</strong>
+              <span>
+                <b>{item.question}</b>
+                <small>{item.datasetCode} · {scopeLabel(item.scope)} · Trace #{item.ragTraceId ?? '-'} · {item.paperTitle || item.sourceUsername || '全库样本'}</small>
+              </span>
+              <p>{item.expectedAnswer}</p>
+              <em>{item.tags || '未标注'}</em>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="admin-trace-pagination evaluation-case-pagination">
+        <span>共 {casePage?.total ?? 0} 条 · 第 {currentPage} / {totalPages || 1} 页</span>
+        <button className="secondary-button compact-action" type="button" disabled={loading || currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+          上一页
+        </button>
+        <button className="secondary-button compact-action" type="button" disabled={loading || totalPages === 0 || currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          下一页
+        </button>
       </div>
     </div>
   );

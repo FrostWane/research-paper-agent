@@ -75,6 +75,9 @@
   - `GET /api/agent/sample-prompts`
   - `GET/POST/PATCH/DELETE /api/admin/query-term-mappings`
   - `GET/POST/PATCH/DELETE /api/admin/sample-prompts`
+  - `GET/POST/PATCH/DELETE /api/admin/evaluation-datasets`
+  - `GET/POST/PATCH/DELETE /api/admin/evaluation-cases`
+  - `POST /api/admin/evaluation-cases/from-trace`
 - 模型接入：
   - 默认支持无 API Key 的兜底 Agent。
   - 配置 OpenAI-compatible API 后启用 Spring AI `ChatClient`、Embedding 和 RAG 检索。
@@ -93,6 +96,7 @@
   - 新增 Agent 工具目录、启停治理和角色权限治理，后台可查看内部工具触发规则、来源、最小调用角色、成功 / 失败调用次数、平均耗时和最近调用时间，并可停用单个工具或限制为仅管理员调用；默认内置 `library-stats` 和 `paper-parse-status`，意图路由绑定工具不会绕过这里的启停和角色约束，后续可扩展为外部 MCP。
   - 新增 Agent 工具调用审计，后台可按工具、状态和关键词分页展开历史 Trace 中的工具执行明细，追查触发问题、调用用户、范围、工具摘要、失败原因和耗时。
   - 新增管理员操作审计，后台可按动作、资源类型和关键词分页追查配置变更、权限调整、模型熔断复位、流式任务取消和知识片段治理动作。
+  - 新增 Agent 评测集，管理员可维护单篇/全库回归集，从高价值 RAG Trace 沉淀问题、期望答案、期望来源 JSON、标签和难度，形成后续模型替换、Prompt 调优和链路改造前后的质量基线。
   - 新增知识片段治理，后台可按文献 ID 或关键词分页检查 chunk 正文、页码、序号、向量化状态和启用状态，并可禁用脏片段让关键词/向量检索跳过它，辅助排查入库质量和召回材料问题。
   - 管理员可配置 RAG 候选召回数、最终来源数、来源摘录长度、向量通道权重、关键词通道权重、记忆轮数、记忆字符上限、查询改写开关、子问题上限、模型质量评审开关、模型重排开关和重排候选窗口。
   - 新增轻量任务感知模型路由、模型调用日志和三态熔断，管理员可查看并维护目标模型，按任务观察最近状态、成功 / 失败 / fallback / 跳过次数、熔断状态、连续失败次数、冷却时间和平均延迟，并可手动复位异常熔断目标。
@@ -136,6 +140,8 @@
 - `chat_session_summaries`：会话长期摘要、已摘要到的问答记录、摘要轮数、摘要方法和摘要模型，用于长对话记忆压缩。
 - `chat_records`：用户归属、会话 ID、可为空的文献 ID、问题、回答、来源 JSON、模型名、耗时。
 - `rag_traces`：用户归属、可为空的会话 ID、可为空的文献 ID、可为空的聊天记录 ID、问答范围、状态、模型名、Pipeline 名称、问题意图、检索式、改写查询、子问题 JSON、业务工具执行 JSON、意图引导 JSON、回答策略、输出契约、检索通道 JSON、检索后处理器 JSON、节点 span JSON、会话记忆轮数、会话记忆字符数、长期摘要使用情况、摘要轮数、摘要字符数、摘要方法、摘要模型、来源数量、答案质量分、质量标签、质量方法、评审模型、评审置信度、质量解释、分段耗时、错误信息。
+- `evaluation_datasets`：Agent 回归评测集，包含标识、名称、说明、问答范围、启用状态和创建人。
+- `evaluation_cases`：评测样本，关联评测集、来源用户、可选文献、可选问答记录和可选 RAG Trace，保存问题、期望答案、期望来源 JSON、标签、难度和启用状态。
 - `parse_jobs`：用户归属、可为空的文献/文件 ID、文献标题快照、文件名、状态（`QUEUED` / `RUNNING` / `SUCCESS` / `FAILED`）、页数、片段数、耗时、失败信息。
 - `rag_settings`：全局 RAG 运行时参数，包含候选召回数、最终来源数、来源摘录长度、检索通道融合权重、会话记忆窗口、长期摘要压缩、查询改写配置、模型质量评审开关、模型重排配置和聊天入口限流配置。
 - `intent_routes`：轻量意图路由规则，包含意图标识、关键词、检索提示、回答策略、输出契约、可选绑定工具、比较标记和启用状态。
@@ -174,5 +180,5 @@
 - 第一阶段先完成 Web 全栈 MVP。
 - 第二阶段再做 RAG、多 Agent Lite 和引用页码。
 - 第三阶段做 Android 原生简化端，范围锁定为“阅读闭环”，不包含上传。
-- 本机默认 Java 8 不作为后端运行依据，使用 Maven Wrapper + Docker Java 21 环境验证。
+- 后端以 Java 21 为运行依据，可使用本机 JDK21 或 Docker Java 21 环境验证。
 - 如果 GitHub push 时本机未登录凭据，则保留本地 commit，并提示登录后重试 push。

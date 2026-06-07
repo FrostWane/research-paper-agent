@@ -13,6 +13,11 @@ import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolMinimumRoleRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AgentToolResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.AnswerPromptTemplateResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationCaseFromTraceRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationCaseRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationCaseResponse;
+import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationDatasetRequest;
+import com.frostwane.paperagent.admin.dto.AdminDtos.EvaluationDatasetResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IngestionPipelineNodeResponse;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteRequest;
 import com.frostwane.paperagent.admin.dto.AdminDtos.IntentRouteResponse;
@@ -32,6 +37,7 @@ import com.frostwane.paperagent.agent.dto.AgentDtos.ChatStreamTaskResponse;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptRequest;
 import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.intent.IntentRouteService;
+import com.frostwane.paperagent.agent.evaluation.AgentEvaluationService;
 import com.frostwane.paperagent.agent.model.ModelTargetService;
 import com.frostwane.paperagent.agent.prompt.AnswerPromptTemplateService;
 import com.frostwane.paperagent.agent.sample.SamplePromptService;
@@ -65,6 +71,7 @@ public class AdminController {
     private final IntentRouteService intentRouteService;
     private final AnswerPromptTemplateService answerPromptTemplateService;
     private final ModelTargetService modelTargetService;
+    private final AgentEvaluationService agentEvaluationService;
     private final CurrentUserService currentUserService;
 
     public AdminController(
@@ -74,6 +81,7 @@ public class AdminController {
         IntentRouteService intentRouteService,
         AnswerPromptTemplateService answerPromptTemplateService,
         ModelTargetService modelTargetService,
+        AgentEvaluationService agentEvaluationService,
         CurrentUserService currentUserService
     ) {
         this.adminService = adminService;
@@ -82,6 +90,7 @@ public class AdminController {
         this.intentRouteService = intentRouteService;
         this.answerPromptTemplateService = answerPromptTemplateService;
         this.modelTargetService = modelTargetService;
+        this.agentEvaluationService = agentEvaluationService;
         this.currentUserService = currentUserService;
     }
 
@@ -435,6 +444,85 @@ public class AdminController {
         return ApiResponse.empty();
     }
 
+    @GetMapping("/evaluation-datasets")
+    public ApiResponse<List<EvaluationDatasetResponse>> evaluationDatasets() {
+        return ApiResponse.ok(agentEvaluationService.datasets(currentUserService.getRequiredUser()));
+    }
+
+    @PostMapping("/evaluation-datasets")
+    public ApiResponse<EvaluationDatasetResponse> createEvaluationDataset(@Valid @RequestBody EvaluationDatasetRequest request) {
+        User admin = currentAdmin();
+        EvaluationDatasetResponse response = agentEvaluationService.createDataset(request, admin);
+        audit(admin, "CREATE_EVALUATION_DATASET", "EVALUATION_DATASET", response.id(), "创建 Agent 评测集", evaluationDatasetDetail(response));
+        return ApiResponse.ok(response);
+    }
+
+    @PatchMapping("/evaluation-datasets/{id}")
+    public ApiResponse<EvaluationDatasetResponse> updateEvaluationDataset(@PathVariable Long id, @Valid @RequestBody EvaluationDatasetRequest request) {
+        User admin = currentAdmin();
+        EvaluationDatasetResponse response = agentEvaluationService.updateDataset(id, request, admin);
+        audit(admin, "UPDATE_EVALUATION_DATASET", "EVALUATION_DATASET", response.id(), "更新 Agent 评测集", evaluationDatasetDetail(response));
+        return ApiResponse.ok(response);
+    }
+
+    @DeleteMapping("/evaluation-datasets/{id}")
+    public ApiResponse<Void> deleteEvaluationDataset(@PathVariable Long id) {
+        User admin = currentAdmin();
+        agentEvaluationService.deleteDataset(id, admin);
+        audit(admin, "DELETE_EVALUATION_DATASET", "EVALUATION_DATASET", id, "删除 Agent 评测集", detail("id", id));
+        return ApiResponse.empty();
+    }
+
+    @GetMapping("/evaluation-cases")
+    public ApiResponse<PageResponse<EvaluationCaseResponse>> evaluationCases(
+        @RequestParam(required = false) Long datasetId,
+        @RequestParam(defaultValue = "") String enabled,
+        @RequestParam(defaultValue = "") String keyword,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "12") int pageSize
+    ) {
+        return ApiResponse.ok(agentEvaluationService.cases(
+            currentUserService.getRequiredUser(),
+            datasetId,
+            enabled,
+            keyword,
+            page,
+            pageSize
+        ));
+    }
+
+    @PostMapping("/evaluation-cases")
+    public ApiResponse<EvaluationCaseResponse> createEvaluationCase(@Valid @RequestBody EvaluationCaseRequest request) {
+        User admin = currentAdmin();
+        EvaluationCaseResponse response = agentEvaluationService.createCase(request, admin);
+        audit(admin, "CREATE_EVALUATION_CASE", "EVALUATION_CASE", response.id(), "创建 Agent 评测样本", evaluationCaseDetail(response));
+        return ApiResponse.ok(response);
+    }
+
+    @PostMapping("/evaluation-cases/from-trace")
+    public ApiResponse<EvaluationCaseResponse> createEvaluationCaseFromTrace(@Valid @RequestBody EvaluationCaseFromTraceRequest request) {
+        User admin = currentAdmin();
+        EvaluationCaseResponse response = agentEvaluationService.createCaseFromTrace(request, admin);
+        audit(admin, "CREATE_EVALUATION_CASE_FROM_TRACE", "EVALUATION_CASE", response.id(), "从 RAG Trace 沉淀 Agent 评测样本", evaluationCaseDetail(response));
+        return ApiResponse.ok(response);
+    }
+
+    @PatchMapping("/evaluation-cases/{id}")
+    public ApiResponse<EvaluationCaseResponse> updateEvaluationCase(@PathVariable Long id, @Valid @RequestBody EvaluationCaseRequest request) {
+        User admin = currentAdmin();
+        EvaluationCaseResponse response = agentEvaluationService.updateCase(id, request, admin);
+        audit(admin, "UPDATE_EVALUATION_CASE", "EVALUATION_CASE", response.id(), "更新 Agent 评测样本", evaluationCaseDetail(response));
+        return ApiResponse.ok(response);
+    }
+
+    @DeleteMapping("/evaluation-cases/{id}")
+    public ApiResponse<Void> deleteEvaluationCase(@PathVariable Long id) {
+        User admin = currentAdmin();
+        agentEvaluationService.deleteCase(id, admin);
+        audit(admin, "DELETE_EVALUATION_CASE", "EVALUATION_CASE", id, "删除 Agent 评测样本", detail("id", id));
+        return ApiResponse.empty();
+    }
+
     @PostMapping("/query-term-mappings")
     public ApiResponse<QueryTermMappingResponse> createQueryTermMapping(@Valid @RequestBody QueryTermMappingRequest request) {
         User admin = currentAdmin();
@@ -546,6 +634,32 @@ public class AdminController {
             "id", mapping.id(),
             "term", mapping.term(),
             "enabled", mapping.enabled()
+        );
+    }
+
+    private Map<String, Object> evaluationDatasetDetail(EvaluationDatasetResponse dataset) {
+        return detail(
+            "id", dataset.id(),
+            "code", dataset.code(),
+            "name", dataset.name(),
+            "scope", dataset.scope(),
+            "enabled", dataset.enabled(),
+            "caseCount", dataset.caseCount()
+        );
+    }
+
+    private Map<String, Object> evaluationCaseDetail(EvaluationCaseResponse item) {
+        return detail(
+            "id", item.id(),
+            "datasetId", item.datasetId(),
+            "datasetCode", item.datasetCode(),
+            "paperId", item.paperId(),
+            "chatRecordId", item.chatRecordId(),
+            "ragTraceId", item.ragTraceId(),
+            "scope", item.scope(),
+            "difficulty", item.difficulty(),
+            "tags", item.tags(),
+            "enabled", item.enabled()
         );
     }
 

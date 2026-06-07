@@ -558,6 +558,78 @@ public final class AdminDtos {
     ) {
     }
 
+    public record EvaluationDatasetResponse(
+        Long id,
+        String code,
+        String name,
+        String description,
+        String scope,
+        boolean enabled,
+        long caseCount,
+        long enabledCaseCount,
+        String createdBy,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record EvaluationDatasetRequest(
+        @NotBlank @Size(max = 64) String code,
+        @NotBlank @Size(max = 160) String name,
+        @Size(max = 2000) String description,
+        @Size(max = 32) String scope,
+        Boolean enabled
+    ) {
+    }
+
+    public record EvaluationCaseResponse(
+        Long id,
+        Long datasetId,
+        String datasetCode,
+        String datasetName,
+        String sourceUsername,
+        Long paperId,
+        String paperTitle,
+        Long chatRecordId,
+        Long ragTraceId,
+        String scope,
+        String question,
+        String expectedAnswer,
+        String expectedSourcesJson,
+        String tags,
+        String difficulty,
+        boolean enabled,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record EvaluationCaseRequest(
+        @NotNull Long datasetId,
+        @Size(max = 32) String scope,
+        Long paperId,
+        Long chatRecordId,
+        Long ragTraceId,
+        @NotBlank @Size(max = 4000) String question,
+        @NotBlank @Size(max = 12000) String expectedAnswer,
+        @Size(max = 20000) String expectedSourcesJson,
+        @Size(max = 500) String tags,
+        @Size(max = 32) String difficulty,
+        Boolean enabled
+    ) {
+    }
+
+    public record EvaluationCaseFromTraceRequest(
+        @NotNull Long datasetId,
+        @NotNull Long traceId,
+        @Size(max = 12000) String expectedAnswer,
+        @Size(max = 20000) String expectedSourcesJson,
+        @Size(max = 500) String tags,
+        @Size(max = 32) String difficulty,
+        Boolean enabled
+    ) {
+    }
+
     public record RagSettingsResponse(
         int candidateLimit,
         int resultLimit,

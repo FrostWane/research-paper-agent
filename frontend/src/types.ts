@@ -226,6 +226,41 @@ export interface AdminAuditLog {
   createdAt: string;
 }
 
+export interface EvaluationDataset {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  scope: 'PAPER' | 'LIBRARY' | string;
+  enabled: boolean;
+  caseCount: number;
+  enabledCaseCount: number;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EvaluationCase {
+  id: number;
+  datasetId: number;
+  datasetCode: string;
+  datasetName: string;
+  sourceUsername?: string;
+  paperId?: number;
+  paperTitle?: string;
+  chatRecordId?: number;
+  ragTraceId?: number;
+  scope: 'PAPER' | 'LIBRARY' | string;
+  question: string;
+  expectedAnswer: string;
+  expectedSourcesJson: string;
+  tags?: string;
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminAgentPipelineNode {
   pipelineName: string;
   type: string;

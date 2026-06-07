@@ -2351,6 +2351,228 @@ select,
   font-style: normal;
 }
 
+.evaluation-dataset-panel {
+  overflow: hidden;
+}
+
+.evaluation-dataset-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.evaluation-dataset-summary span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: #f7fbff;
+  border: 1px solid #dce9f7;
+  border-radius: 8px;
+}
+
+.evaluation-dataset-summary b {
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.evaluation-dataset-summary em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.evaluation-dataset-form,
+.evaluation-case-form {
+  display: grid;
+  align-items: end;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.evaluation-dataset-form {
+  grid-template-columns: minmax(150px, 0.55fr) minmax(180px, 0.7fr) minmax(110px, 0.34fr) auto;
+}
+
+.evaluation-case-form {
+  grid-template-columns: minmax(180px, 0.8fr) minmax(110px, 0.34fr) minmax(110px, 0.34fr) minmax(180px, 0.7fr);
+  background: #fbfcf9;
+  border-top: 1px solid var(--line);
+}
+
+.evaluation-dataset-form label,
+.evaluation-case-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.evaluation-dataset-form label.wide,
+.evaluation-case-form label.wide {
+  grid-column: 1 / -1;
+}
+
+.evaluation-dataset-form span,
+.evaluation-case-form span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.evaluation-dataset-form input,
+.evaluation-dataset-form select,
+.evaluation-case-form input,
+.evaluation-case-form select,
+.evaluation-case-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+  outline: 0;
+}
+
+.evaluation-case-form textarea {
+  min-height: 76px;
+  padding: 10px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.evaluation-dataset-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.evaluation-dataset-list,
+.evaluation-case-list {
+  display: grid;
+  gap: 8px;
+  min-width: 980px;
+  padding: 14px;
+}
+
+.evaluation-dataset-row,
+.evaluation-case-row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.evaluation-dataset-row {
+  grid-template-columns: minmax(130px, 0.45fr) minmax(240px, 1fr) minmax(220px, 0.8fr) 62px 62px 34px;
+}
+
+.evaluation-case-row {
+  grid-template-columns: 82px minmax(260px, 1.1fr) minmax(260px, 0.9fr) minmax(120px, 0.35fr);
+  align-items: start;
+}
+
+.evaluation-dataset-row.is-disabled,
+.evaluation-case-row.is-disabled {
+  background: #ffffff;
+  opacity: 0.7;
+}
+
+.evaluation-dataset-row > strong,
+.evaluation-case-row > strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  min-width: 0;
+  padding: 0 8px;
+  color: #0f766e;
+  background: #e6f6f3;
+  border-radius: 999px;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evaluation-case-row > strong {
+  color: #9a6412;
+  background: #fff7e8;
+}
+
+.evaluation-dataset-row span,
+.evaluation-case-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.evaluation-dataset-row b,
+.evaluation-dataset-row small,
+.evaluation-dataset-row em,
+.evaluation-case-row b,
+.evaluation-case-row small,
+.evaluation-case-row p,
+.evaluation-case-row em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evaluation-dataset-row b,
+.evaluation-case-row b {
+  color: var(--ink);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.evaluation-dataset-row small,
+.evaluation-dataset-row em,
+.evaluation-case-row small,
+.evaluation-case-row em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.evaluation-dataset-row em {
+  color: #475569;
+}
+
+.evaluation-case-row p {
+  display: -webkit-box;
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.evaluation-case-filter {
+  grid-template-columns: minmax(180px, 0.8fr) minmax(110px, 0.34fr) minmax(240px, 1.2fr) auto;
+  min-width: 980px;
+  padding: 14px 14px 0;
+  margin-bottom: 0;
+}
+
+.evaluation-case-pagination {
+  min-width: 980px;
+  padding: 10px 14px 14px;
+}
+
 .rag-settings-form {
   display: grid;
   grid-template-columns: repeat(4, minmax(112px, 1fr));
@@ -4272,6 +4494,29 @@ select,
     display: none;
   }
 
+  .evaluation-dataset-form,
+  .evaluation-case-form,
+  .evaluation-case-filter {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .evaluation-dataset-row {
+    grid-template-columns: minmax(0, 1fr) 62px 62px 34px;
+  }
+
+  .evaluation-dataset-row > strong,
+  .evaluation-dataset-row em {
+    display: none;
+  }
+
+  .evaluation-case-row {
+    grid-template-columns: 82px minmax(0, 1fr) minmax(220px, 0.8fr);
+  }
+
+  .evaluation-case-row em {
+    display: none;
+  }
+
   .rate-limit-status {
     align-items: flex-start;
     flex-direction: column;
@@ -4447,6 +4692,41 @@ select,
   .model-target-row em,
   .model-target-row .secondary-button:first-of-type {
     display: none;
+  }
+
+  .evaluation-dataset-summary,
+  .evaluation-dataset-form,
+  .evaluation-case-form,
+  .evaluation-case-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluation-dataset-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .evaluation-dataset-list,
+  .evaluation-case-list,
+  .evaluation-case-filter,
+  .evaluation-case-pagination {
+    min-width: 0;
+  }
+
+  .evaluation-dataset-row {
+    grid-template-columns: minmax(0, 1fr) 62px 34px;
+  }
+
+  .evaluation-dataset-row .secondary-button:first-of-type {
+    display: none;
+  }
+
+  .evaluation-case-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .evaluation-case-row > strong {
+    justify-self: start;
   }
 
   .rate-limit-status span,

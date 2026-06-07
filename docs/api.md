@@ -162,6 +162,15 @@ GET   /api/admin/model-targets
 POST  /api/admin/model-targets
 PATCH /api/admin/model-targets/{id}
 DELETE /api/admin/model-targets/{id}
+GET   /api/admin/evaluation-datasets
+POST  /api/admin/evaluation-datasets
+PATCH /api/admin/evaluation-datasets/{id}
+DELETE /api/admin/evaluation-datasets/{id}
+GET   /api/admin/evaluation-cases?datasetId=&enabled=&keyword=&page=1&pageSize=12
+POST  /api/admin/evaluation-cases
+POST  /api/admin/evaluation-cases/from-trace
+PATCH /api/admin/evaluation-cases/{id}
+DELETE /api/admin/evaluation-cases/{id}
 GET   /api/admin/rag-settings
 PATCH /api/admin/rag-settings
 GET   /api/admin/sample-prompts
@@ -186,11 +195,61 @@ DELETE /api/admin/sample-prompts/{id}
 
 `GET /api/admin/agent-tool-executions` 返回分页工具调用审计明细，支持按 `toolName`、`status` 和 `keyword` 过滤；`keyword` 会匹配触发问题、工具摘要、工具详情、失败信息、工具名、工具标签、会话标题、论文标题和用户名。字段包含 `traceId`、`username`、`paperId`、`paperTitle`、`sessionId`、`sessionTitle`、`scope`、`question`、`traceStatus`、`name`、`label`、`status`、`summary`、`details`、`latencyMs`、`errorMessage` 和 `createdAt`，用于管理员按工具维度追查一次调用的触发问题、结果摘要、失败原因和耗时。
 
-`GET /api/admin/audit-logs` 返回分页管理员操作审计明细，支持按 `action`、`resourceType` 和 `keyword` 过滤；`keyword` 会匹配操作者、动作、资源类型、资源 ID、摘要和详情 JSON。字段包含 `id`、`actorId`、`actorUsername`、`action`、`resourceType`、`resourceId`、`summary`、`detailJson` 和 `createdAt`。后台会在成功完成配置变更、用户状态调整、Agent 节点启停、工具启停/权限调整、知识片段启停、模型熔断复位、流式任务取消、意图路由/回答模板/模型目标/术语映射/示例问题增删改后写入审计记录；模型 API Key 和完整 Prompt 正文不会写入审计详情。
+`GET /api/admin/audit-logs` 返回分页管理员操作审计明细，支持按 `action`、`resourceType` 和 `keyword` 过滤；`keyword` 会匹配操作者、动作、资源类型、资源 ID、摘要和详情 JSON。字段包含 `id`、`actorId`、`actorUsername`、`action`、`resourceType`、`resourceId`、`summary`、`detailJson` 和 `createdAt`。后台会在成功完成配置变更、用户状态调整、Agent 节点启停、工具启停/权限调整、知识片段启停、模型熔断复位、流式任务取消、意图路由/回答模板/模型目标/术语映射/示例问题/Agent 评测集增删改后写入审计记录；模型 API Key 和完整 Prompt 正文不会写入审计详情。
 
 `GET /api/admin/chunks` 返回知识片段分页数据，支持按 `paperId` 和 `keyword` 过滤；`keyword` 会匹配片段正文、论文标题、作者、关键词和用户名。字段包含 `id`、`username`、`paperId`、`paperTitle`、`pageNumber`、`chunkIndex`、`contentPreview`、`contentLength`、`embedded`、`enabled` 和 `createdAt`，用于管理员排查 PDF 入库后的 chunk 内容、页码定位、向量化覆盖和是否参与检索。`PATCH /api/admin/chunks/{id}/enabled` 请求体为 `{"enabled": false}` 或 `{"enabled": true}`；禁用后的片段仍保留在库中和后台列表里，但关键词检索与向量检索都会跳过它。
 
 `GET /api/admin/rag-traces` 返回分页 Trace Explorer 数据，支持按 `status`、`scope`、`sessionId` 和 `keyword` 过滤；`keyword` 会匹配问题、检索式、改写问题、意图、模型名、工具执行结果、意图引导、错误信息、会话标题、论文标题和用户名。`GET /api/admin/rag-traces/{id}` 返回单条 Trace 的完整诊断字段，便于从后台打开历史链路详情。
+
+Agent 评测集请求：
+
+```json
+{
+  "code": "PAPER_QA_REGRESSION",
+  "name": "论文问答回归集",
+  "description": "覆盖摘要、贡献、实验、局限和跨论文比较等高频问题。",
+  "scope": "LIBRARY",
+  "enabled": true
+}
+```
+
+`scope` 支持 `PAPER` 和 `LIBRARY`。`GET /api/admin/evaluation-datasets` 返回评测集列表，字段包含 `id`、`code`、`name`、`description`、`scope`、`enabled`、`caseCount`、`enabledCaseCount`、`createdBy`、`createdAt` 和 `updatedAt`。删除评测集会连同其下评测样本一起删除。
+
+评测样本请求：
+
+```json
+{
+  "datasetId": 1,
+  "scope": "PAPER",
+  "paperId": 12,
+  "chatRecordId": 45,
+  "ragTraceId": 67,
+  "question": "这篇论文的核心贡献是什么？",
+  "expectedAnswer": "期望答案正文。",
+  "expectedSourcesJson": "[]",
+  "tags": "贡献,方法",
+  "difficulty": "MEDIUM",
+  "enabled": true
+}
+```
+
+`GET /api/admin/evaluation-cases` 返回分页样本，支持按 `datasetId`、`enabled` 和 `keyword` 过滤；`keyword` 会匹配问题、期望答案、标签、评测集标识和评测集名称。`expectedSourcesJson` 必须是合法 JSON，通常保存问答记录里的来源片段数组。`difficulty` 可使用 `EASY`、`MEDIUM` 和 `HARD`。
+
+从 Trace 沉淀样本请求：
+
+```json
+{
+  "datasetId": 1,
+  "traceId": 67,
+  "expectedAnswer": "",
+  "expectedSourcesJson": "",
+  "tags": "实验,引用",
+  "difficulty": "HARD",
+  "enabled": true
+}
+```
+
+`POST /api/admin/evaluation-cases/from-trace` 会读取对应 RAG Trace 的问题、范围、用户、文献和关联问答记录；`expectedAnswer` 为空时使用关联问答记录的回答，`expectedSourcesJson` 为空时使用关联问答记录的 `sources_json`，用于把高价值历史链路快速转成回归样本。
 
 查询术语映射请求：
 

@@ -1,5 +1,5 @@
 import { api, unwrap } from './request';
-import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatStreamTask, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
+import type { AdminAgentPipelineNode, AdminAgentTool, AdminAgentToolExecution, AdminAuditLog, AdminChunk, AdminIngestionPipelineNode, AdminOverview, AdminParseJob, AdminRetrievalChannelCatalog, AdminRetrievalProcessorCatalog, AdminTrace, AdminUser, AnswerPromptTemplate, ChatStreamTask, EvaluationCase, EvaluationDataset, IntentRoute, ModelTarget, PageResponse, QueryTermMapping, RagSettings, SamplePrompt } from '../types';
 
 export function fetchAdminOverview() {
   return unwrap<AdminOverview>(api.get('/api/admin/overview'));
@@ -263,6 +263,65 @@ export function updateModelTarget(
 
 export function deleteModelTarget(id: number) {
   return unwrap<void>(api.delete(`/api/admin/model-targets/${id}`));
+}
+
+export function fetchEvaluationDatasets() {
+  return unwrap<EvaluationDataset[]>(api.get('/api/admin/evaluation-datasets'));
+}
+
+export function createEvaluationDataset(input: {
+  code: string;
+  name: string;
+  description?: string;
+  scope?: 'PAPER' | 'LIBRARY';
+  enabled?: boolean;
+}) {
+  return unwrap<EvaluationDataset>(api.post('/api/admin/evaluation-datasets', input));
+}
+
+export function updateEvaluationDataset(
+  id: number,
+  input: {
+    code: string;
+    name: string;
+    description?: string;
+    scope?: 'PAPER' | 'LIBRARY';
+    enabled?: boolean;
+  }
+) {
+  return unwrap<EvaluationDataset>(api.patch(`/api/admin/evaluation-datasets/${id}`, input));
+}
+
+export function deleteEvaluationDataset(id: number) {
+  return unwrap<void>(api.delete(`/api/admin/evaluation-datasets/${id}`));
+}
+
+export function fetchEvaluationCases(query: {
+  datasetId?: string;
+  enabled?: string;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const params = {
+    ...query,
+    datasetId: query.datasetId?.trim() || undefined,
+    enabled: query.enabled?.trim() || undefined,
+    keyword: query.keyword?.trim() || undefined
+  };
+  return unwrap<PageResponse<EvaluationCase>>(api.get('/api/admin/evaluation-cases', { params }));
+}
+
+export function createEvaluationCaseFromTrace(input: {
+  datasetId: number;
+  traceId: number;
+  expectedAnswer?: string;
+  expectedSourcesJson?: string;
+  tags?: string;
+  difficulty?: string;
+  enabled?: boolean;
+}) {
+  return unwrap<EvaluationCase>(api.post('/api/admin/evaluation-cases/from-trace', input));
 }
 
 export function resetModelCircuit(targetName: string) {
