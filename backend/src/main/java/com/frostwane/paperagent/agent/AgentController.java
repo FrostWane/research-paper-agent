@@ -12,6 +12,8 @@ import com.frostwane.paperagent.agent.dto.AgentDtos.SamplePromptResponse;
 import com.frostwane.paperagent.agent.sample.SamplePromptService;
 import com.frostwane.paperagent.auth.CurrentUserService;
 import com.frostwane.paperagent.common.ApiResponse;
+import com.frostwane.paperagent.common.IdempotencyService;
+import com.frostwane.paperagent.user.User;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,22 +36,36 @@ public class AgentController {
     private final AgentStreamService agentStreamService;
     private final SamplePromptService samplePromptService;
     private final CurrentUserService currentUserService;
+    private final IdempotencyService idempotencyService;
 
     public AgentController(
         AgentOrchestratorService orchestratorService,
         AgentStreamService agentStreamService,
         SamplePromptService samplePromptService,
-        CurrentUserService currentUserService
+        CurrentUserService currentUserService,
+        IdempotencyService idempotencyService
     ) {
         this.orchestratorService = orchestratorService;
         this.agentStreamService = agentStreamService;
         this.samplePromptService = samplePromptService;
         this.currentUserService = currentUserService;
+        this.idempotencyService = idempotencyService;
     }
 
     @PostMapping("/api/agent/chat")
-    public ApiResponse<ChatResponse> chat(@Valid @RequestBody ChatRequest request) {
-        return ApiResponse.ok(orchestratorService.chat(request, currentUserService.getRequiredUser()));
+    public ApiResponse<ChatResponse> chat(
+        @Valid @RequestBody ChatRequest request,
+        @RequestHeader(value = IdempotencyService.HEADER, required = false) String idempotencyKey
+    ) {
+        User user = currentUserService.getRequiredUser();
+        return ApiResponse.ok(idempotencyService.run(
+            user,
+            "POST /api/agent/chat",
+            idempotencyKey,
+            request,
+            ChatResponse.class,
+            () -> orchestratorService.chat(request, user)
+        ));
     }
 
     @PostMapping(value = "/api/agent/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

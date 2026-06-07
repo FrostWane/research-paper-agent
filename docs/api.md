@@ -2,6 +2,8 @@
 
 所有 `/api/**` 接口默认需要 `Authorization: Bearer <token>`，注册和登录除外。
 
+写接口可按需携带 `X-Idempotency-Key`。当前 `POST /api/agent/chat`、`POST /api/papers`、`POST /api/papers/{id}/parse` 和 `DELETE /api/papers/{id}/parse` 会按当前用户、接口和 Key 做幂等保护：同一 Key + 同一请求重复提交会返回第一次成功响应；同一 Key 携带不同请求会返回错误；首次请求仍在处理中时会提示稍后重试。Key 建议由客户端为一次逻辑操作生成并在重试时复用，格式为 8-160 位字母、数字、`.`、`_`、`:` 或 `-`。
+
 ## Auth
 
 ```http

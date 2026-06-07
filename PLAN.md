@@ -82,6 +82,7 @@
   - 可接 OpenAI、DeepSeek、通义兼容接口或本地兼容网关。
 - 工程化增强：
   - 参考 Ragent 的控制台信息架构，新增轻量管理员后台。
+  - 新增请求幂等基础设施，支持 `X-Idempotency-Key`，同步问答、创建文献和解析/反解析可复用同一 Key 返回首次成功结果，防止网络重试或重复点击造成重复写入。
   - 管理员可查看用户、文献、存储、索引、问答、答案反馈、最近 7 天运营趋势、查询术语映射、模型目标、示例问题和模型调用聚合。
   - 管理员可维护意图路由规则，用关键词、检索提示、回答策略、输出契约和可选绑定工具驱动 QueryPlanning / ToolExecution / AnswerPlanning。
   - 管理员可维护回答 Prompt 模板，用占位符渲染 AnswerAgent 的 System Prompt 和 User Prompt，其中 `{{tool_context}}` 可接收业务工具执行结果，`{{guidance_context}}` 可接收意图引导说明。
@@ -142,6 +143,7 @@
 - `model_invocations`：模型调用日志，包含任务类型、供应商、模型名、目标名、状态、延迟、错误和调用时间。
 - `agent_pipeline_node_settings`：Agent Pipeline 节点启停配置，按节点名持久化是否参与后续问答链路，主链路节点由服务端强制锁定。
 - `agent_tool_settings`：Agent 内部工具启停和最小调用角色配置，按工具名持久化是否参与后续问答链路，以及普通用户还是仅管理员可调用。
+- `request_idempotency`：请求幂等记录，按用户、接口和 `X-Idempotency-Key` 记录请求哈希、响应 JSON、处理状态和过期时间，用于同步问答、创建文献和解析/反解析的安全重试。
 
 ## Test Plan
 

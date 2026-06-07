@@ -1,4 +1,4 @@
-import { api, unwrap } from './request';
+import { api, idempotencyHeaders, unwrap } from './request';
 import type { PageResponse, Paper, PaperForm, ParseStatus } from '../types';
 
 export interface PaperQuery {
@@ -12,8 +12,8 @@ export function listPapers(query: PaperQuery = {}) {
   return unwrap<PageResponse<Paper>>(api.get('/api/papers', { params: query }));
 }
 
-export function createPaper(form: PaperForm, fileId?: number) {
-  return unwrap<Paper>(api.post('/api/papers', toPayload(form, fileId)));
+export function createPaper(form: PaperForm, fileId?: number, idempotencyKey?: string) {
+  return unwrap<Paper>(api.post('/api/papers', toPayload(form, fileId), { headers: idempotencyHeaders('paper-create', idempotencyKey) }));
 }
 
 export function updatePaper(id: number, form: PaperForm, fileId?: number) {
@@ -28,12 +28,12 @@ export function deletePaper(id: number) {
   return unwrap<void>(api.delete(`/api/papers/${id}`));
 }
 
-export function parsePaper(id: number) {
-  return unwrap<ParseStatus>(api.post(`/api/papers/${id}/parse`));
+export function parsePaper(id: number, idempotencyKey?: string) {
+  return unwrap<ParseStatus>(api.post(`/api/papers/${id}/parse`, null, { headers: idempotencyHeaders('paper-parse', idempotencyKey) }));
 }
 
-export function unparsePaper(id: number) {
-  return unwrap<ParseStatus>(api.delete(`/api/papers/${id}/parse`));
+export function unparsePaper(id: number, idempotencyKey?: string) {
+  return unwrap<ParseStatus>(api.delete(`/api/papers/${id}/parse`, { headers: idempotencyHeaders('paper-unparse', idempotencyKey) }));
 }
 
 export function getParseStatus(id: number) {

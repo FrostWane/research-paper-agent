@@ -20,7 +20,7 @@ React Web / Android
 - `parse`：PDFBox 正文抽取、按页切块、写入 `paper_chunks` 并生成向量索引，同时记录入库节点 span。
 - `embedding`：Spring AI embedding 或本地 hashing embedding、pgvector 写入和向量召回。
 - `agent`：多 Agent Lite 编排、会话、问答、来源片段和历史记录。
-- `common`：统一响应、异常处理、分页对象。
+- `common`：统一响应、异常处理、分页对象和请求幂等。
 
 ## Agent Design
 
@@ -52,6 +52,8 @@ AgentOrchestratorService
 示例问题作为轻量运营配置保存在 `sample_prompts`，按 `PAPER` / `LIBRARY` 范围分发给阅读页和全库问答页。前端保留默认提示作为兜底，但登录后会优先使用后端启用的推荐问法，让管理员可以持续调整用户入口问题，而无需重新发布前端。
 
 流式问答采用轻量 HTTP SSE 包装：`AgentStreamService` 会为每个流式问答分配 `taskId`，在进程内登记当前用户的活跃任务，然后通过独立 `agentStreamExecutor` 调用现有 `AgentOrchestratorService.chat`，向前端发送 `started`、`running`、`final`、`cancelled`、`done` 和 `error` 事件。`started` / `running` 事件会带回 `taskId`；`final` 事件携带完整 `ChatResponse`，表示问答记录、来源片段、Trace 和会话摘要等现有事务链路已经完成；前端在读取流期间展示临时回答和停止按钮，停止时先调用服务端取消接口，再中断本地 fetch。后端提供当前用户活跃流式任务查询和取消接口，取消会尝试中断后台 Future、发送 `cancelled` / `done` 并从运行态任务表移除；如果连接已经断开，SSE 完成回调也会清理任务并尝试取消后台执行。管理员总览会读取进程内活跃任务表，展示仍在排队或运行的流式任务、所属用户、问答范围和开始时间，并可强制停止任意活跃任务，便于定位和治理并发占用。同步和流式入口都会经过 `AgentRateLimiterService`，该服务从 `rag_settings` 读取限流开关、全局并发、单用户并发和单用户每分钟请求上限，使用进程内计数器保护模型调用入口；被拒绝的请求返回 HTTP 429，并通过 `AgentOrchestratorService` 写入失败 Trace。这个设计先提供 ragent 式流式交互体验、基础并发护栏和单实例任务取消能力，但不改变当前 Pipeline 的事务边界，也不引入独立工作流引擎。
+
+`IdempotencyService` 负责同步写接口的安全重试。调用方传入 `X-Idempotency-Key` 后，服务端按用户、接口和请求哈希写入 `request_idempotency`：首次请求占位为 `IN_PROGRESS`，成功后缓存响应 JSON 24 小时；重复请求如果哈希一致且已完成，会直接重放首次成功响应；哈希不一致或首次请求仍在处理中会返回业务错误。该能力先覆盖同步问答、创建文献和解析/反解析，后续可扩展到文件上传、管理员写操作和流式结果恢复。
 
 ## Runtime Observability
 

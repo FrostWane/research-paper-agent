@@ -1,12 +1,16 @@
-import { api, getToken, unwrap } from './request';
+import { api, getToken, idempotencyHeaders, unwrap } from './request';
 import type { ChatRecord, ChatResponse, ChatSession, ChatStreamEvent, ChatStreamTask, SamplePrompt } from '../types';
 
 type StreamHandlers = {
   onEvent?: (eventName: string, payload: ChatStreamEvent) => void;
 };
 
-export function askAgent(paperId: number | null, question: string, useRag = true, sessionId?: number | null) {
-  return unwrap<ChatResponse>(api.post('/api/agent/chat', { sessionId, paperId, question, useRag }));
+export function askAgent(paperId: number | null, question: string, useRag = true, sessionId?: number | null, idempotencyKey?: string) {
+  return unwrap<ChatResponse>(api.post(
+    '/api/agent/chat',
+    { sessionId, paperId, question, useRag },
+    { headers: idempotencyHeaders('agent-chat', idempotencyKey) }
+  ));
 }
 
 export function streamAskAgent(

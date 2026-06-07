@@ -20,6 +20,15 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+export function createIdempotencyKey(scope: string) {
+  const token = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${scope}:${token}`;
+}
+
+export function idempotencyHeaders(scope: string, key = createIdempotencyKey(scope)) {
+  return { 'X-Idempotency-Key': key };
+}
+
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
